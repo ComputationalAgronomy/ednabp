@@ -17,8 +17,8 @@ WORKDIR /usr/local/bin
 # USEARCH
 RUN wget https://www.drive5.com/downloads/usearch11.0.667_i86linux32.gz && \
     gunzip usearch11.0.667_i86linux32.gz && \
-    mv usearch11.0.667_i86linux32 usearch.exe && \
-    chmod +x usearch.exe
+    mv usearch11.0.667_i86linux32 usearch && \
+    chmod +x usearch
 
 # Cutadapt
 RUN sudo apt-get update && \
@@ -37,8 +37,8 @@ RUN wget https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ncbi-blast
 
 # Clustal Omega
 RUN wget http://www.clustal.org/omega/clustalo-1.2.4-Ubuntu-x86_64 && \
-    mv clustalo-1.2.4-Ubuntu-x86_64 clustalo.exe && \
-    chmod +x clustalo.exe
+    mv clustalo-1.2.4-Ubuntu-x86_64 clustalo && \
+    chmod +x clustalo
 
 # IQTREE2
 RUN wget https://github.com/iqtree/iqtree2/releases/download/v2.3.5/iqtree-2.3.5-Linux-intel.tar.gz && \
@@ -59,7 +59,7 @@ ENV PATH="/opt/conda/bin:${PATH}"
 
 RUN conda init
 
-########## Install required python packages & edna_bp (eDNA bioinformatics pipeline) 
+########## Install required python packages & edna_bp (eDNA bioinformatics pipeline)
 
 WORKDIR /usr/src/app
 

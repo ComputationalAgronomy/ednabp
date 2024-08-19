@@ -1,15 +1,15 @@
 import os
 
-from fastq_processor.step_build.stage_builder import StageBuilder
+from fastq_processor.step_build import stage_builder
 
 
-class DereplicateStage(StageBuilder):
+class DereplicateStage(stage_builder.StageBuilder):
     def __init__(self, config, heading="stage_usearch_dereplicate.py", fasta_dir="", save_dir="",
                  annot_size: bool = True,
                  seq_label: str = "Uniq"
         ):
         super().__init__(heading=heading, config=config)
-        self.USEARCH_PROG = "usearch.exe"
+        self.USEARCH_PROG = "usearch" # TODO(SW): Don't use `.exe`, doesn't make sense in docker/ubuntu
         self.in_suffix = "cut.fasta"
         self.out_suffix = "uniq.fasta"
         self.report_suffix = "report.txt"
@@ -24,12 +24,13 @@ class DereplicateStage(StageBuilder):
         )
 
     def setup(self, prefix):
-        infile = os.path.join(self.fasta_dir, f"{prefix}_{self.in_suffix}")
+        self.infile = os.path.join(self.fasta_dir, f"{prefix}_{self.in_suffix}")
         dereplicate_outfile = os.path.join(self.save_dir, f"{prefix}_{self.out_suffix}")
         report = os.path.join(self.save_dir, f"{prefix}_{self.report_suffix}")
-        self.check_path(infile)
+        self.check_infile()
+        self.check_savedir()
         cmd = (
-            f"{self.USEARCH_PROG} -fastx_uniques {infile}"
+            f"{self.USEARCH_PROG} -fastx_uniques {self.infile}"
             f" {self.params}"
             f" -threads {self.config.n_cpu}"
             f" -fastaout {dereplicate_outfile}"

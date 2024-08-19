@@ -1,9 +1,9 @@
 import re
 
-from analysis_toolkit.read.read_blast_csv import Reader
-from analysis_toolkit.utils.base_logger import logger
+from analysis_toolkit.read import read_blast_csv
+from analysis_toolkit.runner_build import base_logger
 
-class DenoiseReportReader(Reader):
+class DenoiseReportReader(read_blast_csv.Reader):
     RE_DENOISE_PATTERN = re.compile(r"(Uniq\d*)|size=(\d*)|(amp\d*)|top=(Uniq\d*)")
     RE_CHFILTER_PATTERN = re.compile(r"(Uniq\d*)|size=(\d*)|(zotu)|(chimera)")
 
@@ -47,7 +47,7 @@ class DenoiseReportReader(Reader):
 
         return line_list
     
-    def process_denoise_line(self, line: str) -> None:
+    def process_denoise_line(self, line: str):
         """
         Process a line containing 'denoise' string and update amp_size and hap2amp dictionaries.
         This step create relationship between haplotypes(top) and amplicons and record the size of each amplicon (it means unique sequence here).
@@ -87,22 +87,22 @@ class DenoiseReportReader(Reader):
         
         return zotu_count, chimera_count
 
-    def read_denoise_report(self, denoise_report_path: str) -> None:
+    def read_denoise_report(self, denoise_report: str):
         """
         read a denoise report (.txt) generated from usearch and update amp_size, hap2amp and hap_size dictionaries.
 
         :param denoise_report_path: path to the denoise report
         """
-        logger.info(f"Reading denoising Report:  {denoise_report_path}")
+        base_logger.logger.info(f"Reading denoising Report:  {denoise_report}")
 
         zotu_count = 0
         chimera_count = 0
 
-        with open(denoise_report_path, 'r') as file:
+        with open(denoise_report, 'r') as file:
             for line in file.readlines():
                 if 'denoise' in line:
                     self.process_denoise_line(line)
                 elif 'chfilter' in line:
                     zotu_count, chimera_count = self.process_chifilter_line(line, zotu_count, chimera_count)
 
-        logger.info(f"Read finished. Biological Haplotypes:  {zotu_count} kept; Predicted Chimeras:  {chimera_count} removed.")
+        base_logger.logger.info(f"COMPLETE: Total {zotu_count} biological Haplotypes kept; Total {chimera_count} predicted Chimeras removed.")

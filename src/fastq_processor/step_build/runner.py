@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from fastq_processor.step_build.stage_config import StageConfig
+from fastq_processor.step_build import stage_config
 
 
 class Runner(ABC):
@@ -20,7 +20,7 @@ class Runner(ABC):
     MSG_LOG = "==LOG=="
     MSG_DEBUG = "===DEBUG==="
 
-    def __init__(self, prog_name: str, config: StageConfig):
+    def __init__(self, prog_name: str, config: stage_config.StageConfig):
         self.prog_name = prog_name  # for debug/naming only
         self.message = f"Program: {self.prog_name}."
         self.capture_output = None

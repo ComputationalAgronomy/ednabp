@@ -1,10 +1,9 @@
-from Bio import SeqIO
-import numpy as np
 import os
 import subprocess
 import tempfile
 
-from analysis_toolkit.utils.base_logger import logger
+from analysis_toolkit.runner_build import (base_logger, utils)
+
 
 def derep_fasta(seq_path: str, uniq_path: str, relabel: str, threads: int = 12, sizeout: bool = False) -> None:
     """
@@ -24,12 +23,7 @@ def derep_fasta(seq_path: str, uniq_path: str, relabel: str, threads: int = 12, 
     if sizeout:
         cmd.append('-sizeout')
 
-    logger.info(f"Running USEARCH command: {' '.join(cmd)}")
-    try:
-        subprocess.run(cmd, check=True)
-        logger.info(f"Dereplicated FASTA file saved to: {uniq_path}")
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error occurred during dereplication: {e}")
+    utils.run_subprocess("USEARCH", cmd, uniq_path)
 
 def write_fasta(units2fasta_dict: dict[str, str], save_path: str, dereplicate: bool = False, sizeout: bool = False) -> None:
     """
@@ -62,7 +56,7 @@ def write_fasta(units2fasta_dict: dict[str, str], save_path: str, dereplicate: b
         file.write(fasta_str)
 
     num_seq = fasta_str.count(">")
-    logger.info(f"Written {num_seq} sequences to: {save_path}")
+    base_logger.logger.info(f"Written {num_seq} sequences to: {save_path}")
 
     return num_seq
 
@@ -78,48 +72,4 @@ def align_fasta(seq_path: str, aln_path: str) -> None:
         'clustalo', '-i', seq_path, '-o', aln_path, '--force'
     ]
 
-    logger.info(f"Running Clustal Omega command: {' '.join(cmd)}")
-    try:
-        subprocess.run(cmd, check=True)
-        logger.info(f"Aligned FASTA file saved to: {aln_path}")
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error occurred during alignment: {e}")
-
-def get_uniq_seq_freq(seqs_path: str, uniq_seqs_path: str, seq_labels: list[str]) -> str:
-    """
-    Count the frequency of each label category for each unique sequence in the 'uniq_seqs_path' file based on the 'seqs_path' file.
-
-    :param seqs_path: Path to the input FASTA file containing all sequences.
-    :param uniq_seqs_path: Path to the input FASTA file containing only unique sequences.
-    :param seq_labels: List of labels corresponding to each sequence in the 'seqs_path' file.
-    :return: String in the NEXUS format required by PopART to build a haplotype network.
-    """
-    uniq_labels = np.unique(seq_labels)
-    label_freq_each_uniq_seq = {}
-
-    with open(uniq_seqs_path, 'r') as uniq_handle:
-        uniq_records = list(SeqIO.parse(uniq_handle, 'fasta'))
-        for record in uniq_records:
-            label_freq_each_uniq_seq[record.name] = {uniq_label: 0 for uniq_label in uniq_labels}
-
-    with open(seqs_path, 'r') as seq_handle:
-        for i, seq_record in enumerate(SeqIO.parse(seq_handle, 'fasta')):
-            for uniq_record in uniq_records:
-                if seq_record.seq == uniq_record.seq:
-                    label_freq_each_uniq_seq[uniq_record.name][seq_labels[i]] += 1
-
-    freq_string = (
-        f"Begin Traits;\n"
-        f"Dimensions NTraits={len(uniq_labels)};\n"
-        f"Format labels=yes missing=? separator=Comma;\n"
-        f"TraitLabels {' '.join(uniq_labels)};\n"
-        f"Matrix\n"
-    )
-
-    for seq_id, label_freq in label_freq_each_uniq_seq.items():
-        freq_values = ",".join(map(str, label_freq.values()))
-        freq_string += f"{seq_id} {freq_values}\n"
-
-    freq_string += ";\nend;\n"
-
-    return freq_string
+    utils.run_subprocess("Clustal Omega", cmd, aln_path)

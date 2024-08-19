@@ -82,7 +82,7 @@ Make sure you have installed all of the following prerequisites on your machine:
 , and ensure the path of downloaded software is added to the "Path" variable in "Environmental Variables".
 
 #### Installation
-1. Required Python Package Installation 
+1. Required Python Package Installation
 ```sh
 python -m pip install -r requirements.txt
 ```

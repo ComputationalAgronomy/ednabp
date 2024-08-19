@@ -1,15 +1,15 @@
 import os
 
-from fastq_processor.step_build.stage_builder import StageBuilder
+from fastq_processor.step_build import stage_builder
 
 
-class DenoiseStage(StageBuilder):
+class DenoiseStage(stage_builder.StageBuilder):
     def __init__(self, config, heading="stage_usearch_denoise.py", derep_dir="", save_dir="",
                  minsize=8,
                  alpha=2
         ):
         super().__init__(heading=heading, config=config)
-        self.USEARCH_PROG = "usearch.exe"
+        self.USEARCH_PROG = "usearch" # TODO(SW): Don't use `.exe`, doesn't make sense in docker/ubuntu
         self.in_suffix = "uniq.fasta"
         self.out_suffix = "denoise.fasta"
         self.denoise_report_suffix = "denoise_report.txt"
@@ -24,13 +24,14 @@ class DenoiseStage(StageBuilder):
         )
 
     def setup(self, prefix):
-        infile = os.path.join(self.derep_dir, f"{prefix}_{self.in_suffix}")
+        self.infile = os.path.join(self.derep_dir, f"{prefix}_{self.in_suffix}")
         denoise_outfile = os.path.join(self.save_dir, f"{prefix}_{self.out_suffix}")
         denoise_report = os.path.join(self.save_dir, f"{prefix}_{self.denoise_report_suffix}")
         report = os.path.join(self.save_dir, f"{prefix}_{self.report_suffix}")
-        self.check_path(infile)
+        self.check_infile()
+        self.check_savedir()
         cmd = (
-            f"{self.USEARCH_PROG} -unoise3 {infile}"
+            f"{self.USEARCH_PROG} -unoise3 {self.infile}"
             f" {self.params}"
             f" -threads {self.config.n_cpu}"
             f" -zotus {denoise_outfile} -tabbedout {denoise_report}"

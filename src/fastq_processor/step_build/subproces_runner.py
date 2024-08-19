@@ -2,10 +2,10 @@ import shlex
 import subprocess
 import sys
 
-from fastq_processor.step_build.runner import Runner
+from fastq_processor.step_build import runner
 
 
-class SubprocessRunner(Runner):
+class SubprocessRunner(runner.Runner):
 
     """
     Runner class for executing a command as a subprocess.
@@ -58,7 +58,7 @@ class SubprocessRunner(Runner):
                 return False
 
 
-class RedirectOutputRunner(Runner):
+class RedirectOutputRunner(runner.Runner):
     """
     Runner class for redirecting the output of a subprocess to a file.
 

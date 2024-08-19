@@ -3,28 +3,10 @@ import numpy as np
 import os
 import pandas as pd
 
-from fastq_processor.step_build.stage_builder import StageBuilder
+from fastq_processor.step_build import stage_builder
 
 
-class AssignTaxaStage(StageBuilder):
-
-    @staticmethod
-    def parse_genus2otherlv(lineage_path: str) -> dict[str, list[str]]:
-        genus2otherlv = {}
-        with open(lineage_path) as in_handle:
-            reader = csv.DictReader(in_handle)
-            for row in reader:
-                genus_name = row['genus_name']
-                otherlv = [
-                    row['family_name'],
-                    row['order_name'],
-                    row['class_name'],
-                    row['phylum_name'],
-                    row['kingdom_name'],
-                ]
-                genus2otherlv[genus_name] = otherlv
-
-        return genus2otherlv
+class AssignTaxaStage(stage_builder.StageBuilder):
 
     def __init__(self, config, heading="stage_blastn_assign_taxa.py", denoise_dir="", save_dir="",
                  db_path: str = "",
@@ -46,7 +28,7 @@ class AssignTaxaStage(StageBuilder):
         self.lineage_path = lineage_path
         self.parse_params(db_path, maxhitnum, evalue, qcov_hsp_perc, perc_identity, outfmt, specifiers)
         if os.path.isfile(lineage_path):
-            self.genus2otherlv = self.parse_genus2otherlv(lineage_path)
+            self.parse_genus2otherlv(lineage_path)
 
     def parse_params(self, db_path, maxhitnum, evalue, qcov_hsp_perc, perc_identity, outfmt, specifiers):
         if db_path == "nt":
@@ -62,12 +44,28 @@ class AssignTaxaStage(StageBuilder):
         if "remote" not in self.params:
             self.params += f" -num_threads {self.config.n_cpu}"
 
+    def parse_genus2otherlv(self, lineage_path: str):
+        self.genus2otherlv = {}
+        with open(lineage_path) as in_handle:
+            reader = csv.DictReader(in_handle)
+            for row in reader:
+                genus_name = row['genus_name']
+                otherlv = [
+                    row['family_name'],
+                    row['order_name'],
+                    row['class_name'],
+                    row['phylum_name'],
+                    row['kingdom_name'],
+                ]
+                self.genus2otherlv[genus_name] = otherlv
+
     def setup(self, prefix):
-        infile = os.path.join(self.denoise_dir, f"{prefix}_{self.in_suffix}")
+        self.infile = os.path.join(self.denoise_dir, f"{prefix}_{self.in_suffix}")
         self.blast_outfile = os.path.join(self.save_dir, f"{prefix}_{self.out_suffix}")
-        self.check_path(infile)
+        self.check_infile()
+        self.check_savedir()
         cmd = (
-            f"{self.BLAST_PROG} -query {infile}"
+            f"{self.BLAST_PROG} -query {self.infile}"
             f" {self.params}"
             f" -out {self.blast_outfile}"
         )

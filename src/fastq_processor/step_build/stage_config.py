@@ -12,7 +12,7 @@ class StageConfig:
         n_cpu (int): Number of CPU cores allocated for the stage.
         memory (int): Amount of memory (in GB) allocated for the stage.
     """
-    def __init__(self, 
+    def __init__(self,
         verbose: bool = False, dry: bool = False,
         logger = sys.stdout, n_cpu: int = 1, memory: int = 8
         ):
@@ -42,3 +42,10 @@ class StageConfig:
                 "dry_run": self.dry,
                 "logger": self.logger
                 }
+
+    # TODO(SW): Use these to help you organise all these parameters. dict[str:dict]
+    def get_usearch_configuration(self) -> dict:
+        return {}
+
+    def get_denoise_configuration(self) -> dict:
+        return {}

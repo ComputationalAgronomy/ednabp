@@ -12,7 +12,7 @@ sh.setLevel(logging.INFO)
 sh.setFormatter(formatter)
 logger.addHandler(sh)
 
-def get_file_handler(log_path):
+def _get_file_handler(log_path):
     fh = logging.FileHandler(log_path)
     fh.setLevel(logging.INFO)
     fh.setFormatter(formatter)

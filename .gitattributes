@@ -1,3 +1,1 @@
-example/fastq_processor/db/MiFish.nsq filter=lfs diff=lfs merge=lfs -text
-example/fastq_processor/db/MiFish.btd filter=lfs diff=lfs merge=lfs -text
-example/fastq_processor/db/MiFish.nhr filter=lfs diff=lfs merge=lfs -text
+example/** filter=lfs diff=lfs merge=lfs -text

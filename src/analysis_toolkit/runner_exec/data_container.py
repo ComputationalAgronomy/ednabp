@@ -1,6 +1,6 @@
 from abc import abstractmethod
-import csv
 import os
+import pandas as pd
 import pickle
 from datetime import date
 
@@ -137,15 +137,14 @@ class SampleData():
         """
         prog_name = f"Read sample information from: {sample_info_path}."
         self.logger.info(f"Program: {prog_name}")
-        with open(sample_info_path, mode='r') as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                key = row.pop(list(row.keys())[0])
-                if key in self.sample_id_list:
-                    self.sample_info[key] = dict(row)
+        self.sample_info = pd.read_csv(sample_info_path)
+        # with open(sample_info_path, mode='r') as file:
+        #     reader = csv.DictReader(file)
+            # for row in reader:
+                # key = row.pop(list(row.keys())[0])
+                # if key in self.sample_id_list:
+                    # self.sample_info[key] = dict(row)
         self.logger.info(f"COMPLETE: {prog_name}")
-        # {'sample1': {'site': 'siteA', 'date': '05/20/2020', 'sample': '1'},
-        #  'sample2': {'site': 'siteA', 'date': '05/20/2020', 'sample': '2'}}
 
     def _save_instance(self) -> None:
         """

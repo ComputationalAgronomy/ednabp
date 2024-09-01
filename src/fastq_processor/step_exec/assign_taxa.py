@@ -8,7 +8,9 @@ from fastq_processor.step_build import stage_builder
 
 class AssignTaxaStage(stage_builder.StageBuilder):
 
-    def __init__(self, config, heading="stage_blastn_assign_taxa.py", denoise_dir="", save_dir="",
+    def __init__(self, config, heading="stage_blastn_assign_taxa.py",
+                 in_dir="", out_dir="",
+                 in_suffix="denoise.fasta", out_suffix="blast.csv",
                  db_path: str = "",
                  lineage_path: str = "",
                  maxhitnum: int = 1,
@@ -18,12 +20,10 @@ class AssignTaxaStage(stage_builder.StageBuilder):
                  outfmt: str = "10",
                  specifiers: str = "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore"
         ):
-        super().__init__(heading=heading, config=config)
+        super().__init__(heading=heading, config=config, in_dir=in_dir, out_dir=out_dir)
         self.BLAST_PROG = "blastn"
-        self.in_suffix = "denoise.fasta"
-        self.out_suffix = "blast.csv"
-        self.denoise_dir = denoise_dir
-        self.save_dir = save_dir
+        self.in_suffix = in_suffix
+        self.out_suffix = out_suffix
         self.blast_outfile = None
         self.lineage_path = lineage_path
         self.parse_params(db_path, maxhitnum, evalue, qcov_hsp_perc, perc_identity, outfmt, specifiers)
@@ -60,19 +60,23 @@ class AssignTaxaStage(stage_builder.StageBuilder):
                 self.genus2otherlv[genus_name] = otherlv
 
     def setup(self, prefix):
-        self.infile = os.path.join(self.denoise_dir, f"{prefix}_{self.in_suffix}")
-        self.blast_outfile = os.path.join(self.save_dir, f"{prefix}_{self.out_suffix}")
+        self.infile = os.path.join(self.in_dir, f"{prefix}_{self.in_suffix}")
+        self.blast_outfile = os.path.join(self.out_dir, f"{prefix}_{self.out_suffix}")
         self.check_infile()
-        self.check_savedir()
         cmd = (
             f"{self.BLAST_PROG} -query {self.infile}"
             f" {self.params}"
             f" -out {self.blast_outfile}"
         )
         super().add_stage("Taxonomic assignment", cmd)
+        super().add_stage_function("Add taxonomy to BLAST result", self.add_taxonomy)
 
     def add_taxonomy(self):
-        blast_result = pd.read_csv(self.blast_outfile, header=None)
+        try:
+            blast_result = pd.read_csv(self.blast_outfile, header=None)
+        except pd.errors.EmptyDataError:
+            self.logger.error(f"EEEOR: BLAST result is empty: {self.blast_outfile}")
+            return False
         taxa_matrix = []
         for sseqid in blast_result[1]:
             species = sseqid.split('|')[-1]
@@ -109,7 +113,7 @@ class AssignTaxaStage(stage_builder.StageBuilder):
 
 
 def assign_taxa_demo(config, prefix, denoise_dir="", save_dir="", db_path="", lineage_path="", specifiers="qseqid sscinames sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore"):
-    stage = AssignTaxaStage(config, denoise_dir=denoise_dir, save_dir=save_dir, db_path=db_path, lineage_path=lineage_path, specifiers=specifiers)
+    stage = AssignTaxaStage(config, in_dir=denoise_dir, out_dir=save_dir, db_path=db_path, lineage_path=lineage_path, specifiers=specifiers)
     outfile = stage.setup(prefix)
     is_complete = stage.run()
     return is_complete

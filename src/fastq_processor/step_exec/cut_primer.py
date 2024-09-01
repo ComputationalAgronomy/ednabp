@@ -4,20 +4,20 @@ from fastq_processor.step_build import stage_builder
 
 
 class CutPrimerStage(stage_builder.StageBuilder):
-    def __init__(self, config, heading="stage_cutadapt_cut_primer.py", merge_dir="", save_dir="",
+    def __init__(self, config, heading="stage_cutadapt_cut_primer.py",
+                 in_dir="", out_dir="",
+                 in_suffix="merge.fastq", out_suffix="cut.fastq",
                  rm_p_5="GTCGGTAAAACTCGTGCCAGC",
                  rm_p_3="CAAACTGGGATTAGATACCCCACTATG",
                  error_rate=0.15,
                  min_read_len=204,
                  max_read_len=254,
                  ):
-        super().__init__(heading=heading, config=config)
+        super().__init__(heading=heading, config=config, in_dir=in_dir, out_dir=out_dir)
         self.CUTADAPT_PROG = "cutadapt"
-        self.in_suffix = "merge.fastq"
-        self.out_suffix = "cut.fastq"
+        self.in_suffix = in_suffix
+        self.out_suffix = out_suffix
         self.report_suffix = "report.txt"
-        self.merge_dir = merge_dir
-        self.save_dir = save_dir
         self.parse_params(rm_p_5, rm_p_3, min_read_len, max_read_len, error_rate)
 
     def parse_params(self, rm_p_5, rm_p_3, min_read_len, max_read_len, error_rate):
@@ -29,11 +29,10 @@ class CutPrimerStage(stage_builder.StageBuilder):
         )
 
     def setup(self, prefix):
-        self.infile = os.path.join(self.merge_dir, f"{prefix}_{self.in_suffix}")
-        cutprimer_outfile = os.path.join(self.save_dir, f"{prefix}_{self.out_suffix}")
-        report = os.path.join(self.save_dir, f"{prefix}_{self.report_suffix}")
+        self.infile = os.path.join(self.in_dir, f"{prefix}_{self.in_suffix}")
+        cutprimer_outfile = os.path.join(self.out_dir, f"{prefix}_{self.out_suffix}")
+        report = os.path.join(self.out_dir, f"{prefix}_{self.report_suffix}")
         self.check_infile()
-        self.check_savedir()
         cmd = (
             f"{self.CUTADAPT_PROG} {self.infile}"
             f" {self.params}"
@@ -48,7 +47,7 @@ class CutPrimerStage(stage_builder.StageBuilder):
 
 
 def cutadapt_demo(config, prefix, merge_dir="", save_dir=""):
-    stage = CutPrimerStage(config, merge_dir=merge_dir, save_dir=save_dir)
+    stage = CutPrimerStage(config, in_dir=merge_dir, out_dir=save_dir)
     stage.setup(prefix)
     is_complete = stage.run()
     return is_complete

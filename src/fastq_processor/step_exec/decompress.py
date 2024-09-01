@@ -6,15 +6,17 @@ from fastq_processor.step_build import stage_builder
 
 
 class DecompressStage(stage_builder.StageBuilder):
-    def __init__(self, config, heading="stage_gzip_decompress.py", fastq_dir="", save_dir="",
+    def __init__(self, config, heading="stage_gzip_decompress.py",
+                 in_dir="", out_dir="",
+                 in_suffix="R1.fastq.gz", out_suffix="R1.fastq"
         ):
-        super().__init__(heading=heading, config=config)
-        self.insuffix_list = ["R1.fastq.gz", "R2.fastq.gz"]
-        self.outsuffix_list = ["R1.fastq", "R2.fastq"]
+        super().__init__(heading=heading, config=config, in_dir=in_dir, out_dir=out_dir)
+        in_suffix2 = in_suffix.replace("R1", "R2")
+        out_suffix2 = out_suffix.replace("R1", "R2")
+        self.insuffix_list = [in_suffix, in_suffix2]
+        self.outsuffix_list = [out_suffix, out_suffix2]
         self.infile_list = []
         self.outfile_list = []
-        self.fastq_dir = fastq_dir
-        self.save_dir = save_dir
 
     def gunzip(self):
         for infile, outfile in zip(self.infile_list, self.outfile_list):
@@ -23,14 +25,13 @@ class DecompressStage(stage_builder.StageBuilder):
                     out_handler.write(line)
 
     def setup(self, prefix):
-        self.check_savedir()
         for in_suffix in self.insuffix_list:
-            self.infile = os.path.join(self.fastq_dir, f"{prefix}_{in_suffix}")
+            self.infile = os.path.join(self.in_dir, f"{prefix}_{in_suffix}")
             self.check_infile()
             self.infile_list.append(self.infile)
 
         for out_suffix in self.outsuffix_list:
-            self.outfile = os.path.join(self.save_dir, f"{prefix}_{out_suffix}")
+            self.outfile = os.path.join(self.out_dir, f"{prefix}_{out_suffix}")
             self.outfile_list.append(self.outfile)
         super().add_stage_function("Decompress FASTQ.GZ to FASTQ", self.gunzip)
 

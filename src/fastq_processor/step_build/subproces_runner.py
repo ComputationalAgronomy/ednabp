@@ -51,10 +51,10 @@ class SubprocessRunner(runner.Runner):
                 self.logger.error(f"FAIL: {self.prog_name}. SubprocessError: {e.stderr}.")
                 return False
             except FileNotFoundError as e:
-                self.logger.error(f"FAIL: {self.prog_name}. FileNotFoundError: {e.stderr}.")
+                self.logger.error(f"FAIL: {self.prog_name}. FileNotFoundError: {e.strerror}.")
                 return False
             except Exception as e:
-                self.logger.error(f"FAIL: {self.prog_name}. Other Exception: {e.stderr}.")
+                self.logger.error(f"FAIL: {self.prog_name}. Other Exception: {e}.")
                 return False
 
 

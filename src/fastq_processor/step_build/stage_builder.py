@@ -15,11 +15,14 @@ class StageBuilder(ABC):
         output (list): List of outputs from the executed runners.
     """
 
-    def __init__(self, heading: str, config: stage_config.StageConfig):
+    def __init__(self, heading: str, config: stage_config.StageConfig, in_dir: str, out_dir: str):
         self.heading = heading
         self.config = config
         self.runners = []
         self.output = []
+        self.in_dir = in_dir
+        self.out_dir = out_dir
+        self.check_outdir()
 
     def add_stage(self, prog_name: str, command: str, shell=False):
         """
@@ -58,8 +61,8 @@ class StageBuilder(ABC):
         if not os.path.exists(self.infile):
             raise FileNotFoundError(f"{self.infile} not found")
 
-    def check_savedir(self):
-        os.makedirs(self.save_dir, exist_ok=True)
+    def check_outdir(self):
+        os.makedirs(self.out_dir, exist_ok=True)
 
     def summary(self) -> list[str]:
         """

@@ -10,7 +10,7 @@ class AssignTaxaStage(stage_builder.StageBuilder):
 
     def __init__(self, config, heading="stage_blastn_assign_taxa.py",
                  in_dir="", out_dir="",
-                 in_suffix="denoise.fasta", out_suffix="blast.csv",
+                 in_suffix="_denoise.fasta", out_suffix="_blast.csv",
                  db_path: str = "",
                  lineage_path: str = "",
                  maxhitnum: int = 1,
@@ -19,7 +19,7 @@ class AssignTaxaStage(stage_builder.StageBuilder):
                  perc_identity: int = 90,
                  outfmt: str = "10",
                  specifiers: str = "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore"
-        ):
+                 ):
         super().__init__(heading=heading, config=config, in_dir=in_dir, out_dir=out_dir)
         self.BLAST_PROG = "blastn"
         self.in_suffix = in_suffix
@@ -33,14 +33,12 @@ class AssignTaxaStage(stage_builder.StageBuilder):
     def parse_params(self, db_path, maxhitnum, evalue, qcov_hsp_perc, perc_identity, outfmt, specifiers):
         if db_path == "nt":
             db_path = "nt -remote"
-        self.params = (
-            f"-db {db_path}"
-            f" -max_target_seqs {maxhitnum}"
-            f" -evalue {evalue}"
-            f" -qcov_hsp_perc {qcov_hsp_perc}"
-            f" -perc_identity {perc_identity}" 
-            f' -outfmt "{outfmt} {specifiers}"'
-        )
+        self.params = (f"-db {db_path}"
+                       f" -max_target_seqs {maxhitnum}"
+                       f" -evalue {evalue}"
+                       f" -qcov_hsp_perc {qcov_hsp_perc}"
+                       f" -perc_identity {perc_identity}" 
+                       f' -outfmt "{outfmt} {specifiers}"')
         if "remote" not in self.params:
             self.params += f" -num_threads {self.config.n_cpu}"
 
@@ -50,24 +48,20 @@ class AssignTaxaStage(stage_builder.StageBuilder):
             reader = csv.DictReader(in_handle)
             for row in reader:
                 genus_name = row['genus_name']
-                otherlv = [
-                    row['family_name'],
-                    row['order_name'],
-                    row['class_name'],
-                    row['phylum_name'],
-                    row['kingdom_name'],
-                ]
+                otherlv = [row['family_name'],
+                           row['order_name'],
+                           row['class_name'],
+                           row['phylum_name'],
+                           row['kingdom_name'],]
                 self.genus2otherlv[genus_name] = otherlv
 
     def setup(self, prefix):
-        self.infile = os.path.join(self.in_dir, f"{prefix}_{self.in_suffix}")
-        self.blast_outfile = os.path.join(self.out_dir, f"{prefix}_{self.out_suffix}")
+        self.infile = os.path.join(self.in_dir, f"{prefix}{self.in_suffix}")
+        self.blast_outfile = os.path.join(self.out_dir, f"{prefix}{self.out_suffix}")
         self.check_infile()
-        cmd = (
-            f"{self.BLAST_PROG} -query {self.infile}"
-            f" {self.params}"
-            f" -out {self.blast_outfile}"
-        )
+        cmd = (f"{self.BLAST_PROG} -query {self.infile}"
+               f" {self.params}"
+               f" -out {self.blast_outfile}")
         super().add_stage("Taxonomic assignment", cmd)
         super().add_stage_function("Add taxonomy to BLAST result", self.add_taxonomy)
 
@@ -112,7 +106,14 @@ class AssignTaxaStage(stage_builder.StageBuilder):
         return all(self.output)
 
 
-def assign_taxa_demo(config, prefix, denoise_dir="", save_dir="", db_path="", lineage_path="", specifiers="qseqid sscinames sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore"):
+def assign_taxa_demo(config,
+                     prefix,
+                     denoise_dir="",
+                     save_dir="",
+                     db_path="",
+                     lineage_path="",
+                     specifiers="qseqid sscinames sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore"
+                     ):
     stage = AssignTaxaStage(config, in_dir=denoise_dir, out_dir=save_dir, db_path=db_path, lineage_path=lineage_path, specifiers=specifiers)
     outfile = stage.setup(prefix)
     is_complete = stage.run()

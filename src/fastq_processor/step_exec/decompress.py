@@ -8,8 +8,8 @@ from fastq_processor.step_build import stage_builder
 class DecompressStage(stage_builder.StageBuilder):
     def __init__(self, config, heading="stage_gzip_decompress.py",
                  in_dir="", out_dir="",
-                 in_suffix="R1.fastq.gz", out_suffix="R1.fastq"
-        ):
+                 in_suffix="_R1.fastq.gz", out_suffix="_R1.fastq"
+                 ):
         super().__init__(heading=heading, config=config, in_dir=in_dir, out_dir=out_dir)
         in_suffix2 = in_suffix.replace("R1", "R2")
         out_suffix2 = out_suffix.replace("R1", "R2")
@@ -26,12 +26,12 @@ class DecompressStage(stage_builder.StageBuilder):
 
     def setup(self, prefix):
         for in_suffix in self.insuffix_list:
-            self.infile = os.path.join(self.in_dir, f"{prefix}_{in_suffix}")
+            self.infile = os.path.join(self.in_dir, f"{prefix}{in_suffix}")
             self.check_infile()
             self.infile_list.append(self.infile)
 
         for out_suffix in self.outsuffix_list:
-            self.outfile = os.path.join(self.out_dir, f"{prefix}_{out_suffix}")
+            self.outfile = os.path.join(self.out_dir, f"{prefix}{out_suffix}")
             self.outfile_list.append(self.outfile)
         super().add_stage_function("Decompress FASTQ.GZ to FASTQ", self.gunzip)
 

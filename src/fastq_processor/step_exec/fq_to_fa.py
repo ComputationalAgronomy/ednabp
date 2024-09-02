@@ -7,8 +7,8 @@ from fastq_processor.step_build import stage_builder
 class FqToFaStage(stage_builder.StageBuilder):
     def __init__(self, config, heading="stage_fq_to_fa.py",
                  in_dir="", out_dir="",
-                 in_suffix="cut.fastq", out_suffix="cut.fasta"
-        ):
+                 in_suffix="_cut.fastq", out_suffix="_cut.fasta"
+                 ):
         super().__init__(heading=heading, config=config, in_dir=in_dir, out_dir=out_dir)
         self.in_suffix = in_suffix
         self.out_suffix = out_suffix
@@ -19,8 +19,8 @@ class FqToFaStage(stage_builder.StageBuilder):
                 SeqIO.write(record, fa, "fasta")
 
     def setup(self, prefix):
-        self.infile = os.path.join(self.in_dir, f"{prefix}_{self.in_suffix}")
-        self.outfile = os.path.join(self.out_dir, f"{prefix}_{self.out_suffix}")
+        self.infile = os.path.join(self.in_dir, f"{prefix}{self.in_suffix}")
+        self.outfile = os.path.join(self.out_dir, f"{prefix}{self.out_suffix}")
         self.check_infile()
         super().add_stage_function("Convert FASTQ to FASTA", self.fq_to_fa)
 

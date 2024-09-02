@@ -39,12 +39,12 @@ class SubprocessRunner(runner.Runner):
         if not self.dry:
             try:
                 self.capture_output = subprocess.run(args,
-                                                   capture_output=False,
-                                                   shell=self.shell,
-                                                   check=True,
-                                                   text=True,
-                                                   stdout=subprocess.PIPE,
-                                                   stderr=subprocess.PIPE)
+                                                     capture_output=False,
+                                                     shell=self.shell,
+                                                     check=True,
+                                                     text=True,
+                                                     stdout=subprocess.PIPE,
+                                                     stderr=subprocess.PIPE)
                 self.logger.info(f"COMPLETE: {self.prog_name}.")
                 return True
             except subprocess.CalledProcessError as e:

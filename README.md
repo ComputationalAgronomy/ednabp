@@ -1,87 +1,34 @@
 # eDNA_Bioinformatics_Pipeline
 The purpose of this project is to implement eDNA bioinformatics processing and to explore taxonomic delimitation from various perspectives using eDNA sequences.
 
-## Contents
+# Contents
 
 - [Getting Started](#getting-started)
-  - [Docker Version](#docker-version)
-    - [Useful Docker Commands](#useful-docker-commands)
-  - [Local Version](#local-version)
-- [Pytest](#pytest)
+  
 - [Usage](#usage)
-  - [`fastq_processor`](#fastq_processor-module)
-    - [Simplist Example](#simplist-example)
-    - [Optional Parameters](#other-optional-parameters)
-  - [`analysis_toolkit`](#analysis_toolkit-module)
 
-## Getting Started
+- [Pytest](#pytest)
 
-### Docker Version
+# Getting Started
+ - [Local Version](#local-version)
 
-**Step 1.** Download [Docker Desktop](https://docs.docker.com/get-docker/) on your own machine.
+ - [Google Colab Version](#google-colab-version)
 
-After installation, run `docker version` in terminal. If the version is displayed, it means the installation was successful.
+ - [Docker Version](#docker-version)
+## Local Version
 
-**Step 2.** Clone the GitHub repo:
-```sh
-git clone https://github.com/ComputationalAgronomy/eDNA_bioinformatics_pipeline.git
-```
-
-**Step 3.** Build an image according to the Dockerfile.
-```sh
-docker build -t [ImageName] .
-```
-
-After the Dockerfile is successfully exported to an image, the [ImageName] should appear in the repo list if you use `docker image ls` to check.
-
-**Step 4.** launch a new container from the Docker image that was just built:
-```sh
-docker run -it [ImageName]
-```
-
-If the launch is successful, your terminal should display something like `(base) root@93f4d3cf355f:/#`.
-
-`(base)` indicates the conda environment you are using, where all dependent Python packages are installed (don't deactivate this!). `93f4d3cf355f` indicates the ID of this container.
-
-**Step fin.** The Container is Ready to Work! Let's try [the first example](#simplist-example)!
-
-#### Useful Docker Commands
-
-(base) root@93f4d3cf355f:/# `exit` or `Ctrl+Z`: Exit the container.
-
-`docker cp [container ID]:/path/to/file /host/destination/folder`: Copying files from Docker container to host.
-
-`docker cp /path/to/file [container ID]:/container/destination/folder`: Copying files from host to Docker container.
-
-`docker exec -it [container ID or Name] bash`: Enter a running container's shell.
-
-`docker container ls -a`: List all containers
-
-`docker stop [container ID or Name]`: Stop a running container.
-
-`docker start [container ID or Name]`: Start a stopped container.
-
-`docker rmi [ImageName]`: Remove a Docker image.
-
-`docker container rm [container ID or Name]`: Remove a container.
-
-`docker system prune (--force)`: Remove \<none> TAG images (be careful when using this command).
-
-### Local Version
-
-#### Dependency Installation
+### Dependency Installation
 
 Make sure you have installed all of the following prerequisites on your machine:
-* BBMap - [Download](https://sourceforge.net/projects/bbmap/) (You may also need to install java if you haven't already)
 * Clustal Omega - [Download](http://www.clustal.org/omega/)
 * Cutadapt - [Download](https://cutadapt.readthedocs.io/en/stable/installation.html)
 * IQTREE2 - [Download](http://www.iqtree.org/)
 * NCBI-BLAST+ - [Download](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/)
-* USEARCH - [Download](https://www.drive5.com/usearch/download.html)
+* USEARCH12 - [Download](https://github.com/rcedgar/usearch12.git)
 
 , and ensure the path of downloaded software is added to the "Path" variable in "Environmental Variables".
 
-#### Installation
+### Installation
 1. Required Python Package Installation
 ```sh
 python -m pip install -r requirements.txt
@@ -91,60 +38,63 @@ python -m pip install -r requirements.txt
 python -m pip install -e .
 ```
 
-## Pytest
-check `pytest.ini`
-```sh
-pytest
-# OR
-pytest tests
-```
+## Google Colab Version
 
-## Usage
+For details check [ednabp.ipynb](https://colab.research.google.com/drive/1HTjt7VIZwWkEjDWdPMAJ3U8vSWy2KlVd?usp=sharing)
 
-### `fastq_processor` Module
+## Docker Version
+
+For details check `docker.md`
+
+# Usage
+  - [`fastq_processor`](#fastq_processor-module)
+
+  - [`analysis_toolkit`](#analysis_toolkit-module)
+
+## `fastq_processor` Module
 This module processes raw FASTQ data through several stages including paired-end merging, primer cutting, reformatting, dereplication, denoising, and taxonomic assignment.
 
-#### Simplist Example
-**Step 0.** By default, your container will start in the `/workplace` folder. Use the `tree` command to check the prepared materials for this practice!
-
-**Step 1.** Use a text editor to create a Python script.
-```sh
-nano [FileName].py
+### Step 0. Prepare necessary files.
+ - A directory to save the output files, and ensure that it contains a subdirectory with your raw FASTQ.GZ files. Filenames for raw data should follow the pattern `<prefix><suffix>`. You can change the suffix pattern by modifying the `raw_suffix` parameter (see [Optional Parameters](#optional-parameters)).
+ ```
+parent_dir/
+└── raw_dir/
+    ├── sample1_R1.fastq.gz
+    ├── sample1_R2.fastq.gz
+    └── ...
 ```
 
-**Step 2.** Write the following code, then save and exit the text editor.
+ - A directory contains index files, which serve as the reference data for assigning sequences to species. If you want to create a custom set of index files as a reference database, use the following command:
+ ```
+makeblastdb -in ref.fasta -dbtype nucl -out db_prefix`
+```
+
+ - A lineage CSV file includes taxonomic information from the domain to genus level, which serves as a reference for labeled species at the taxonomic level above the species. 
+
+### Step 1. Write the following code to create a Python script and run the script.
 ```python
 from fastq_processor import FastqProcessor
 
-FastqProcessor(
-    stages_parent_dir="./fastq_processor/stages",
-    fastq_dir_name="fastq",
-    db_path="./fastq_processor/db/MiFish",
-    lineage_path="./fastq_processor/lineage/lineage.csv",
-)
+FastqProcessor(stages_parent_dir = "/path/to/parent_dir",
+               raw_dir_name = "RAW_DIR_NAME",
+               db_path = "/path/to/db_dir/DB_PREFIX",
+               lineage_path = "path/to/lineage.csv")
 ```
+The `stages_parent_dir` should be set to the directory path that contains a subdirectory with raw data to be processed and where output files will be saved.
 
-**Ensure that `stages_parent_dir` exists and contains a subdirectory named `fastq_dir_name` with your raw FASTQ files.**
+The `raw_dir_name` should be set to the name of the subdirectory that contains raw data.
+
+The `db_path` should be set to the directory path containing the indexed files, with the prefix string appended to the folder path.
+
+The `lineage_path` should be set to the path of the lineage CVS file.
+
+### Step 2. Check the results. It should look something like this:
 ```
-stages/
-└── fastq/
-    ├── sample1_R1.fastq
-    └── sample1_R2.fastq
-```
-
-The **`db_path`** serves as the reference data for assigning denoised sequences to species. **It should be set to the folder path containing the indexed files, with the prefix string added.** The MiFish index files provided in the *example* folder are built using the [complete+partial mtDNA sequence file](https://mitofish.aori.u-tokyo.ac.jp/species/detail/download/?filename=download%2F/complete_partial_mitogenomes.zip) downloaded from the MiFish Pipeline. If you want to use a custom FASTA file as the reference database, you need to create the index using the `makeblastdb` command from ncbi-blast+. Here is the command: `makeblastdb -in ref.fasta -dbtype nucl -out db_prefix`
-
-The **`lineage_path`** serves as a reference for labeled species at the taxonomic level above the species. **It should be set to the path of the lineage file.** The [lineage.csv](https://github.com/billzt/MiFish/blob/main/mifish/data/lineage.csv) provided in the *example* folder is downloaded from the MiFish GitHub repository. If you want to use another lineage file, please ensure it includes taxonomic information from the domain to genus level and maintains the same format.
-
-**Step 3.** Run the Python script you just wrote in your container.
-```sh
-python [FileName].py
-```
-
-**Step 4.** Use the `tree` command again to check the results. It should look something like this:
-```
-stages/
-├── fastq/
+parent_dir/
+├── raw_dir/
+|   ├── sample1_R1.fastq.gz
+|   └── sample1_R2.fastq.gz
+├── decompress/
 |   ├── sample1_R1.fastq
 |   └── sample1_R2.fastq
 ├── merge/
@@ -154,8 +104,7 @@ stages/
 |   ├── sample1_cut.fastq
 |   └── sample1_report.txt
 ├── fq_to_fa/
-|   ├── sample1_cut.fasta
-|   └── sample1_report.txt
+|   └── sample1_cut.fasta
 ├── dereplicate/
 |   ├── sample1_uniq.fasta
 |   └── sample1_report.txt
@@ -163,22 +112,18 @@ stages/
 |   ├── sample1_denoise.fasta
 |   ├── sample1_denoise_report.txt
 |   └── sample1_report.txt
-└── denoise/
+└── blast/
     └── sample1_blast.csv
 ```
 
-**Step 5.** Copy the result files from the Docker container back to the host. 
-
-**In the host terminal**, use the following command:
-```sh
-docker cp [container ID]:/path/to/stages/folder /host/destination/folder
-```
 **You have successfully run the process and obtained the processed data!**
 
-#### Optional Parameters:
+### Optional Parameters:
 
 `enabled_stages`: The list of stages to run.
- Default is `["merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "assigntaxa"]`.
+ Default is `["decompress", "merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "assigntaxa"]`.
+
+`raw_suffix`: The suffix pattern used for R1 raw data. Default is `_R1.fastq.gz`.
 
 `n_cpu`: Number of CPU cores to be used for processing. Default is `1`.
 
@@ -218,4 +163,87 @@ Taxonomic assignment related:
 
 `specifiers`: Use to customize format specifiers. Default is `"qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore"`
 
-### `Analysis_toolkit` Module
+## `Analysis_toolkit` Module
+This module conducts various types of writing and plotting tasks using the output results of `fastq_processor`.
+
+[Step 0. Create Data Object](#create-data-object)
+
+Haplotypes related:
+
+ - [UMAP]
+
+ - [HDBSCAN on UMAP embedding]
+
+ - [Maximum Likelihood tree]
+
+ - [NEXUS file for Haplotype Network]
+
+Abundance or Richness related:
+
+ - [Barchart](#barchart)
+
+ - [Heatmap](#heatmap)
+
+### Create Data Object
+#### Import Data
+```python
+from analysis_toolkit import SampleData
+
+sample_data = SampleData()
+sample_data.import_data(uniq_dir = "/path/to/dir_save_uniq_fa",
+                        denoise_dir = "/path/to/dir_save_denoise_fa",
+                        denoise_report_dir = "/path/to/dir_save_denoise_report",
+                        blast_dir = "/path/to/dir_save_blast_csv",
+                        sample_info_path = "/path/to/sample_info.csv")
+```
+#### Merge Data
+```python
+# Suppose you import another dataset into an object called "sample_data2",
+# and you want to combine these two datasets to run an analysis.
+sample_data.merge_data(sample_data2)
+```
+#### Save Instance
+```python
+sample_data.save_data(save_instance_dir = "/path/to/save",
+                      save_prefix = "INSTANCE_NAME",
+                      overwrite = True)
+```
+
+#### Load Data
+```python
+from analysis_toolkit import SampleData
+
+sample_data = SampleData()
+sample_data.load_data(load_instance_path = "/path/to/save/INSTANCE_NAME.pkl")
+```
+
+### Barchart
+```python
+from analysis_toolkit import BarchartRunner
+
+br = BarchartRunner(sample_data)
+br.run_write(taxa_level = "family",
+             write_type = "abundance",
+             save_dir = "stage_test",
+             normalize = True)
+br.run_plot(csv_path = "stage_test/species_abundance.csv")
+```
+
+### Heatmap
+```python
+from analysis_toolkit import HeatmapRunner
+
+hr = HeatmapRunner(sample_data)
+hr.run_write(taxa_level = "family",
+             write_type = "richness",
+             save_dir = "TI_test")
+hr.run_plot(csv_path = "TI_test/Species_richness.csv",
+            x_categories = ["Site", "Sample"])
+```
+## Pytest
+check `pytest.ini`
+```sh
+pytest
+# OR
+pytest tests
+```

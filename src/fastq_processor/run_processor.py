@@ -1,9 +1,8 @@
 import os
 
-from analysis_toolkit.runner_build import base_logger
-from fastq_processor.step_build import stage_config
-from fastq_processor.step_exec import (decompress, merge, cut_primer, fq_to_fa, 
-                                       dereplicate, denoise, assign_taxa,)
+from ..analysis_toolkit.runner_build import base_logger
+from .step_build import stage_config
+from .step_exec import (decompress, merge, cut_primer, fq_to_fa, dereplicate, denoise, assign_taxa,)
 
 class FastqProcessor:
 
@@ -14,7 +13,7 @@ class FastqProcessor:
         return prefix
 
     @staticmethod
-    def run_each_data(prefix, stages):
+    def run_single_data(prefix, stages):
         print(f"Sample ID: {prefix}")
         for k, s in stages.items():
             s.setup(prefix)
@@ -25,178 +24,134 @@ class FastqProcessor:
             print()
 
     def __init__(self,
-                 stages_parent_dir: str,
-                 raw_dir_name: str,
-                 db_path: str,
-                 lineage_path: str,
+                 input_path: str,
+                 output_path: str,
                  enabled_stages=["decompress", "merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "assigntaxa"],
-                 decompress_dir_name: str = "decompress",
-                 merge_dir_name: str = "merge",
-                 cutprimer_dir_name: str = "cut_primer",
-                 fqtofa_dir_name: str = "fq_to_fa",
-                 derep_dir_name: str = "dereplicate",
-                 denoise_dir_name: str = "denoise",
-                 blast_dir_name: str = "blast",
-                 raw_suffix: str = "_R1.fastq.gz",
-                 decompress_suffix: str = "_R1.fastq",
-                 merge_suffix: str = "_merge.fastq",
-                 cutprimer_suffix: str = "_cut.fastq",
-                 derep_suffix: str = "_uniq.fasta",
-                 denoise_suffix: str = "_denoise.fasta",
-                 blast_suffix: str = "_blast.csv",
-                 maxdiff: int = 5,
-                 pctid: int = 90,
-                 rm_p_5: str = "GTCGGTAAAACTCGTGCCAGC",
-                 rm_p_3: str = "CAAACTGGGATTAGATACCCCACTATG",
-                 error_rate: float = 0.15,
-                 min_read_len: int = 204,
-                 max_read_len: int = 254,
-                 minsize: int = 8,
-                 alpha: int = 2,
-                 evalue: float = 0.00001,
-                 qcov_hsp_perc: int = 90,
-                 perc_identity: int = 90,
-                 specifiers: str = "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
-                 verbose: bool=True,
-                 n_cpu: int = 1,
-                 memory: int = 8,
+                 **settings
                  ):
-        fp_fh = base_logger._get_file_handler(os.path.join(stages_parent_dir, "stages.log"))
-        base_logger.logger.addHandler(fp_fh)
-        self.config = stage_config.StageConfig(verbose=verbose, logger=base_logger.logger, n_cpu=n_cpu, memory=memory) # TODO(SW): Expand this class, so you only need to pass one parameters.
-        self.parent_dir = stages_parent_dir
-        self.input_dir = os.path.join(stages_parent_dir, raw_dir_name)
-        self.setup_stages(enabled_stages=enabled_stages,
-                          stages_parent_dir=stages_parent_dir,
-                          raw_dir_name=raw_dir_name,
-                          decompress_dir_name=decompress_dir_name,
-                          merge_dir_name=merge_dir_name,
-                          cutprimer_dir_name=cutprimer_dir_name,
-                          fqtofa_dir_name=fqtofa_dir_name,
-                          derep_dir_name=derep_dir_name,
-                          denoise_dir_name=denoise_dir_name,
-                          blast_dir_name=blast_dir_name,
-                          raw_suffix=raw_suffix,
-                          decompress_suffix=decompress_suffix,
-                          merge_suffix=merge_suffix,
-                          cutprimer_suffix=cutprimer_suffix,
-                          derep_suffix=derep_suffix,
-                          denoise_suffix=denoise_suffix,
-                          blast_suffix=blast_suffix,
-                          db_path=db_path,
-                          lineage_path=lineage_path,
-                          maxdiff=maxdiff,
-                          pctid=pctid,
-                          rm_p_5=rm_p_5,
-                          rm_p_3=rm_p_3,
-                          error_rate=error_rate,
-                          min_read_len=min_read_len,
-                          max_read_len=max_read_len,
-                          minsize=minsize,
-                          alpha=alpha,
-                          evalue=evalue,
-                          qcov_hsp_perc=qcov_hsp_perc,
-                          perc_identity=perc_identity,
-                          specifiers=specifiers
-                          )
-        self.data_prefix = FastqProcessor.get_prefix_with_suffix(self.input_dir, f"{raw_suffix}")
+        assert os.path.exists(input_path), f"Error: input path does not exist: {input_path}"
+        os.makedirs(output_path, exist_ok=True)
+        input_is_dir = True if os.path.isdir(input_path) else False
 
-        for prefix in self.data_prefix:
-            FastqProcessor.run_each_data(prefix, self.stages)
+        self.indir_path = input_path if input_is_dir else os.path.dirname(input_path)
+        self.outdir_path = output_path
+
+        self.add_default_settings(settings)
+
+        fp_fh = base_logger._get_file_handler(os.path.join(output_path, "stages.log"))
+        self.config_settings["logger"].addHandler(fp_fh)
+        self.config = stage_config.StageConfig(settings = self.config_settings)
+
+        self.setup_stages(enabled_stages)
+
+        if input_is_dir:
+            self.data_prefix = FastqProcessor.get_prefix_with_suffix(self.indir_path, self.stage_suffix["raw"])
+            for prefix in self.data_prefix:
+                FastqProcessor.run_single_data(prefix, self.stages)
+        else:
+            prefix = os.path.basename(input_path).replace(self.stage_suffix["raw"], "")
+            self.run_single_data(prefix, self.stages)
+
+    def add_default_settings(self, settings):
+        self.stage_class = {
+            "decompress": decompress.DecompressStage,
+            "merge": merge.MergeStage,
+            "cutprimer": cut_primer.CutPrimerStage,
+            "fqtofa": fq_to_fa.FqToFaStage,
+            "dereplicate": dereplicate.DereplicateStage,
+            "denoise": denoise.DenoiseStage,
+            "assigntaxa": assign_taxa.AssignTaxaStage,
+        }
+
+        DEFAULT_SETTINGS = {
+            'stage_dir_name':{
+                "decompress": "decompress",
+                "merge": "merge",
+                "cutprimer": "cutprimer",
+                "fqtofa": "fqtofa",
+                "dereplicate": "dereplicate",
+                "denoise": "denoise",
+                "assigntaxa": "assigntaxa",
+            },
+            'suffix': {
+                "raw": "_R1.fastq.gz",
+                "decompress": "_R1.fastq",
+                "merge": "_merged.fastq",
+                "cutprimer": "_trimmed.fastq",
+                "dereplicate": "_uniqs.fasta",
+                "denoise": "_zotus.fasta",
+                "assigntaxa": "_taxa.csv",
+            },
+            'merge': {
+                "maxdiff": 5,
+                "pctid": 90,
+            },
+            'cutprimer': {
+                "rm_p_5": "GTCGGTAAAACTCGTGCCAGC",
+                "rm_p_3": "CAAACTGGGATTAGATACCCCACTATG",
+                "error_rate": 0.15,
+                "min_read_len": 204,
+                "max_read_len": 254,
+            },
+            'denoise': {
+                "minsize": 8,
+                "alpha": 2,
+            },
+            'assigntaxa': {
+                "db_path": None,
+                "lineage_path": None,
+                "evalue": 0.00001,
+                "qcov_hsp_perc": 90,
+                "perc_identity": 90,
+                "specifiers": "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
+            },
+            'config': {
+                "verbose": True,
+                "dry": False,
+                "logger": base_logger.logger,
+                "n_cpu": 1,
+                "memory": 8
+            }
+        }
+
+        self.stage_dir_name = {k: settings.pop(f"{k}_dir_name", v) for k, v in DEFAULT_SETTINGS['stage_dir_name'].items()}
+        self.stage_dir = {k: os.path.join(self.outdir_path, v) for k, v in self.stage_dir_name.items()}
+        self.stage_suffix = {k: settings.pop(f"{k}_suffix", v) for k, v in DEFAULT_SETTINGS['suffix'].items()}
+        self.merge_settings = {k: settings.pop(k, v) for k, v in DEFAULT_SETTINGS['merge'].items()}
+        self.cutprimer_settings = {k: settings.pop(k, v) for k, v in DEFAULT_SETTINGS['cutprimer'].items()}
+        self.denoise_settings = {k: settings.pop(k, v) for k, v in DEFAULT_SETTINGS['denoise'].items()}
+        self.assigntaxa_settings = {k: settings.pop(k, v) for k, v in DEFAULT_SETTINGS['assigntaxa'].items()}
+        self.config_settings = {k: settings.pop(k, v) for k, v in DEFAULT_SETTINGS['config'].items()}
 
     def setup_stages(self,
                      enabled_stages,
-                     stages_parent_dir,
-                     raw_dir_name,
-                     decompress_dir_name,
-                     merge_dir_name,
-                     cutprimer_dir_name,
-                     fqtofa_dir_name,
-                     derep_dir_name,
-                     denoise_dir_name,
-                     blast_dir_name,
-                     raw_suffix,
-                     decompress_suffix,
-                     merge_suffix,
-                     cutprimer_suffix,
-                     derep_suffix,
-                     denoise_suffix,
-                     blast_suffix,
-                     db_path,
-                     lineage_path,
-                     maxdiff,
-                     pctid,
-                     rm_p_5,
-                     rm_p_3,
-                     error_rate,
-                     min_read_len,
-                     max_read_len,
-                     minsize,
-                     alpha,
-                     evalue,
-                     qcov_hsp_perc,
-                     perc_identity,
-                     specifiers
                      ):
-        raw_dir = os.path.join(stages_parent_dir, raw_dir_name)
-        decompress_dir = os.path.join(stages_parent_dir, decompress_dir_name)
-        merge_dir = os.path.join(stages_parent_dir, merge_dir_name)
-        cutprimer_dir = os.path.join(stages_parent_dir, cutprimer_dir_name)
-        fqtofa_dir = os.path.join(stages_parent_dir, fqtofa_dir_name)
-        derep_dir = os.path.join(stages_parent_dir, derep_dir_name)
-        denoise_dir = os.path.join(stages_parent_dir, denoise_dir_name)
-        blast_dir = os.path.join(stages_parent_dir, blast_dir_name)
-
         self.stages = dict()
-        curr_dir = raw_dir
-        curr_suffix = raw_suffix
-        if "decompress" in enabled_stages:
-            self.stages["decompress"] = decompress.DecompressStage(self.config, in_dir=curr_dir, out_dir=decompress_dir,
-                                                                   in_suffix=curr_suffix, out_suffix=decompress_suffix)
-            curr_dir = decompress_dir
-            curr_suffix = decompress_suffix
-        if "merge" in enabled_stages:
-            self.stages["merge"] = merge.MergeStage(self.config, in_dir=curr_dir, out_dir=merge_dir,
-                                                    in_suffix=curr_suffix, out_suffix=merge_suffix,
-                                                    maxdiff=maxdiff, pctid=pctid)
-            curr_dir = merge_dir
-            curr_suffix = merge_suffix
-        if "cutprimer" in enabled_stages:
-            self.stages["cutprimer"] = cut_primer.CutPrimerStage(self.config, in_dir=curr_dir, out_dir=cutprimer_dir,
-                                                                 in_suffix=curr_suffix, out_suffix=cutprimer_suffix,
-                                                                 rm_p_5=rm_p_5, rm_p_3=rm_p_3, error_rate=error_rate,
-                                                                 min_read_len=min_read_len, max_read_len=max_read_len)
-            curr_dir = cutprimer_dir
-            curr_suffix = cutprimer_suffix
-        if "fqtofa" in enabled_stages:
-            out_suffix = curr_suffix.replace("fastq", "fasta")
-            self.stages["fqtofa"] = fq_to_fa.FqToFaStage(self.config, in_dir=curr_dir, out_dir=fqtofa_dir,
-                                                         in_suffix=curr_suffix, out_suffix=out_suffix)
-            curr_dir = fqtofa_dir
-            curr_suffix = out_suffix
-        if "dereplicate" in enabled_stages:
-            self.stages["dereplicate"] = dereplicate.DereplicateStage(self.config, in_dir=curr_dir, out_dir=derep_dir,
-                                                                      in_suffix=curr_suffix, out_suffix=derep_suffix)
-            curr_dir = derep_dir
-            curr_suffix = derep_suffix
-        if "denoise" in enabled_stages:
-            self.stages["denoise"] = denoise.DenoiseStage(self.config, in_dir=curr_dir, out_dir=denoise_dir,
-                                                          in_suffix=curr_suffix, out_suffix=denoise_suffix,
-                                                          minsize=minsize, alpha=alpha)
-            curr_dir = denoise_dir
-            curr_suffix = denoise_suffix
-        if "assigntaxa" in enabled_stages:
-            self.stages["assigntaxa"] = assign_taxa.AssignTaxaStage(self.config, in_dir=curr_dir, out_dir=blast_dir,
-                                                                    in_suffix=curr_suffix, out_suffix=blast_suffix,
-                                                                    db_path=db_path, lineage_path=lineage_path,
-                                                                    evalue=evalue, qcov_hsp_perc=qcov_hsp_perc,
-                                                                    perc_identity=perc_identity, specifiers=specifiers)
+        curr_dir = self.indir_path
+        curr_suffix = self.stage_suffix["raw"]
+        for stage in enabled_stages:
+            if stage == "fqtofa":
+                self.stage_suffix["fqtofa"] = curr_suffix.replace("fastq", "fasta")
+            stage_args = {
+                "config": self.config,
+                "in_dir": curr_dir,
+                "out_dir": self.stage_dir[stage],
+                "in_suffix": curr_suffix,
+                "out_suffix": self.stage_suffix[stage],
+            }
+            if stage in ["merge", "cutprimer", "denoise", "assigntaxa"]:
+                stage_args.update(eval(f"self.{stage}_settings"))
+
+            self.stages[stage] = self.stage_class[stage](**stage_args)
+
+            curr_dir = self.stage_dir[stage]
+            curr_suffix = self.stage_suffix[stage]
 
 def main():
-    FastqProcessor(stages_parent_dir="stage_test",
-                   raw_dir_name="fastq",
-                   db_path="data\\database\\MiFish",
-                   lineage_path="data\\database\\lineage.csv",
+    FastqProcessor(input_path=".\\stage_test\\fastq",
+                   output_path=".\\stage_test",
+                   db_path=".\\data\\database\\MiFish",
+                   lineage_path=".\\data\\database\\lineage.csv",
                    n_cpu=20,
                    )
 

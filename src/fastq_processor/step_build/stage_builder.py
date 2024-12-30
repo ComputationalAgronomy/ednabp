@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import os
 
-from fastq_processor.step_build import (stage_config, subproces_runner, function_runner)
+from . import (stage_config, subproces_runner, function_runner)
 
 
 class StageBuilder(ABC):

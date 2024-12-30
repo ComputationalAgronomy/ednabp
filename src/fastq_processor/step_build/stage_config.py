@@ -12,18 +12,12 @@ class StageConfig:
         n_cpu (int): Number of CPU cores allocated for the stage.
         memory (int): Amount of memory (in GB) allocated for the stage.
     """
-    def __init__(self,
-                 verbose: bool = False,
-                 dry: bool = False,
-                 logger = sys.stdout,
-                 n_cpu: int = 1,
-                 memory: int = 8
-                 ):
-        self.verbose = verbose
-        self.dry = dry
-        self.logger = logger
-        self.n_cpu = n_cpu
-        self.memory = memory
+    def __init__(self, settings):
+        self.verbose = settings["verbose"]
+        self.dry = settings["dry"]
+        self.logger = settings["logger"]
+        self.n_cpu = settings["n_cpu"]
+        self.memory = settings["memory"]
 
     def get_machine_info(self) -> dict[str, int]:
         """

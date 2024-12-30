@@ -1,7 +1,7 @@
 from Bio import SeqIO
 import os
 
-from fastq_processor.step_build import stage_builder
+from ..step_build import stage_builder
 
 
 class FqToFaStage(stage_builder.StageBuilder):

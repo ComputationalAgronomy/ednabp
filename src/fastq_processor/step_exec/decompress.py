@@ -2,7 +2,7 @@ import os
 import gzip
 from typing import override
 
-from fastq_processor.step_build import stage_builder
+from ..step_build import stage_builder
 
 
 class DecompressStage(stage_builder.StageBuilder):

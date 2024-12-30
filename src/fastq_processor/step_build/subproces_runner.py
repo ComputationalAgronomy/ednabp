@@ -2,7 +2,7 @@ import shlex
 import subprocess
 import sys
 
-from fastq_processor.step_build import runner
+from . import runner
 
 
 class SubprocessRunner(runner.Runner):

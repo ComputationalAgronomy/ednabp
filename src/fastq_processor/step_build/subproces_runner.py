@@ -39,22 +39,22 @@ class SubprocessRunner(runner.Runner):
         if not self.dry:
             try:
                 self.capture_output = subprocess.run(args,
-                                                   capture_output=False,
-                                                   shell=self.shell,
-                                                   check=True,
-                                                   text=True,
-                                                   stdout=subprocess.PIPE,
-                                                   stderr=subprocess.PIPE)
+                                                     capture_output=False,
+                                                     shell=self.shell,
+                                                     check=True,
+                                                     text=True,
+                                                     stdout=subprocess.PIPE,
+                                                     stderr=subprocess.PIPE)
                 self.logger.info(f"COMPLETE: {self.prog_name}.")
                 return True
             except subprocess.CalledProcessError as e:
                 self.logger.error(f"FAIL: {self.prog_name}. SubprocessError: {e.stderr}.")
                 return False
             except FileNotFoundError as e:
-                self.logger.error(f"FAIL: {self.prog_name}. FileNotFoundError: {e.stderr}.")
+                self.logger.error(f"FAIL: {self.prog_name}. FileNotFoundError: {e.strerror}.")
                 return False
             except Exception as e:
-                self.logger.error(f"FAIL: {self.prog_name}. Other Exception: {e.stderr}.")
+                self.logger.error(f"FAIL: {self.prog_name}. Other Exception: {e}.")
                 return False
 
 

@@ -13,6 +13,7 @@ class BarchartRunner(base_runner.AbundanceRunner):
     def run_write(self,
             write_type: str = "abundance",
             taxa_level: str = "species",
+            unit_level: str = "species",
             save_dir: str = ".",
             normalize: bool = True,
             sample_id_list: list[str] = []
@@ -20,6 +21,7 @@ class BarchartRunner(base_runner.AbundanceRunner):
         return super().run_write(
             write_type=write_type,
             taxa_level=taxa_level,
+            unit_level=unit_level,
             save_dir=save_dir,
             normalize=normalize,
             sample_id_list=sample_id_list

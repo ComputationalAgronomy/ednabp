@@ -104,6 +104,7 @@ class AbundanceRunner(Runner):
     def run_write(self,
             write_type: str,
             taxa_level: str,
+            unit_level: str,
             save_dir: str,
             normalize: bool,
             sample_id_list: list[str]
@@ -115,6 +116,7 @@ class AbundanceRunner(Runner):
 
         :param write_type: The type of data to write. Can be "richness" or "abundance".
         :param taxa_level: The name of the level to target (e.g., species, family, etc.).
+        :param unit_level: The name of the taxa level to group by (e.g., genes, species, haplotype, etc.). Default is "species".
         :param save_dir: The directory to save the CSV file.
         :param normalize: Whether to normalize the abundance data.
         :param sample_id_list: A list of sample IDs to write.
@@ -127,7 +129,7 @@ class AbundanceRunner(Runner):
         self._load_sample_id_list(sample_id_list)
 
         for sample_id in self.sample_id_used:
-            self._load_abundance_dict(sample_id, taxa_level)
+            self._load_abundance_dict(sample_id, taxa_level, unit_level)
             if normalize:
                 self._normalize_abundance_dict()
             self._abundance_dict2df(sample_id, taxa_level)
@@ -139,11 +141,11 @@ class AbundanceRunner(Runner):
 
         if write_type == "richness":
             self.df=self.abundance_df.groupby([taxa_level, "Site", "Year", "Month", "Sample"])["Counts"].nunique().reset_index()
-            self.df.to_csv(os.path.join(save_dir, 'Species_richness.csv'), index=False)
-        if write_type == "abundance":
+            self.df.to_csv(os.path.join(save_dir, f'{unit_level}_richness.csv'), index=False)
+        else:
             self.df = self.abundance_df.groupby([taxa_level, "Site", "Year", "Month", "Sample"])["Counts"].sum().reset_index()
-            self.df.to_csv(os.path.join(save_dir, 'Species_abundance.csv'), index=False)
-        
+            self.df.to_csv(os.path.join(save_dir, f'{unit_level}_abundance.csv'), index=False)
+
         self.analysis_type = "Write species diversity to csv"
         self.results_dir = save_dir
         self.parameters.update(
@@ -173,8 +175,14 @@ class AbundanceRunner(Runner):
         """
         self.abundance = {}
         for hap, level_dict in self.sample_data[sample_id].hap2level.items():
+            assert taxa_level in level_dict, f"Invalid taxa_level: {taxa_level}"
             target_name = level_dict[taxa_level]
-            unit_name = level_dict[unit_level]
+            if unit_level in level_dict:
+                unit_name = level_dict[unit_level]
+            elif unit_level not in level_dict and unit_level == "haplotype":
+                unit_name = f"{level_dict["species"]}_{hap}"
+            else:
+                raise ValueError(f"Invalid unit_level: {unit_level}")
             key = (target_name, unit_name)
             if key not in self.abundance:
                 self.abundance[key] = 0

@@ -1,9 +1,10 @@
 import csv
-import numpy as np
 import os
+
+import numpy as np
 import pandas as pd
 
-from fastq_processor.step_build import stage_builder
+from ..step_build import stage_builder
 
 
 class AssignTaxaStage(stage_builder.StageBuilder):

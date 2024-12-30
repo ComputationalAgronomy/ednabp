@@ -1,6 +1,4 @@
-from fastq_processor.step_build import runner
-from fastq_processor.step_build.stage_config import StageConfig
-
+from . import runner
 
 class FunctionRunner(runner.Runner):
     def __init__(self, prog_name, function, config):
@@ -22,5 +20,5 @@ class FunctionRunner(runner.Runner):
                 self.logger.info(f"COMPLETE: {self.prog_name}.")
                 return True
             except Exception as e:
-                self.logger.error(f"FAIL: {self.prog_name}. Exception: {e.stderr}")
+                self.logger.error(f"FAIL: {self.prog_name}. Exception: {e}")
                 return False

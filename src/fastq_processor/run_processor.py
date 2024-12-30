@@ -1,9 +1,8 @@
 import os
 
-from analysis_toolkit.runner_build import base_logger
-from fastq_processor.step_build import stage_config
-from fastq_processor.step_exec import (decompress, merge, cut_primer, fq_to_fa, 
-                                       dereplicate, denoise, assign_taxa,)
+from ..analysis_toolkit.runner_build import base_logger
+from .step_build import stage_config
+from .step_exec import (decompress, merge, cut_primer, fq_to_fa, dereplicate, denoise, assign_taxa,)
 
 class FastqProcessor:
 
@@ -72,16 +71,16 @@ class FastqProcessor:
                 "fqtofa": "fqtofa",
                 "dereplicate": "dereplicate",
                 "denoise": "denoise",
-                "assigntaxa": "blast",
+                "assigntaxa": "assigntaxa",
             },
             'suffix': {
                 "raw": "_R1.fastq.gz",
                 "decompress": "_R1.fastq",
-                "merge": "_merge.fastq",
-                "cutprimer": "_cut.fastq",
-                "dereplicate": "_uniq.fasta",
-                "denoise": "_denoise.fasta",
-                "assigntaxa": "_blast.csv",
+                "merge": "_merged.fastq",
+                "cutprimer": "_trimmed.fastq",
+                "dereplicate": "_uniqs.fasta",
+                "denoise": "_zotus.fasta",
+                "assigntaxa": "_taxa.csv",
             },
             'merge': {
                 "maxdiff": 5,
@@ -131,38 +130,25 @@ class FastqProcessor:
         curr_dir = self.indir_path
         curr_suffix = self.stage_suffix["raw"]
         for stage in enabled_stages:
-            if stage in ["merge", "cutprimer", "denoise", "assigntaxa"]:
-                self.stages[stage] = self.stage_class[stage](
-                    config = self.config,
-                    in_dir=curr_dir,
-                    out_dir=self.stage_dir[stage],
-                    in_suffix=curr_suffix,
-                    out_suffix=self.stage_suffix[stage],
-                    **eval(f"self.{stage}_settings")
-                    )
-            elif stage == "fqtofa":
+            if stage == "fqtofa":
                 self.stage_suffix["fqtofa"] = curr_suffix.replace("fastq", "fasta")
-                self.stages[stage] = self.stage_class[stage](
-                    config = self.config,
-                    in_dir=curr_dir,
-                    out_dir=self.stage_dir[stage],
-                    in_suffix=curr_suffix,
-                    out_suffix=self.stage_suffix[stage],
-                    )
-            else:
-                self.stages[stage] = self.stage_class[stage](
-                    config = self.config,
-                    in_dir=curr_dir,
-                    out_dir=self.stage_dir[stage],
-                    in_suffix=curr_suffix,
-                    out_suffix=self.stage_suffix[stage],
-                    )
+            stage_args = {
+                "config": self.config,
+                "in_dir": curr_dir,
+                "out_dir": self.stage_dir[stage],
+                "in_suffix": curr_suffix,
+                "out_suffix": self.stage_suffix[stage],
+            }
+            if stage in ["merge", "cutprimer", "denoise", "assigntaxa"]:
+                stage_args.update(eval(f"self.{stage}_settings"))
+
+            self.stages[stage] = self.stage_class[stage](**stage_args)
 
             curr_dir = self.stage_dir[stage]
             curr_suffix = self.stage_suffix[stage]
 
 def main():
-    FastqProcessor(input_path=".\\stage_test\\fastq\\test_2_R1.fastq.gz",
+    FastqProcessor(input_path=".\\stage_test\\fastq",
                    output_path=".\\stage_test",
                    db_path=".\\data\\database\\MiFish",
                    lineage_path=".\\data\\database\\lineage.csv",

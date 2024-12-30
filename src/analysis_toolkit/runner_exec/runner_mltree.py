@@ -137,7 +137,7 @@ class MLTreeRunner(base_runner.SequenceRunner):
                 )
 
             utils_sequence.write_fasta(self.units2fasta, save_path=fasta_path, dereplicate=dereplicate_sequence)
-            utils_sequence.align_fasta(seq_file=fasta_path, aln_file=save_path)
+            utils_sequence.align_fasta(seq_path=fasta_path, aln_path=save_path)
 
         finally:
             temp_dir.cleanup()

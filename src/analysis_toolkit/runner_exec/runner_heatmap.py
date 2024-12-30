@@ -15,6 +15,7 @@ class HeatmapRunner(base_runner.AbundanceRunner):
     def run_write(self,
             write_type: str = "abundance",
             taxa_level: str = "species",
+            unit_level: str = "species",
             save_dir: str = ".",
             normalize: bool = False,
             sample_id_list: list[str] = []
@@ -22,6 +23,7 @@ class HeatmapRunner(base_runner.AbundanceRunner):
         return super().run_write(
             write_type=write_type,
             taxa_level=taxa_level,
+            unit_level=unit_level,
             save_dir=save_dir,
             normalize=normalize,
             sample_id_list=sample_id_list
@@ -100,5 +102,5 @@ class HeatmapRunner(base_runner.AbundanceRunner):
                 self.x.append(self.pivot_table.columns.droplevel(todrop_columns))
 
     def _sort_index(self):
-        self.s_index = umap.UMAP(n_components=1, n_neighbors=15).fit(np.array(self.pivot_table)).embedding_
+        self.s_index = umap.UMAP(n_components=1, n_neighbors=15, random_state=42).fit(np.array(self.pivot_table)).embedding_
         self.s_index = np.argsort(self.s_index[:,0])

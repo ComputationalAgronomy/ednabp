@@ -6,29 +6,69 @@ from .step_exec import (decompress, merge, cut_primer, fq_to_fa, dereplicate, de
 
 class FastqProcessor:
 
-    @staticmethod
-    def get_prefix_with_suffix(in_dir, suffix):
-        files = os.listdir(in_dir)
-        prefix = [file.replace(suffix, "") for file in files if file.endswith(suffix)]
-        return prefix
-
-    @staticmethod
-    def run_single_data(prefix, stages):
-        print(f"Sample ID: {prefix}")
-        for k, s in stages.items():
-            s.setup(prefix)
-            is_complete = s.run()
-            if not is_complete:
-                print(f"Error: process errors at stage: {k}\n")
-                break
-            print()
-
     def __init__(self,
                  input_path: str,
                  output_path: str,
-                 enabled_stages=["decompress", "merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "assigntaxa"],
+                 enabled_stages: list[str] = ["decompress", "merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "assigntaxa"],
                  **settings
                  ):
+        '''
+        A pipeline for processing eDNA bioinformatics workflows.
+        
+        :param input_path (str): The input path for raw sequences. This can be either a directory containing files or the path to a single file.
+        :param output_path (str): The directory where output files will be saved.
+        :param enabled_stages (list[str]): The process stages to be executed. The execution order will match the list order. Default:
+         ["decompress", "merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "assigntaxa"] (all stages will be run).
+        :param settings: Additional optional arguments to configure pipeline stages and runtime behavior. These include:
+          Directory Names:
+            - decompress_dir_name (str): The name of the subdirectory for the decompression stage. Default: "decompress".
+            - merge_dir_name (str): The name of the subdirectory for the merge stage. Default: "merge".
+            - cutprimer_dir_name (str): The name of the subdirectory for the cut-primer stage. Default: "cutprimer".
+            - fqtofa_dir_name (str): The name of the subdirectory for converting FastQ to FastA. Default: "fqtofa".
+            - dereplicate_dir_nam (str): The name of the subdirectory for the dereplication stage. Default: "dereplicate".
+            - denoise_dir_name (str): The name of the subdirectory for the denoising stage. Default: "denoise".
+            - assigntaxa_dir_name (str): The name of the subdirectory for taxonomic assignment. Default: "assigntaxa".
+
+          File Suffixes:
+            - raw_suffix (str): File suffix for raw input sequences. Default: "_R1.fastq.gz".
+            - decompress_suffix (str): File suffix for sequences after decompression. Default: "_R1.fastq".
+            - merge_suffix (str): File suffix for merged sequences. Default: "_merged.fastq".
+            - cutprimer_suffix (str): File suffix for trimmed sequences after primer removal. Default: "_trimmed.fastq".
+            - dereplicate_suffix (str): File suffix for unique sequences after dereplication. Default: "_uniqs.fasta".
+            - denoise_suffix (str): File suffix for denoised sequences (ZOTUs). Default: "_zotus.fasta".
+            - assigntaxa_suffix (str): File suffix for taxonomic assignment results. Default: "_taxa.csv".
+
+          Merge Settings:
+            - maxdiff (int): Maximum number of mismatches in the alignment. Default: 5.
+            - pctid (int): Minimum %id of alignment. Default: 90.
+
+          Cut Primer Settings:
+            - rm_p_5 (str): Non-internal 5’ primer. Default: "GTCGGTAAAACTCGTGCCAGC" (MiFish-UF).
+            - rm_p_3 (str): Non-internal 3’ primer. Default: "CAAACTGGGATTAGATACCCCACTATG" (reverse-complement MiFish-UR).
+            - error_rate (float): The maximum rate of error could be tolerated. The actual error rate is computed as the number of errors in the match divided by the length of the matching part of the primer. Default: 0.15.
+            - min_read_len (int): Discard processed reads that are shorter than this parameter. Default: 204.
+            - max_read_len (int): Discard processed reads that are longer than this parameter. Default: 254.
+
+          Denoise Settings:
+            - minsize (int): Discard sequences with abundance that are smaller than this parameter. Default: 8.
+            - alpha (int): Denoising sensitivity parameter. See UNOISE2 paper for definition. Default: 2.
+
+          Assign Taxa Settings:
+            - db_path (str): Path to the taxonomic database. Default: None.
+            - lineage_path (str): Path to the taxonomic lineage file. Default: None.
+            - evalue (float): Expectation value (E) threshold for saving hits. Default: 0.00001.
+            - qcov_hsp_perc (int): The %threshold of the query sequence that has to form an alignment against the reference to be retained. Default: 90.
+            - perc_identity (int): Minimum percentage identity required for taxonomic assignment. Default: 90.
+            - specifiers (str): Output format specifiers for BLAST results. Default: 
+              "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore".
+
+          Configuration Settings:
+            - verbose (bool): Whether to enable verbose logging. Default: True.
+            - dry (bool): If True, perform a dry run without executing commands. Default: False.
+            - logger (Logger): Logger object for pipeline logging. Default: base_logger.logger.
+            - n_cpu (int): Number of CPU cores to be used for processing. Default: 1.
+            - memory (int): Maximum memory (in GB) allowed for processing. Default: 8.
+        '''
         assert os.path.exists(input_path), f"Error: input path does not exist: {input_path}"
         os.makedirs(output_path, exist_ok=True)
         input_is_dir = True if os.path.isdir(input_path) else False
@@ -51,6 +91,23 @@ class FastqProcessor:
         else:
             prefix = os.path.basename(input_path).replace(self.stage_suffix["raw"], "")
             self.run_single_data(prefix, self.stages)
+
+    @staticmethod
+    def get_prefix_with_suffix(in_dir, suffix):
+        files = os.listdir(in_dir)
+        prefix = [file.replace(suffix, "") for file in files if file.endswith(suffix)]
+        return prefix
+
+    @staticmethod
+    def run_single_data(prefix, stages):
+        print(f"Sample ID: {prefix}")
+        for k, s in stages.items():
+            s.setup(prefix)
+            is_complete = s.run()
+            if not is_complete:
+                print(f"Error: process errors at stage: {k}\n")
+                break
+            print()
 
     def add_default_settings(self, settings):
         self.stage_class = {

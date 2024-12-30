@@ -4,10 +4,10 @@ import pandas as pd
 import pickle
 from datetime import date
 
-from analysis_toolkit.read import read_blast_csv
-from analysis_toolkit.read import read_denoise_report
-from analysis_toolkit.read import read_fasta
-from analysis_toolkit.runner_build import base_logger
+from ..read import read_blast_csv
+from ..read import read_denoise_report
+from ..read import read_fasta
+from ..runner_build import base_logger
 
 
 class OneSampleData():

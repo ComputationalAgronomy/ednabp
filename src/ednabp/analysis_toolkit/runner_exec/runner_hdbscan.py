@@ -4,8 +4,8 @@ import numpy as np
 import os
 import pandas as pd
 
-from analysis_toolkit.runner_build import base_runner
-from analysis_toolkit.runner_exec import runner_umap
+from ..runner_build import base_runner
+from . import runner_umap
 
 
 class HdbscanRunner(base_runner.Runner):

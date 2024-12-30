@@ -1,7 +1,7 @@
 from Bio import SeqIO
 
-from analysis_toolkit.read import read_blast_csv
-from analysis_toolkit.runner_build import base_logger
+from . import read_blast_csv
+from ..runner_build import base_logger
 
 
 class FastaReader(read_blast_csv.Reader):

@@ -12,7 +12,7 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import scale, Normalizer
 from typing import override
 
-from analysis_toolkit.runner_build import base_runner
+from ..runner_build import base_runner
 
 
 class RGBColorbarRunner(base_runner.AbundanceRunner):

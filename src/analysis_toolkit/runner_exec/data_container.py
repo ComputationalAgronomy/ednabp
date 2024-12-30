@@ -65,13 +65,6 @@ class SampleData():
     :attribute sample_id_list: A list to store sample IDs.
     :attribute verbose: A boolean flag to control logging verbosity. Default is True.
     """
-    # keys are data type, values are tuples of (child directory, file suffix).
-    DATA_FILE_INFO = {
-        "uniq_fasta": ("dereplicate", "_uniq.fasta"),
-        "denoise_fasta": ("denoise", "_denoise.fasta"),
-        "denoise_report": ("denoise", "_denoise_report.txt"),
-        "blast_table": ("blast", "_blast.csv")
-    }
 
     def __init__(self,
         verbose = True,
@@ -91,11 +84,9 @@ class SampleData():
         Check if all necessary child directories exist within the specified parent directory.
         """
         self.logger.info("Start checking whether directories exist...")
-        for child_dir_name, _ in SampleData.DATA_FILE_INFO.values():
-            child_dir = os.path.join(self.import_dir, child_dir_name)
-
-            if not os.path.isdir(child_dir):
-                raise FileNotFoundError(f"Directory does not exist: {child_dir}.")
+        for in_dir, _ in self.import_info:
+            if not os.path.isdir(in_dir):
+                raise FileNotFoundError(f"Directory does not exist: {in_dir}.")
 
         self.logger.info("All directories exist.")
 
@@ -106,13 +97,11 @@ class SampleData():
         :param parent_dir: Path to the parent directory containing sample data.
         :return: A list of sample IDs.
         """
-        child_dir, suffix = tuple(SampleData.DATA_FILE_INFO.values())[0]
+        uniq_dir, suffix =self.import_info[0]
 
-        child_dir_path = os.path.join(self.import_dir, child_dir)
+        self.logger.info(f"Searching sample IDs: prefix with the suffix '{suffix}' in the directory: {uniq_dir}.")
 
-        self.logger.info(f"Searching sample IDs: prefix with the suffix '{suffix}' in the directory: {child_dir_path}.")
-
-        file_list = os.listdir(child_dir_path)
+        file_list = os.listdir(uniq_dir)
         sample_id_list = [file.replace(suffix, '') for file in file_list if file.endswith(suffix)]
         self.sample_id_list.extend(sample_id_list)
 
@@ -122,14 +111,13 @@ class SampleData():
 
         :param sample_id: The sample ID to retrieve file paths for.
         """
-        self.file_paths = {}
-        for file_key, (child_dir, suffix) in SampleData.DATA_FILE_INFO.items():
-            file_path = os.path.join(self.import_dir, child_dir, f"{sample_id}{suffix}")
-
+        self.file_paths = []
+        for in_dir, suffix in self.import_info:
+            file_path = os.path.join(in_dir, f"{sample_id}{suffix}")
             if not os.path.isfile(file_path):
                 raise FileNotFoundError(f"File does not exist: {file_path}.")
 
-            self.file_paths[file_key] = file_path
+            self.file_paths.append(file_path)
 
     def _read_sample_info(self, sample_info_path: str) -> None:
         """
@@ -138,12 +126,6 @@ class SampleData():
         prog_name = f"Read sample information from: {sample_info_path}."
         self.logger.info(f"Program: {prog_name}")
         self.sample_info = pd.read_csv(sample_info_path)
-        # with open(sample_info_path, mode='r') as file:
-        #     reader = csv.DictReader(file)
-            # for row in reader:
-                # key = row.pop(list(row.keys())[0])
-                # if key in self.sample_id_list:
-                    # self.sample_info[key] = dict(row)
         self.logger.info(f"COMPLETE: {prog_name}")
 
     def _save_instance(self) -> None:
@@ -153,19 +135,44 @@ class SampleData():
         with open(self.save_instance_path, 'wb') as f:
             pickle.dump(self, f)
 
-    def import_data(self, import_dir: str, sample_id_list: list[str] = [], sample_info_path: str = None) -> None:
+    def import_data(self,
+            uniq_dir: str,
+            denoise_dir: str,
+            denoise_report_dir: str,
+            blast_dir: str,
+            uniq_suffix: str = "_uniq.fasta",
+            denoise_suffix: str = "_denoise.fasta",
+            denoise_report_suffix: str = "_denoise_report.txt",
+            blast_suffix: str = "_blast.csv",
+            sample_id_list: list[str] = [],
+            sample_info_path: str = None
+        ):
         """
         Import sample data from the specified parent directory.
         The parent directory is expected to contain four data types recorded in 'DATA_FILE_INFO'.
         Data should be organized in child directories with specific suffixes as defined in 'DATA_FILE_INFO'.
 
-        :param import_dir: Path to the parent directory containing the sample data.
+        :param uniq_dir: Path to the parent directory containing unique amplicon FASTA files.
+        :param denoise_dir: Path to the parent directory containing denoised haplotype FASTA files.
+        :param denoise_report_dir: Path to the parent directory containing denoise report files.
+        :param blast_dir: Path to the parent directory containing BLAST table files.
+        :param uniq_suffix: Suffix for unique amplicon FASTA files. Default is "_uniq.fasta".
+        :param denoise_suffix: Suffix for denoised haplotype FASTA files. Default is "_denoise.fasta".
+        :param denoise_report_suffix: Suffix for denoise report files. Default is "_denoise_report.txt".
+        :param blast_suffix: Suffix for BLAST table files. Default is "_blast.csv".
+        :param uniq_suffix: Suffix for unique amplicon FASTA files. Default is "_uniq.fasta".
+        :param denoise_suffix: Suffix for denoised haplotype FASTA files. Default is "_denoise.fasta".
+        :param denoise_report_suffix: Suffix for denoise report files. Default is "_denoise_report.txt".
+        :param blast_suffix: Suffix for BLAST table files. Default is "_blast.csv".
         :param sample_id_list: List of sample IDs to import. If not provided, all available sample IDs will be imported. The sample IDs are extracted from the file names using the provided suffix.
         :param sample_info_path: Path to the sample information CSV file. If provided, sample information will be loaded from this file. Default is None.
         """
-        self.import_dir = import_dir
+        self.import_info = [(uniq_dir, uniq_suffix),
+                            (denoise_dir, denoise_suffix),
+                            (denoise_report_dir, denoise_report_suffix),
+                            (blast_dir, blast_suffix)]
 
-        prog_name = f"Read samples from: {self.import_dir}."
+        prog_name = f"Import sample data."
         self.logger.info(f"Program: {prog_name}")
         self._check_dir()
 
@@ -182,7 +189,7 @@ class SampleData():
 
         for sample_id in self.sample_id_list:
             self._get_file_paths(sample_id)
-            self.sample_data[sample_id] = OneSampleData(**self.file_paths)
+            self.sample_data[sample_id] = OneSampleData(*self.file_paths)
 
         self.logger.info(f"COMPLETE: {prog_name}")
 

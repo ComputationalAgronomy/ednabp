@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "edna_bp"
+name = "ednabp"
 version = "0.0.1"
 authors = [
   { name="Shan-En Chen", email="shawn.for.office@gmail.com" },
@@ -19,8 +19,8 @@ classifiers = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/ComputationalAgronomy/eDNA_bioinformatics_pipeline.git"
-"Bug Tracker" = "https://github.com/ComputationalAgronomy/eDNA_bioinformatics_pipeline.git" 
+"Homepage" = "https://github.com/ComputationalAgronomy/ednabp.git"
+"Bug Tracker" = "https://github.com/ComputationalAgronomy/ednabp.git" 
 
 [tool.setuptools.packages.find]
 where = ["src"]  # ["."] by default

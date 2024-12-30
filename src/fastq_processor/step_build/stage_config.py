@@ -13,9 +13,12 @@ class StageConfig:
         memory (int): Amount of memory (in GB) allocated for the stage.
     """
     def __init__(self,
-        verbose: bool = False, dry: bool = False,
-        logger = sys.stdout, n_cpu: int = 1, memory: int = 8
-        ):
+                 verbose: bool = False,
+                 dry: bool = False,
+                 logger = sys.stdout,
+                 n_cpu: int = 1,
+                 memory: int = 8
+                 ):
         self.verbose = verbose
         self.dry = dry
         self.logger = logger

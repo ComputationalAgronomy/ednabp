@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
+import numpy as np
 import os
+import pandas as pd
 
 from analysis_toolkit.runner_build import base_logger
 from analysis_toolkit.runner_exec import data_container
@@ -8,8 +10,11 @@ from analysis_toolkit.runner_exec import data_container
 def log_execution(prog_name: str, log_file: str):
     def decorator(func):
         def wrapper(*args, **kwargs):
-            if kwargs["save_dir"]:
-                base_logger._add_file_handler(os.path.join(kwargs["save_dir"], log_file))
+            if "save_dir" in kwargs and os.path.exists(kwargs["save_dir"]):
+                fh = base_logger._get_file_handler(os.path.join(kwargs["save_dir"], log_file))
+                base_logger.logger.addHandler(fh)
+            else:
+                pass
             base_logger.logger.info(f"Program: {prog_name}")
             result = func(*args, **kwargs)
             base_logger.logger.info(f"COMPLETE: {prog_name}")
@@ -30,10 +35,11 @@ class Runner(ABC):
     def _import_data(self, samplesdata):
         self.sample_data = samplesdata.sample_data
         self.sample_id_list = samplesdata.sample_id_list
+        self.sample_info = samplesdata.sample_info
 
     def _load_sample_id_list(self, sample_id_list: str = []):
         if sample_id_list == []:
-            self.logger.info(f"No sample ID list specified. Using all {len(sample_id_list)} samples.")
+            self.logger.info(f"No sample ID list specified. Using all {len(self.sample_id_list)} samples.")
             self.sample_id_used = self.sample_id_list
         else:
             self.logger.info(f"Specified {len(sample_id_list)} samples.")
@@ -92,7 +98,60 @@ class SequenceRunner(Runner):
 class AbundanceRunner(Runner):
     def __init__(self, sampledata: data_container.SampleData):
         super().__init__(sampledata)
-        self.samples2abundance = {}
+        self.abundance_df = pd.DataFrame()
+
+    @log_execution("Write richness or abundance data to CSV", "write_csv.log")
+    def run_write(self,
+            write_type: str,
+            taxa_level: str,
+            save_dir: str,
+            normalize: bool,
+            sample_id_list: list[str]
+        ):
+        """
+        Write the richness or abundance data to a CSV file.
+        Richness data: number of unique species for each target per sample_id. (e.g. How many different species got in sampleA?)
+        Abundance data: sum of read for each taxa per sample_id. (e.g. How many sequences got in sampleA?)
+
+        :param write_type: The type of data to write. Can be "richness" or "abundance".
+        :param taxa_level: The name of the level to target (e.g., species, family, etc.).
+        :param save_dir: The directory to save the CSV file.
+        :param normalize: Whether to normalize the abundance data.
+        :param sample_id_list: A list of sample IDs to write.
+        """
+        if write_type not in ["richness", "abundance"]:
+            raise ValueError("Invalid write_type. Must be 'richness' or 'abundance'.")
+
+        os.makedirs(save_dir, exist_ok=True)
+
+        self._load_sample_id_list(sample_id_list)
+
+        for sample_id in self.sample_id_used:
+            self._load_abundance_dict(sample_id, taxa_level)
+            if normalize:
+                self._normalize_abundance_dict()
+            self._abundance_dict2df(sample_id, taxa_level)
+            self._update_abundance_df() # columns: target_level, Unit(species), Counts, Sample_id
+
+        self._add_sample_info() # columns: target_level, Unit(species), Counts, Sample_id, Site, Year, Month, Sample
+
+        self._filter_abundance_df()
+
+        if write_type == "richness":
+            self.df=self.abundance_df.groupby([taxa_level, "Site", "Year", "Month", "Sample"])["Counts"].nunique().reset_index()
+            self.df.to_csv(os.path.join(save_dir, 'Species_richness.csv'), index=False)
+        if write_type == "abundance":
+            self.df = self.abundance_df.groupby([taxa_level, "Site", "Year", "Month", "Sample"])["Counts"].sum().reset_index()
+            self.df.to_csv(os.path.join(save_dir, 'Species_abundance.csv'), index=False)
+        
+        self.analysis_type = "Write species diversity to csv"
+        self.results_dir = save_dir
+        self.parameters.update(
+            {
+                "write_type": write_type,
+                "taxa_level": taxa_level,
+            }
+        )
 
     def _load_hap_size(self, sample_id: str, hap: str) -> int:
         """
@@ -104,7 +163,7 @@ class AbundanceRunner(Runner):
         """
         return int(self.sample_data[sample_id].hap_size[hap])
 
-    def _load_units2abundance_dict(self, sample_id: str, unit_level: str):
+    def _load_abundance_dict(self, sample_id: str, taxa_level: str, unit_level: str = "species"):
         """
         Get the abundance of a level for a given sample.
 
@@ -112,23 +171,60 @@ class AbundanceRunner(Runner):
         :param level: The name of the level.
         :return: A dictionary mapping level names to abundances.
         """
-        self.units2abundance = {}
+        self.abundance = {}
         for hap, level_dict in self.sample_data[sample_id].hap2level.items():
-            level_name = level_dict[unit_level]
-            if level_name not in self.units2abundance:
-                self.units2abundance[level_name] = 0
+            target_name = level_dict[taxa_level]
+            unit_name = level_dict[unit_level]
+            key = (target_name, unit_name)
+            if key not in self.abundance:
+                self.abundance[key] = 0
             size = self._load_hap_size(sample_id, hap)
-            self.units2abundance[level_name] += size # e.g. {'SpA': 3, 'SpB': 4, 'SpC': 5}
-    
-    def _normalize_abundance(self):
+            self.abundance[key] += size # e.g. {'SpA': 3, 'SpB': 4, 'SpC': 5}
+
+    def _normalize_abundance_dict(self):
         """
         Normalize the abundance values in the dictionary to percentages.
 
         :param abundance_dict: A dictionary with unit names and their abundance.
         :returns: A dictionary with unit names and their normalized abundance in percentages.
         """
-        total_size = sum(self.units2abundance.values())
-        self.units2abundance = {key: value/total_size * 100 for key, value in self.units2abundance.items()}
-    
-    def _update_samples2abundance_dict(self, sample_id: str):
-        self.samples2abundance[sample_id] = self.units2abundance.copy()
+        total_size = sum(self.abundance.values())
+        self.abundance = {key: value/total_size * 100 for key, value in self.abundance.items()}
+
+    def _abundance_dict2df(self, sample_id, taxa_level):
+        abundance_list = []
+        for key, value in self.abundance.items():
+            abundance_list.append([key[0], key[1], value])
+
+        self.df = pd.DataFrame(abundance_list, columns=[taxa_level, "Unit", "Counts"])
+        self.df["Sample_id"] = sample_id
+
+    def _update_abundance_df(self):
+        self.abundance_df = pd.concat([self.abundance_df, self.df], ignore_index=True)
+
+    def _add_sample_info(self):
+        self.abundance_df = pd.merge(left=self.abundance_df, right=self.sample_info, on="Sample_id", how="outer")
+
+    def _filter_abundance_df(self, site_occur_thres: int = 0, sample_occur_thres: int = 0):
+        self.abundance_df = self.abundance_df[self.abundance_df['Counts']!=0]
+
+        sp_list = self.abundance_df.groupby(["Unit"])[["Site","Year","Month","Sample"]].nunique()
+        sp_list = sp_list[sp_list["Site"]>0] # Filtering by number of sites
+        sp_list = sp_list[sp_list["Sample"]>0] # Filtering by number of samples
+
+        survive = np.array([])
+        for m in sp_list.index:
+            survive = np.append(survive, np.where(self.abundance_df[sp_list.index.name]==m)[0])
+
+        self.abundance_df = self.abundance_df.iloc[survive,:].reset_index(drop=True)
+
+    def _save_html(self, fig_type: str, save_html_dir: str, save_name: str):
+        """
+        Save the barchart as an HTML file.
+
+        :param save_html_dir: The directory to save the HTML file.
+        :param save_html_name: The name of the HTML file. If not provided, the name will be "{level}_barchart". Default is None.
+        """
+        fig_path = os.path.join(save_html_dir, f"{save_name}.html")
+        self.fig.write_html(fig_path)
+        self.logger.info(f"{fig_type} saved to: {fig_path}")

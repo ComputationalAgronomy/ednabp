@@ -5,16 +5,6 @@ import subprocess
 
 from analysis_toolkit.runner_build import base_logger
 
-def list_union(lists_to_union: list[list[str]]) -> list[str]:
-    """
-    Return the union of multiple lists as a sorted list of unique unit names.
-
-    :param lists_to_union: A list of lists to be unioned.
-    :return: A sorted list of unique elements.
-    """
-    uniq_list = list(set().union(*lists_to_union))
-    uniq_list.sort()
-    return uniq_list
 
 def run_subprocess(prog_name, cmd, save_path):
     base_logger.logger.info(f"Running {prog_name} command: {' '.join(cmd)}")

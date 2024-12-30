@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import plotly.express as px
 
-from analysis_toolkit.runner_build import (base_runner, utils)
+from analysis_toolkit.runner_build import base_runner
 
 
 class BarchartRunner(base_runner.AbundanceRunner):
@@ -10,11 +10,58 @@ class BarchartRunner(base_runner.AbundanceRunner):
     def __init__(self, samplesdata):
         super().__init__(samplesdata)
 
-    def _fill_missing_keys(self):
-        for sample_id in self.sample_id_used:
-            self.samples2abundance[sample_id] = [self.samples2abundance[sample_id].get(unit_name, 0) for unit_name in self.uniq_unit_names]
+    def run_write(self,
+            write_type: str = "abundance",
+            taxa_level: str = "species",
+            save_dir: str = ".",
+            normalize: bool = True,
+            sample_id_list: list[str] = []
+        ):
+        return super().run_write(
+            write_type=write_type,
+            taxa_level=taxa_level,
+            save_dir=save_dir,
+            normalize=normalize,
+            sample_id_list=sample_id_list
+        )
 
-    def _create_barchart_fig(self,
+    @base_runner.log_execution("Plot barchart", "plot_barchart.log")
+    def run_plot(self,
+            csv_path: str,
+            save_dir: str = None,
+            dereplicate: bool = False   
+        ):
+        """
+        Plot a barchart to visualize the abundance of a level across samples.
+
+        :param level: The name of the level to plot (e.g., species, family, etc.).
+        :param sample_id_list: A list of sample IDs to plot. Default is None (plot all samples).
+        :param save_dir: If provided, the barchart will be saved as a .HTML file and save a log file. Default is None.
+        """
+        self.df = pd.read_csv(csv_path)
+
+        if dereplicate:
+            self.df = self.df.drop("Sample", axis=1)
+
+        self.df["Sample_id"] = self.df.apply(lambda x: "-".join(map(str, x[1:-1])), axis=1)
+
+        self.fig = px.bar(self.df, x="Sample_id", y="Counts", color=self.df.columns[0])
+        self._add_fig_setting()
+        self.fig.show()
+
+        if save_dir:
+            self._save_html("Barchart", save_dir, os.path.basename(csv_path).split(".")[0])
+
+        self.analysis_type = "Plot barchart"
+        self.results_dir = save_dir
+        self.parameters.update(
+            {
+                "csv_path": csv_path,
+                "dereplicate": dereplicate
+            }
+        )
+    
+    def _add_fig_setting(self,
             axes_title_font: int = 20,
             axes_tick_font: int = 18,
             legend_font: int = 15,
@@ -24,15 +71,6 @@ class BarchartRunner(base_runner.AbundanceRunner):
         """
         Create a stacked bar chart figure using Plotly.
         """
-        plotdata = pd.DataFrame(self.samples2abundance, index=self.uniq_unit_names)
-        data = plotdata.transpose()
-
-        self.fig = px.bar(
-            data,
-            barmode='stack',
-            labels={'value': 'Percentage (%)'},
-            color_discrete_sequence=px.colors.qualitative.Pastel
-        )
         self.fig.update_xaxes(
             tickmode='linear',
             title=dict(
@@ -57,7 +95,7 @@ class BarchartRunner(base_runner.AbundanceRunner):
                 "font": dict(size=legend_font)
             },
         )
-    
+
         ## https://stackoverflow.com/questions/44309507/stacked-bar-plot-using-matplotlib
         # a way to sort stacked BarChart
         # plotdata = plotdata.transpose()
@@ -105,58 +143,3 @@ class BarchartRunner(base_runner.AbundanceRunner):
         # fig.update_xaxes(tickmode='linear', title=dict(font=dict(size=20)), tickfont=dict(size=18))
         # fig.update_yaxes(title=dict(font=dict(size=20)), tickfont=dict(size=18))
         # fig.show()
-
-    def _save(self, save_html_dir: str, level):
-        """
-        Save the barchart as an HTML file.
-
-        :param save_html_dir: The directory to save the HTML file.
-        :param save_html_name: The name of the HTML file. If not provided, the name will be "{level}_barchart". Default is None.
-        """
-        bar_chart_path = os.path.join(save_html_dir, f"{level}_barchart.html")
-        self.fig.write_html(bar_chart_path)
-        self.logger.info(f"Barchart saved to: {bar_chart_path}")
- 
-        self.results_dir = save_html_dir
-
-    def run_write(self):
-        return super().run_write()
-
-    @base_runner.log_execution("Plot relative abundance barchart", "plot_barchart.log")
-    def run_plot(self,
-            level: str,
-            sample_id_list: list[str] = [],
-            save_dir: str = None
-        ):
-        """
-        Plot a barchart to visualize the abundance of a level across samples.
-
-        :param level: The name of the level to plot (e.g., species, family, etc.).
-        :param sample_id_list: A list of sample IDs to plot. Default is None (plot all samples).
-        :param save_dir: If provided, the barchart will be saved as a .HTML file and save a log file. Default is None.
-        """
-        self._load_sample_id_list(sample_id_list)
-
-        for sample_id in self.sample_id_used:
-            self._load_units2abundance_dict(sample_id, level)
-            self._normalize_abundance()
-            self._update_samples2abundance_dict(sample_id)
-        
-        all_unit_names = [list(self.samples2abundance[sample_id].keys()) for sample_id in self.sample_id_used]
-        self.uniq_unit_names = utils.list_union(all_unit_names)
-
-        self._fill_missing_keys()
-        
-        self._create_barchart_fig()
-        self.fig.show()
-
-        if save_dir:
-            self._save(save_dir, level)
-
-        self.analysis_type = "barchart_plot"
-        self.parameters.update(
-            {
-                "level": level,
-            }
-        )
-    

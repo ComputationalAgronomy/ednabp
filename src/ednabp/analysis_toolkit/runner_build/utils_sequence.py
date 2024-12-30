@@ -2,7 +2,7 @@ import os
 import subprocess
 import tempfile
 
-from analysis_toolkit.runner_build import (base_logger, utils)
+from . import (base_logger, utils)
 
 
 def derep_fasta(seq_path: str, uniq_path: str, relabel: str, threads: int = 12, sizeout: bool = False) -> None:

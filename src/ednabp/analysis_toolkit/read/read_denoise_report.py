@@ -1,7 +1,7 @@
 import re
 
-from analysis_toolkit.read import read_blast_csv
-from analysis_toolkit.runner_build import base_logger
+from . import read_blast_csv
+from ..runner_build import base_logger
 
 class DenoiseReportReader(read_blast_csv.Reader):
     RE_DENOISE_PATTERN = re.compile(r"(Uniq\d*)|size=(\d*)|(amp\d*)|top=(Uniq\d*)")

@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import plotly.express as px
 
-from analysis_toolkit.runner_build import base_runner
+from ..runner_build import base_runner
 
 
 class BarchartRunner(base_runner.AbundanceRunner):

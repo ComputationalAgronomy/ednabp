@@ -9,7 +9,6 @@ class FastqProcessor:
     def __init__(self,
                  input_path: str,
                  output_path: str,
-                 enabled_stages: list[str] = ["decompress", "merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "assigntaxa"],
                  **settings
                  ):
         '''
@@ -82,7 +81,7 @@ class FastqProcessor:
         self.config_settings["logger"].addHandler(fp_fh)
         self.config = stage_config.StageConfig(settings = self.config_settings)
 
-        self.setup_stages(enabled_stages)
+        self.setup_stages()
 
         if input_is_dir:
             self.data_prefix = FastqProcessor.get_prefix_with_suffix(self.indir_path, self.stage_suffix["raw"])
@@ -121,6 +120,7 @@ class FastqProcessor:
         }
 
         DEFAULT_SETTINGS = {
+            'enabled_stages': ["decompress", "merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "assigntaxa"],
             'stage_dir_name':{
                 "decompress": "decompress",
                 "merge": "merge",
@@ -171,22 +171,21 @@ class FastqProcessor:
             }
         }
 
-        self.stage_dir_name = {k: settings.pop(f"{k}_dir_name", v) for k, v in DEFAULT_SETTINGS['stage_dir_name'].items()}
+        self.enabled_stages = settings.get("enabled_stages", DEFAULT_SETTINGS['enabled_stages'])
+        self.stage_dir_name = {k: settings.get(f"{k}_dir_name", v) for k, v in DEFAULT_SETTINGS['stage_dir_name'].items()}
         self.stage_dir = {k: os.path.join(self.outdir_path, v) for k, v in self.stage_dir_name.items()}
-        self.stage_suffix = {k: settings.pop(f"{k}_suffix", v) for k, v in DEFAULT_SETTINGS['suffix'].items()}
-        self.merge_settings = {k: settings.pop(k, v) for k, v in DEFAULT_SETTINGS['merge'].items()}
-        self.cutprimer_settings = {k: settings.pop(k, v) for k, v in DEFAULT_SETTINGS['cutprimer'].items()}
-        self.denoise_settings = {k: settings.pop(k, v) for k, v in DEFAULT_SETTINGS['denoise'].items()}
-        self.assigntaxa_settings = {k: settings.pop(k, v) for k, v in DEFAULT_SETTINGS['assigntaxa'].items()}
-        self.config_settings = {k: settings.pop(k, v) for k, v in DEFAULT_SETTINGS['config'].items()}
+        self.stage_suffix = {k: settings.get(f"{k}_suffix", v) for k, v in DEFAULT_SETTINGS['suffix'].items()}
+        self.merge_settings = {k: settings.get(k, v) for k, v in DEFAULT_SETTINGS['merge'].items()}
+        self.cutprimer_settings = {k: settings.get(k, v) for k, v in DEFAULT_SETTINGS['cutprimer'].items()}
+        self.denoise_settings = {k: settings.get(k, v) for k, v in DEFAULT_SETTINGS['denoise'].items()}
+        self.assigntaxa_settings = {k: settings.get(k, v) for k, v in DEFAULT_SETTINGS['assigntaxa'].items()}
+        self.config_settings = {k: settings.get(k, v) for k, v in DEFAULT_SETTINGS['config'].items()}
 
-    def setup_stages(self,
-                     enabled_stages,
-                     ):
+    def setup_stages(self):
         self.stages = dict()
         curr_dir = self.indir_path
         curr_suffix = self.stage_suffix["raw"]
-        for stage in enabled_stages:
+        for stage in self.enabled_stages:
             if stage == "fqtofa":
                 self.stage_suffix["fqtofa"] = curr_suffix.replace("fastq", "fasta")
             stage_args = {

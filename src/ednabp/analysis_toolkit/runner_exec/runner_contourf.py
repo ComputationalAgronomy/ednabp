@@ -8,7 +8,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import pandas as pd
 
-from analysis_toolkit.runner_build import base_runner
+from ..runner_build import base_runner
 
 
 class ContourfRunner(base_runner.AbundanceRunner):

@@ -3,8 +3,8 @@ import numpy as np
 import os
 import pandas as pd
 
-from analysis_toolkit.runner_build import base_logger
-from analysis_toolkit.runner_exec import data_container
+from . import base_logger
+from ..runner_exec import data_container
 
 
 def log_execution(prog_name: str, log_file: str):

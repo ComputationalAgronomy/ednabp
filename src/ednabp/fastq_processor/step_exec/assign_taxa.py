@@ -64,7 +64,8 @@ class AssignTaxaStage(stage_builder.StageBuilder):
                f" {self.params}"
                f" -out {self.blast_outfile}")
         super().add_stage("Taxonomic assignment", cmd)
-        super().add_stage_function("Add taxonomy to BLAST result", self.add_taxonomy)
+        if not self.config.dry and hasattr(self, 'genus2otherlv'):
+            super().add_stage_function("Add taxonomy to BLAST result", self.add_taxonomy)
 
     def add_taxonomy(self):
         try:
@@ -102,8 +103,6 @@ class AssignTaxaStage(stage_builder.StageBuilder):
 
     def run(self):
         super().run()
-        if not self.config.dry and hasattr(self, 'genus2otherlv'):
-            self.output.append(self.add_taxonomy())
         return all(self.output)
 
 

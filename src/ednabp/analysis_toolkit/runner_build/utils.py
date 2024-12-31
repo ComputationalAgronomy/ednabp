@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import subprocess
 
-from analysis_toolkit.runner_build import base_logger
+from . import base_logger
 
 
 def run_subprocess(prog_name, cmd, save_path):

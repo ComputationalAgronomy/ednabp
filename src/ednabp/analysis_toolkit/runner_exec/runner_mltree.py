@@ -2,7 +2,7 @@ import os
 import subprocess
 import tempfile
 
-from analysis_toolkit.runner_build import (base_runner, utils, utils_sequence)
+from ..runner_build import (base_runner, utils, utils_sequence)
 
 
 class MLTreeRunner(base_runner.SequenceRunner):

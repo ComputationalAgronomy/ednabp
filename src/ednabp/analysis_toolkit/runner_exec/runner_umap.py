@@ -12,7 +12,7 @@ import tempfile
 import umap
 from umap.plot import _datashade_points, _themes
 
-from analysis_toolkit.runner_build import (base_runner, utils_sequence)
+from ..runner_build import (base_runner, utils_sequence)
 
 class UmapRunner(base_runner.SequenceRunner):
     """

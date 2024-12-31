@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import umap
 
-from analysis_toolkit.runner_build import base_runner
+from ..runner_build import base_runner
 
 
 class HeatmapRunner(base_runner.AbundanceRunner):

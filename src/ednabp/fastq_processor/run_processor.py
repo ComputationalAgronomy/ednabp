@@ -77,36 +77,14 @@ class FastqProcessor:
 
         self.add_default_settings(settings)
 
-        fp_fh = base_logger._get_file_handler(os.path.join(output_path, "stages.log"))
-        self.config_settings["logger"].addHandler(fp_fh)
-        self.config = stage_config.StageConfig(settings = self.config_settings)
+        self.add_config()
 
         self.setup_stages()
 
         if input_is_dir:
-            self.data_prefix = FastqProcessor.get_prefix_with_suffix(self.indir_path, self.stage_suffix["raw"])
-            for prefix in self.data_prefix:
-                FastqProcessor.run_single_data(prefix, self.stages)
+            self.run_stages_files()
         else:
-            prefix = os.path.basename(input_path).replace(self.stage_suffix["raw"], "")
-            self.run_single_data(prefix, self.stages)
-
-    @staticmethod
-    def get_prefix_with_suffix(in_dir, suffix):
-        files = os.listdir(in_dir)
-        prefix = [file.replace(suffix, "") for file in files if file.endswith(suffix)]
-        return prefix
-
-    @staticmethod
-    def run_single_data(prefix, stages):
-        print(f"Sample ID: {prefix}")
-        for k, s in stages.items():
-            s.setup(prefix)
-            is_complete = s.run()
-            if not is_complete:
-                print(f"Error: process errors at stage: {k}\n")
-                break
-            print()
+            self.run_stages_one_file(input_path)
 
     def add_default_settings(self, settings):
         self.stage_class = {
@@ -181,6 +159,11 @@ class FastqProcessor:
         self.assigntaxa_settings = {k: settings.get(k, v) for k, v in DEFAULT_SETTINGS['assigntaxa'].items()}
         self.config_settings = {k: settings.get(k, v) for k, v in DEFAULT_SETTINGS['config'].items()}
 
+    def add_config(self):
+        fp_fh = base_logger._get_file_handler(os.path.join(self.outdir_path, "stages.log"))
+        self.config_settings["logger"].addHandler(fp_fh)
+        self.config = stage_config.StageConfig(settings = self.config_settings)
+
     def setup_stages(self):
         self.stages = dict()
         curr_dir = self.indir_path
@@ -202,6 +185,27 @@ class FastqProcessor:
 
             curr_dir = self.stage_dir[stage]
             curr_suffix = self.stage_suffix[stage]
+
+    def run_one_file(self, prefix):
+        print(f"Sample ID: {prefix}")
+        for k, s in self.stages.items():
+            s.setup(prefix)
+            is_complete = s.run()
+            if not is_complete:
+                print(f"Error: process errors at stage: {k}\n")
+                break
+            print()
+
+    def run_stages_files(self):
+        suffix = self.stage_suffix["raw"]
+        files = os.listdir(self.indir_path)
+        prefixes = [file.replace(suffix, "") for file in files if file.endswith(suffix)]
+        for prefix in prefixes:
+            self.run_one_file(prefix)
+
+    def run_stages_one_file(self, input_path):
+        prefix = os.path.basename(input_path).replace(self.stage_suffix["raw"], "")
+        self.run_one_file(prefix, self.stages)
 
 def main():
     FastqProcessor(input_path=".\\stage_test\\fastq",

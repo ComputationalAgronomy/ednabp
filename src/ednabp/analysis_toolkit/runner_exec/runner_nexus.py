@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import tempfile
 
-from analysis_toolkit.runner_build import (base_runner, utils_sequence)
-from analysis_toolkit.runner_exec import runner_hdbscan
+from ..runner_build import (base_runner, utils_sequence)
+from . import runner_hdbscan
 
 
 class NexusRunner(base_runner.SequenceRunner):

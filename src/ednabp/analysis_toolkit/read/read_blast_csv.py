@@ -1,4 +1,4 @@
-from analysis_toolkit.runner_build import base_logger
+from ..runner_build import base_logger
 
 class Reader:
     def __init__(self):

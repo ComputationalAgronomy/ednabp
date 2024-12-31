@@ -206,14 +206,3 @@ class FastqProcessor:
     def run_stages_one_file(self, input_path):
         prefix = os.path.basename(input_path).replace(self.stage_suffix["raw"], "")
         self.run_one_file(prefix, self.stages)
-
-def main():
-    FastqProcessor(input_path=".\\stage_test\\fastq",
-                   output_path=".\\stage_test",
-                   db_path=".\\data\\database\\MiFish",
-                   lineage_path=".\\data\\database\\lineage.csv",
-                   n_cpu=20,
-                   )
-
-if __name__ == "__main__":
-    main()

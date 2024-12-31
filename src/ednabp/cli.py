@@ -64,6 +64,7 @@ def main():
 
     parser = argparse.ArgumentParser(
         formatter_class = lambda prog: MyFormatter(prog, max_help_position=32),
+        argument_default=argparse.SUPPRESS,
         description = "A pipeline for processing eDNA bioinformatics workflows."
     )
 

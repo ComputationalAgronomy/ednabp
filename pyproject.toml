@@ -18,6 +18,9 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+[project.scripts]
+eDNAbp = "ednabp.cli:main"
+
 [project.urls]
 "Homepage" = "https://github.com/ComputationalAgronomy/ednabp.git"
 "Bug Tracker" = "https://github.com/ComputationalAgronomy/ednabp.git" 

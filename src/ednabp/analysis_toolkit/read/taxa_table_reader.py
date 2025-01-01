@@ -1,18 +1,19 @@
+from .base_reader import Reader
 from ..runner_build import base_logger
 
-class Reader:
-    def __init__(self):
-        pass
 
-
-class BlastReader(Reader):
+class TaxaTableReader(Reader):
     DESIRED_LEVEL = ["species", "genus", "family", "order", "class", "phylum", "kingdom"]
 
     TAX_REPLACMENT = {"Mugil": "Mugilidae"}
                       #"KEY2": "REPLACE2"} # Allow multiple replacements later
 
-    @staticmethod
-    def generate_error_table(error_code:str = ':/\\*?"<>|', replace_symbol: str = '_') -> dict[str, str]:
+    def __init__(self):
+        super().__init__()
+        self.error_table = TaxaTableReader.generate_error_table()
+        self.hap2level = {}
+
+    def generate_error_table(error_code: str = ':/\\*?"<>|', replace_symbol: str = '_') -> dict[str, str]:
         """
         Generate an error table to translate illegal characters in species names to a standard symbol.
 
@@ -25,10 +26,17 @@ class BlastReader(Reader):
         error_symbol = str.maketrans(error_translation)
         return error_symbol
 
-    def __init__(self):
-        super().__init__()
-        self.error_table = BlastReader.generate_error_table()
-        self.hap2level = {}
+    @base_logger.prog_log(prog_name="Read Taxa CSV Table")
+    def read_taxa_table(self, blast_table: str):
+        """
+        Read the BLAST CSV table and update the dictionary 'self.hap2level' with the corresponding taxonomic names at each level for every haplotype (ZOTU).
+        Seven levels are used: species, genus, family, order, class, phylum, kingdom.
+
+        :param blast_table_path: Path to the BLAST CSV table.
+        """
+        with open(blast_table, 'r') as file:
+            for line in file.readlines():
+                self.process_line(line)
 
     def process_line(self, line: str):
         """
@@ -59,19 +67,3 @@ class BlastReader(Reader):
 
     def update_hap2level(self, haplotype, hap2level_entry):
         self.hap2level[haplotype] = hap2level_entry
-
-    def read_blast_table(self, blast_table: str):
-        """
-        Read the BLAST CSV table and update the dictionary 'self.hap2level' with the corresponding taxonomic names at each level for every haplotype (ZOTU).
-        Seven levels are used: species, genus, family, order, class, phylum, kingdom.
-
-        :param blast_table_path: Path to the BLAST CSV table.
-        """
-        base_logger.logger.info(f"Reading Blast CSV Table: {blast_table}.")
-
-        with open(blast_table, 'r') as file:
-            for line in file.readlines():
-                self.process_line(line)
-
-        hap_count = len(self.hap2level)
-        base_logger.logger.info(f"COMPLETE: Assigned {hap_count} haplotypes to species.")

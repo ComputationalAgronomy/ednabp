@@ -1,14 +1,12 @@
 import os
+
 import pandas as pd
 import plotly.express as px
 
-from ..runner_build import DMRunner, base_logger
+from ..runner_build import DMPlotter, base_logger
 
 
-class BarchartRunner(DMRunner):
-
-    def __init__(self, sampledata, no_verbose):
-        super().__init__(sampledata, no_verbose)
+class BarchartPlotter(DMPlotter):
 
     @base_logger.prog_log("Plot barchart")
     def plot_barchart(self,
@@ -25,27 +23,27 @@ class BarchartRunner(DMRunner):
         :param taxa_column: Column name to use for color values 
         :param metric_column: Column name to use for y-axis values
         :param save_dir: If provided, the barchart will be saved as a .HTML file. Default is None.
-        :param overwrite: If True, overwrites existing files in save_dir. If False, don't overwrite. Defaults to False.
+        :param overwrite: Whether to overwrite existing files. Default: False.
         """
         self._load_and_validate_data(csv_path, taxa_column, metric_column)
-        self._create_pivot_table(taxa_column, metric_column)
+        self._process_data(taxa_column, metric_column)
         self._prepare_plot_data()
         self._create_plot()
-        self._display_and_save_plot(save_dir, overwrite)
+        super()._display_and_save_plot(save_dir, overwrite)
 
     @base_logger.prog_log("Load and validate data")
     def _load_and_validate_data(self, csv_path: str, taxa_column: str, metric_column: str):
         try:
             self.df = pd.read_csv(csv_path)
-            required_columns = {'Sample_id', taxa_column, metric_column}
+            required_columns = {self.SAMPLE_ID_COLUMN, taxa_column, metric_column}
             if not required_columns.issubset(self.df.columns):
                 missing = required_columns - set(self.df.columns)
                 raise ValueError(f"Missing required columns: {missing}")
         except FileNotFoundError:
             raise FileNotFoundError(f"Could not find CSV file: {csv_path}")
 
-    @base_logger.prog_log("Process data")
-    def _create_pivot_table(self, taxa_column: str, metric_column: str):
+    @base_logger.prog_log("Create pivot table")
+    def _process_data(self, taxa_column: str, metric_column: str):
         self.pivot_df = self.df.pivot(
             index=self.SAMPLE_ID_COLUMN,
             columns=taxa_column,
@@ -111,13 +109,7 @@ class BarchartRunner(DMRunner):
             },
         )
 
-    @base_logger.prog_log("Display and save plot (if 'save_dir' provided")
-    def _display_and_save_plot(self, save_dir: str | None, overwrite: bool):
-        self.fig.show()
-        if save_dir:
-            self._save_html(save_dir, overwrite)
-
-    def _save_html(self, save_html_dir: str, overwrite: bool):
+    def _save_plot(self, save_html_dir: str, overwrite: bool):
         fig_path = os.path.join(save_html_dir, "barchart.html")
         if os.path.exists(fig_path) and not overwrite:
             self.logger.warning(f"WARNING: File already exists: {fig_path}. Stop saving.")

@@ -37,30 +37,30 @@ class ContourPlotter(DMPlotter):
         :param save_dir: If provided, the contour will be saved as a .PNG file. Default: None.
         :param overwrite: Whether to overwrite existing files. Default: False.
         """
-        self._load_and_validate_data(csv_path, metric_column)
-        self._process_data(shp_path, grid_density)
-        self._prepare_plot_data()
-        self._create_plot(value_step, cmap)
-        super()._display_and_save_plot(save_dir, overwrite)
+        ContourPlotter._load_and_validate_data(self, csv_path, metric_column)
+        ContourPlotter._process_data(self, shp_path, grid_density)
+        ContourPlotter._prepare_plot_data(self)
+        ContourPlotter._create_plot(self, value_step, cmap)
+        ContourPlotter._display_and_save_plot(self, save_dir, overwrite)
 
     @base_logger.prog_log("Load and validate data")
     def _load_and_validate_data(self, csv_path: str, metric_column: str):
-        self.df = pd.read_csv(csv_path)
+        df = pd.read_csv(csv_path)
         required_columns = ["Longitude", "Latitude", metric_column]
 
-        missing_columns = set(required_columns) - set(self.df.columns)
+        missing_columns = set(required_columns) - set(df.columns)
         if missing_columns:
             raise ValueError(f"Missing required columns: {missing_columns}")
-        if not self.df["Longitude"].between(-180, 180).all():
+        if not df["Longitude"].between(-180, 180).all():
             raise ValueError("Longitude values must be between -180 and 180")
-        if not self.df["Latitude"].between(-90, 90).all():
+        if not df["Latitude"].between(-90, 90).all():
             raise ValueError("Latitude values must be between -90 and 90")
-        if (self.df[required_columns[2]] < 0).any():
+        if (df[required_columns[2]] < 0).any():
             raise ValueError(f"{required_columns[2]} values cannot be negative")
 
-        data = self.df[required_columns].to_numpy()
+        data = df.groupby(required_columns[:2]+[self.SAMPLE_ID_COLUMN])[metric_column].sum().reset_index().to_numpy()
         self.lon_lat = np.column_stack([data[:, 0], data[:, 1]]) #long/lati
-        self.counts = np.array(data[:, 2])
+        self.counts = np.array(data[:, 3])
 
     def _process_data(self, shp_path, grid_density):
         self._model_interpolation()
@@ -72,7 +72,8 @@ class ContourPlotter(DMPlotter):
         self.kgn = OrdinaryKriging()
         self.kgn.load(self.lon_lat, self.counts)
 
-        self.kgn.variogram(plot=False)
+        bins = min(len(self.counts), 20)
+        self.kgn.variogram(plot=False, bins=bins)
         self.kgn.fit(model='exp', plot=False)
 
     @base_logger.prog_log("Load geographical map")
@@ -120,6 +121,12 @@ class ContourPlotter(DMPlotter):
         #                      colors='k',
         #                      linewidths=0.5)
         # ax.clabel(clabels, fontsize=8)
+
+    @base_logger.prog_log("Display and save plot (if 'save_dir' provided)")
+    def _display_and_save_plot(self, save_dir: str | None, overwrite: bool):
+        self.fig.show()
+        if save_dir:
+            ContourPlotter._save_plot(self, save_dir, overwrite)
 
     def _save_plot(self, save_png_dir: str, overwrite: bool):
         fig_path = os.path.join(save_png_dir, "contour.png")

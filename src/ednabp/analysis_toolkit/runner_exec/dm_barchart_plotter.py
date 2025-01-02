@@ -25,11 +25,11 @@ class BarchartPlotter(DMPlotter):
         :param save_dir: If provided, the barchart will be saved as a .HTML file. Default is None.
         :param overwrite: Whether to overwrite existing files. Default: False.
         """
-        self._load_and_validate_data(csv_path, taxa_column, metric_column)
-        self._process_data(taxa_column, metric_column)
-        self._prepare_plot_data()
-        self._create_plot()
-        super()._display_and_save_plot(save_dir, overwrite)
+        BarchartPlotter._load_and_validate_data(self, csv_path, taxa_column, metric_column)
+        BarchartPlotter._process_data(self, taxa_column, metric_column)
+        BarchartPlotter._prepare_plot_data(self)
+        BarchartPlotter._create_plot(self)
+        BarchartPlotter._display_and_save_plot(self, save_dir, overwrite)
 
     @base_logger.prog_log("Load and validate data")
     def _load_and_validate_data(self, csv_path: str, taxa_column: str, metric_column: str):
@@ -109,6 +109,11 @@ class BarchartPlotter(DMPlotter):
             },
         )
 
+    @base_logger.prog_log("Display and save plot (if 'save_dir' provided)")
+    def _display_and_save_plot(self, save_dir: str | None, overwrite: bool):
+        self.fig.show()
+        if save_dir:
+            BarchartPlotter._save_plot(self, save_dir, overwrite)
     def _save_plot(self, save_html_dir: str, overwrite: bool):
         fig_path = os.path.join(save_html_dir, "barchart.html")
         if os.path.exists(fig_path) and not overwrite:

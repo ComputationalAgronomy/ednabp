@@ -34,11 +34,11 @@ class HeatmapPlotter(DMPlotter):
         :param save_dir: If provided, the heatmap will be saved as a .HTML file. Default: None.
         :param overwrite: Whether to overwrite existing files. Default: False.
         """
-        self._load_and_validate_data(csv_path, taxa_column, metric_column)
-        self._process_data(taxa_column, metric_column, dereplicate)
-        self._prepare_plot_data(x_categories)
-        self._create_plot(colorscale)
-        self._display_and_save_plot(save_dir, overwrite)
+        HeatmapPlotter._load_and_validate_data(self, csv_path, taxa_column, metric_column)
+        HeatmapPlotter._process_data(self, taxa_column, metric_column, dereplicate)
+        HeatmapPlotter._prepare_plot_data(self, x_categories)
+        HeatmapPlotter._create_plot(self, colorscale)
+        HeatmapPlotter._display_and_save_plot(self, save_dir, overwrite)
 
     @base_logger.prog_log("Load and validate data")
     def _load_and_validate_data(self, csv_path, taxa_column, metric_column):
@@ -101,6 +101,12 @@ class HeatmapPlotter(DMPlotter):
             )
         )
         self.fig.update_layout(yaxis_title=None, width=1000, height=600)
+
+    @base_logger.prog_log("Display and save plot (if 'save_dir' provided)")
+    def _display_and_save_plot(self, save_dir: str | None, overwrite: bool):
+        self.fig.show()
+        if save_dir:
+            HeatmapPlotter._save_plot(self, save_dir, overwrite)
 
     def _save_plot(self, save_html_dir: str, overwrite: bool):
         fig_path = os.path.join(save_html_dir, "heatmap.html")

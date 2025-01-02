@@ -1,7 +1,9 @@
 from abc import ABC
 from collections import defaultdict
-import os
+import os   
+from typing import Literal
 
+import numpy as np
 import pandas as pd
 
 # from . import base_runner, base_logger
@@ -15,10 +17,10 @@ class DMWriter(base_writer.Writer, ABC):
         - abundance: sum of sequence read for each target taxon. (e.g. How many sequences of fish got in sampleA?)
         - richness: number of unique units for each target taxon. (e.g. How many different fish species got in sampleA?)
     '''
-    ABUNDANCE_COLUMN = "Abundance"
-    RICHNESS_COLUMN = "Richness"
-    UNIT_COLUMN = "Unit"
-    SAMPLE_ID_COLUMN = "Sample_id"
+    ABUNDANCE_COLUMN = "abundance"
+    RICHNESS_COLUMN = "richness"
+    UNIT_COLUMN = "unit"
+    SAMPLE_ID_COLUMN = "sample_id"
 
     def __init__(self, sampledata, no_verbose):
         super().__init__(sampledata, no_verbose)
@@ -41,14 +43,14 @@ class DMWriter(base_writer.Writer, ABC):
 
         self._load_sample_id_list(sample_id_list)
         self._create_richness_df(taxa_level, unit_level)
-        DMWriter._export_df(save_dir, f"{taxa_level}_richness.csv", self.richness_df)
+        self._export_df(save_dir, f"{taxa_level}_{unit_level}_richness.csv", self.richness_df)
         self.analysis_type = "Write species richness to csv"
 
     @base_logger.prog_log("Write Abundance table")
     def write_abundance_table(self,
             save_dir: str,
             taxa_level: str,
-            normalize: bool = False,
+            process: Literal["norm", "log"] | None = None,
             sample_id_list: list[str] | None = None
         ):
         """
@@ -56,14 +58,18 @@ class DMWriter(base_writer.Writer, ABC):
 
         :param save_dir: The directory to save the CSV file.
         :param taxa_level: The name of the level to target (e.g., species, family, etc.).
-        :param normalize: Whether to normalize the abundance data.
+        :param process: Optional data processing method:
+            - 'norm': Normalize the abundance values
+            - 'log': Apply log transformation
+            - None: No processing (default)
         :param sample_id_list: A list of sample IDs to write.
         """
         os.makedirs(save_dir, exist_ok=True)
 
         self._load_sample_id_list(sample_id_list)
-        self._create_abundance_df(taxa_level, normalize)
-        DMWriter._export_df(save_dir, f"{taxa_level}_abundance.csv", self.abundance_df)
+        self._create_abundance_df(taxa_level, process)
+        process = "" if process is None else f"_{process}"
+        self._export_df(save_dir, f"{taxa_level}{process}_abundance.csv", self.abundance_df)
         self.analysis_type = "Write species abundance to csv"
 
     @base_logger.prog_log("Calculate taxa richness and create dataframe")
@@ -81,13 +87,21 @@ class DMWriter(base_writer.Writer, ABC):
         self._add_sample_metadata("richness_df") # columns: taxa_level, Richness, Sample_id, Site, Year, Month, Sample
 
     @base_logger.prog_log("Calculate taxa abundance and create dataframe")
-    def _create_abundance_df(self, taxa_level: str, normalize: bool):
+    def _create_abundance_df(self, taxa_level: str, process: str):
         self.abundance_df = pd.DataFrame()
         for sample_id in self.sample_id_used:
             self.logger.info(f"Sample ID: {sample_id}")
             self._get_sample_taxa_abundance(sample_id, taxa_level)
-            if normalize:
-                self._normalize_taxa_abundance()
+            match process:
+                case None:
+                    pass
+                case "norm":
+                    self._normalize_taxa_abundance()
+                case "log":
+                    self._log_taxa_abundance()
+                case _:
+                    raise ValueError(f"Invalid process: {process}")
+
             self._update_metric_df(sample_id,
                                    self.taxa_abundance.items(),
                                    [taxa_level, self.ABUNDANCE_COLUMN],
@@ -95,10 +109,11 @@ class DMWriter(base_writer.Writer, ABC):
         self._add_sample_metadata("abundance_df") # columns: taxa_level, Abundance, Sample_id, Site, Year, Month, Sample
 
     @base_logger.prog_log("Export dataframe to CSV file")
-    def _export_df(save_dir, file_name, metric_df):
+    def _export_df(self, save_dir, file_name, metric_df):
         os.makedirs(save_dir, exist_ok=True)
         output_path = os.path.join(save_dir, file_name)
         metric_df.to_csv(output_path, index=False)
+        self.logger.info(f"Dataframe exported to: {output_path}")
 
     def _get_sample_units_occurence(self, sample_id: str, taxa_level: str, unit_level: str):
         """
@@ -181,3 +196,6 @@ class DMWriter(base_writer.Writer, ABC):
     def _normalize_taxa_abundance(self):
         total_size = sum(self.taxa_abundance.values())
         self.taxa_abundance = {key: value/total_size * 100 for key, value in self.taxa_abundance.items()}
+
+    def _log_taxa_abundance(self):
+        self.taxa_abundance = {key: np.log(value) for key, value in self.taxa_abundance.items()}

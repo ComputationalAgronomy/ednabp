@@ -4,15 +4,12 @@ from . import base_logger
 from ..runner_exec import data_container
 
 
-class Runner(ABC):
+class Writer(ABC):
     def __init__(self, sampledata: data_container.SampleData, no_verbose: bool):
         self.logger = base_logger.logger
         if no_verbose:
             self.logger.setLevel("WARNING")
-        self.analysis_type = None
         self.sample_id_used = None
-        self.parameters = {}
-        self.results_dir = None
         self._import_data(sampledata)
 
     def _import_data(self, samplesdata):

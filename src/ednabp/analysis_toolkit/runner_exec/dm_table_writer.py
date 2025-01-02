@@ -5,10 +5,10 @@ import os
 import pandas as pd
 
 # from . import base_runner, base_logger
-from ednabp.analysis_toolkit.runner_build import base_runner, base_logger
+from ednabp.analysis_toolkit.runner_build import base_logger, base_writer
 
 
-class DMRunner(base_runner.Runner):
+class DMWriter(base_writer.Writer, ABC):
     '''
     An abstract class for running diversity metrics related analysis
     Metrics include:
@@ -41,7 +41,7 @@ class DMRunner(base_runner.Runner):
 
         self._load_sample_id_list(sample_id_list)
         self._create_richness_df(taxa_level, unit_level)
-        DMRunner._export_df(save_dir, f"{taxa_level}_richness.csv", self.richness_df)
+        DMWriter._export_df(save_dir, f"{taxa_level}_richness.csv", self.richness_df)
         self.analysis_type = "Write species richness to csv"
 
     @base_logger.prog_log("Write Abundance table")
@@ -63,7 +63,7 @@ class DMRunner(base_runner.Runner):
 
         self._load_sample_id_list(sample_id_list)
         self._create_abundance_df(taxa_level, normalize)
-        DMRunner._export_df(save_dir, f"{taxa_level}_abundance.csv", self.abundance_df)
+        DMWriter._export_df(save_dir, f"{taxa_level}_abundance.csv", self.abundance_df)
         self.analysis_type = "Write species abundance to csv"
 
     @base_logger.prog_log("Calculate taxa richness and create dataframe")
@@ -108,7 +108,7 @@ class DMRunner(base_runner.Runner):
         for hap, level_dict in self.sample_data[sample_id].hap2level.items():
             assert taxa_level in level_dict, f"Invalid taxa_level: {taxa_level}"
             taxon_name = level_dict[taxa_level]
-            unit_name = DMRunner._get_unit_name(level_dict, unit_level, hap)
+            unit_name = DMWriter._get_unit_name(level_dict, unit_level, hap)
             unit = (taxon_name, unit_name, 1)
             if unit not in self.units_occurrence:
                 self.units_occurrence.append(unit) # e.g. {'SpA': 1, 'SpB': 1, 'SpC': 1}
@@ -141,7 +141,7 @@ class DMRunner(base_runner.Runner):
             on=self.SAMPLE_ID_COLUMN,
             how="outer"
         )
-        if updated_metric_df.isna().any():
+        if updated_metric_df.isna().any().any():
             self.logger.warning(f"WARNING: Some samples are missing metadata. Filling them with 'Unknown'.")
             updated_metric_df = updated_metric_df.fillna("Unknown")
         setattr(self, metric_df_name, updated_metric_df)
@@ -181,14 +181,3 @@ class DMRunner(base_runner.Runner):
     def _normalize_taxa_abundance(self):
         total_size = sum(self.taxa_abundance.values())
         self.taxa_abundance = {key: value/total_size * 100 for key, value in self.taxa_abundance.items()}
-
-    def _save_html(self, fig_type: str, save_html_dir: str, save_name: str):
-        """
-        Save the barchart as an HTML file.
-
-        :param save_html_dir: The directory to save the HTML file.
-        :param save_html_name: The name of the HTML file. If not provided, the name will be "{level}_barchart". Default is None.
-        """
-        fig_path = os.path.join(save_html_dir, f"{save_name}.html")
-        self.fig.write_html(fig_path)
-        self.logger.info(f"{fig_type} saved to: {fig_path}")

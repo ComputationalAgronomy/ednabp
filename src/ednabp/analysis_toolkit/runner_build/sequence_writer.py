@@ -1,9 +1,9 @@
 from abc import ABC
 from collections import defaultdict
 
-from . import base_runner
+from . import base_writer
 
-class SeqRunner(base_runner.Runner, ABC):
+class SeqWriter(base_writer.Writer, ABC):
     '''
     An abstract class for running sequence related analysis
     '''

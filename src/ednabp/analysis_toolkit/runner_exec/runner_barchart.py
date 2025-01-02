@@ -2,67 +2,83 @@ import os
 import pandas as pd
 import plotly.express as px
 
-from ..runner_build import base_runner
+from ..runner_build import DMRunner, base_logger
 
 
-class BarchartRunner(base_runner.AbundanceRunner):
+class BarchartRunner(DMRunner):
 
-    def __init__(self, samplesdata):
-        super().__init__(samplesdata)
+    def __init__(self, sampledata, no_verbose):
+        super().__init__(sampledata, no_verbose)
 
-    def run_write(self,
-            write_type: str = "abundance",
-            taxa_level: str = "species",
-            unit_level: str = "species",
-            save_dir: str = ".",
-            normalize: bool = True,
-            sample_id_list: list[str] = []
-        ):
-        return super().run_write(
-            write_type=write_type,
-            taxa_level=taxa_level,
-            unit_level=unit_level,
-            save_dir=save_dir,
-            normalize=normalize,
-            sample_id_list=sample_id_list
-        )
-
-    @base_runner.log_execution("Plot barchart", "plot_barchart.log")
-    def run_plot(self,
+    @base_logger.prog_log("Plot barchart")
+    def plot_barchart(self,
             csv_path: str,
-            save_dir: str = None,
-            dereplicate: bool = False   
+            taxa_column: str,
+            metric_column: str,
+            save_dir: str | None = None,
+            overwrite: bool = False
         ):
         """
         Plot a barchart to visualize the abundance of a level across samples.
 
-        :param level: The name of the level to plot (e.g., species, family, etc.).
-        :param sample_id_list: A list of sample IDs to plot. Default is None (plot all samples).
-        :param save_dir: If provided, the barchart will be saved as a .HTML file and save a log file. Default is None.
+        :param csv_path: Path to the CSV file containing the data
+        :param taxa_column: Column name to use for color values 
+        :param metric_column: Column name to use for y-axis values
+        :param save_dir: If provided, the barchart will be saved as a .HTML file. Default is None.
+        :param overwrite: If True, overwrites existing files in save_dir. If False, don't overwrite. Defaults to False.
         """
-        self.df = pd.read_csv(csv_path)
+        self._load_and_validate_data(csv_path, taxa_column, metric_column)
+        self._create_pivot_table(taxa_column, metric_column)
+        self._prepare_plot_data()
+        self._create_plot()
+        self._display_and_save_plot(save_dir, overwrite)
 
-        if dereplicate:
-            self.df = self.df.drop("Sample", axis=1)
+    @base_logger.prog_log("Load and validate data")
+    def _load_and_validate_data(self, csv_path: str, taxa_column: str, metric_column: str):
+        try:
+            self.df = pd.read_csv(csv_path)
+            required_columns = {'Sample_id', taxa_column, metric_column}
+            if not required_columns.issubset(self.df.columns):
+                missing = required_columns - set(self.df.columns)
+                raise ValueError(f"Missing required columns: {missing}")
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Could not find CSV file: {csv_path}")
 
-        self.df["Sample_id"] = self.df.apply(lambda x: "-".join(map(str, x[1:-1])), axis=1)
+    @base_logger.prog_log("Process data")
+    def _create_pivot_table(self, taxa_column: str, metric_column: str):
+        self.pivot_df = self.df.pivot(
+            index=self.SAMPLE_ID_COLUMN,
+            columns=taxa_column,
+            values=metric_column
+        ).fillna(0)
 
-        self.fig = px.bar(self.df, x="Sample_id", y="Counts", color=self.df.columns[0])
-        self._add_fig_setting()
-        self.fig.show()
+        # Sort columns by sum of values (descending)
+        column_sums = self.pivot_df.sum()
+        self.pivot_df = self.pivot_df[column_sums.sort_values(ascending=False).index]
 
-        if save_dir:
-            self._save_html("Barchart", save_dir, os.path.basename(csv_path).split(".")[0])
+        # Sort rows by sum of values (descending)
+        row_sums = self.pivot_df.sum(axis=1)
+        self.pivot_df = self.pivot_df.loc[row_sums.sort_values(ascending=False).index]
 
-        self.analysis_type = "Plot barchart"
-        self.results_dir = save_dir
-        self.parameters.update(
-            {
-                "csv_path": csv_path,
-                "dereplicate": dereplicate
-            }
+    @base_logger.prog_log("Prepare plot data")
+    def _prepare_plot_data(self):
+        cols = self.pivot_df.columns.tolist()
+        idx = self.pivot_df.index.tolist()
+        self.plot_data = {
+            'x': [i for i in idx for _ in range(len(cols))],
+            'y': self.pivot_df.values.flatten(),
+            'color': cols * len(idx)
+        }
+
+    @base_logger.prog_log("Create plot")
+    def _create_plot(self):
+        self.fig = px.bar(
+            x=self.plot_data['x'],
+            y=self.plot_data['y'],
+            color=self.plot_data['color']
         )
-    
+        self._add_fig_setting()
+
     def _add_fig_setting(self,
             axes_title_font: int = 20,
             axes_tick_font: int = 18,
@@ -70,9 +86,6 @@ class BarchartRunner(base_runner.AbundanceRunner):
             legend_x_position: float = 1.05,
             legend_y_position: float = 1.0
         ):
-        """
-        Create a stacked bar chart figure using Plotly.
-        """
         self.fig.update_xaxes(
             tickmode='linear',
             title=dict(
@@ -98,50 +111,16 @@ class BarchartRunner(base_runner.AbundanceRunner):
             },
         )
 
-        ## https://stackoverflow.com/questions/44309507/stacked-bar-plot-using-matplotlib
-        # a way to sort stacked BarChart
-        # plotdata = plotdata.transpose()
-        # fig, ax = plt.subplots()
-        # x = plotdata.index
-        # indexes = np.argsort(plotdata.values).T
-        # heights = np.sort(plotdata.values).T
-        # order = -1
-        # bottoms = heights[::order].cumsum(axis=0)
-        # bottoms = np.insert(bottoms, 0, np.zeros(len(bottoms[0])), axis=0)
-        # colormap = plt.get_cmap('rainbow')
-        # colors = px.colors.qualitative.Pastel
-        # num_colors = len(colors)
-        # mpp_colors = {col: colors[i % num_colors] for i, col in enumerate(plotdata.columns)}
-    
-        # fig = go.Figure()
-        
-        # # # Plot each segment of the stacked bar
-        # for i, (idxs, vals) in enumerate(list(zip(indexes, heights))[::order]):
-        #     mps = np.take(np.array(plotdata.columns), idxs)
-        #     for j, m in enumerate(mps):
-    
-        #         fig.add_trace(go.Bar(
-        #             x=x,
-        #             y=[vals[j]] * len(x),
-        #             name=m,
-        #             marker=dict(color=mpp_colors[m]),
-        #             offsetgroup=i,
-        #             base=bottoms[i][j]
-        #         ))
-    
-        # # Update layout
-        # fig.update_layout(
-        #     barmode='stack',
-        #     xaxis_title="Sample ID",
-        #     yaxis_title="Percentage (%)",
-        #     legend=dict(
-        #         x=1.05,
-        #         y=1,
-        #         traceorder='normal',
-        #         orientation='h',
-        #         font=dict(size=15)
-        #     ),
-        # )
-        # fig.update_xaxes(tickmode='linear', title=dict(font=dict(size=20)), tickfont=dict(size=18))
-        # fig.update_yaxes(title=dict(font=dict(size=20)), tickfont=dict(size=18))
-        # fig.show()
+    @base_logger.prog_log("Display and save plot (if 'save_dir' provided")
+    def _display_and_save_plot(self, save_dir: str | None, overwrite: bool):
+        self.fig.show()
+        if save_dir:
+            self._save_html(save_dir, overwrite)
+
+    def _save_html(self, save_html_dir: str, overwrite: bool):
+        fig_path = os.path.join(save_html_dir, "barchart.html")
+        if os.path.exists(fig_path) and not overwrite:
+            self.logger.warning(f"WARNING: File already exists: {fig_path}. Stop saving.")
+            return
+        self.fig.write_html(fig_path)
+        self.logger.info(f"Barchart saved to: {fig_path}")

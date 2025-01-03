@@ -17,22 +17,15 @@ class SeqWriter(base_writer.Writer, ABC):
             if seq_num < n_unit_threshold:
                 del self.units2fasta[unit]
 
-    def _load_units2fasta_dict(self,
-            target_name: str,
-            target_level: str,
-            unit_level: str,
-            n_unit_threshold: int = -1 # TODO(SW): OR *args
-        ):
+    def _load_units2fasta_dict(self, **kargs):
         for sample_id in self.sample_id_used:
             for hap, level_dict in self.sample_data[sample_id].hap2level.items():
-                if target_name not in level_dict[target_level]:
+                if kargs["taxon_name"] not in level_dict[kargs["taxa_level"]]:
                     continue
-
-                unit_name = level_dict[unit_level]
+                unit_name = level_dict[kargs["unit_level"]]
                 title = f"{unit_name}-{sample_id}_{hap}"
                 seq = self.sample_data[sample_id].hap_seq[hap]
-
                 self.units2fasta[unit_name] += f'>{title}\n{seq}\n'
 
-        if n_unit_threshold > 1:
-            self._filter_sequence(n_unit_threshold)
+        if "n_unit_threshold" in kargs and kargs["n_unit_threshold"] > 0:
+            self._filter_sequence(kargs["n_unit_threshold"])

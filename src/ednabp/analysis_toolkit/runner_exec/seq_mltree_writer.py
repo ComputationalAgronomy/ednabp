@@ -2,36 +2,36 @@ import os
 import subprocess
 import tempfile
 
-from ..runner_build import (base_runner, utils, utils_sequence)
+from ..runner_build import (base_logger, utils, utils_sequence, SeqWriter)
 
 
-class MLTreeRunner(base_runner.SequenceRunner):
+class MLTreeWriter(SeqWriter):
 
-    def __init__(self, samplesdata):
-        super().__init__(samplesdata)
+    def __init__(self, samplesdata, no_verbose: bool = False):
+        super().__init__(samplesdata, no_verbose)
 
-    @base_runner.log_execution("Reconstruct ML tree", "write_mltree.log")
-    def run_write(self,
-            target_list: list[str],
-            target_level: str,
+    @base_logger.prog_log("Reconstruct ML tree")
+    def write_mltree(self,
+            save_dir:str,
+            taxa_list: list[str],
+            taxa_level: str,
             unit_level:str = "species",
-            save_dir:str = '.',
             save_prefix: str = "ml_tree",
             model: str = None,
             bootstrap: int = None,
             threads: int = None,
             dereplicate_sequence: bool = True,
             n_unit_threshold:int = 1,
-            sample_id_list: list[str] = []
+            sample_id_list: list[str] | None = None,
         ) -> None:
         """
         Reconstruct a phylogenetic tree for a list of targets using IQTREE and write a .TREEFILE file.
         (IQTREE2 command reference: http://www.iqtree.org/doc/Command-Reference)
 
-        :param target_list: A list of targets to be plotted (e.g., ["FamilyA", "FamilyB", etc]).
-        :param target_level: The taxonomic level of the targets (e.g., family, genus, species).
-        :param units_level: The taxonomic level of the units. Default is "species"
         :param save_dir: Directory to save the output files.
+        :param target_list: A list of taxa's names to be plotted (e.g., ["FamilyA", "FamilyB", etc]).
+        :param target_level: The taxonomic level of the taxa names (e.g., family, genus, species).
+        :param units_level: The taxonomic level of the units. Default is "species"
         :param save_prefix: Prefix for the output file names. Default is "ml_tree".
         :param model: Model to specify for tree inference. If not specified, it will use the best-fit model found. Default is None.
         :param bootstrap: Number of bootstrap replicates. Default is None.
@@ -40,49 +40,32 @@ class MLTreeRunner(base_runner.SequenceRunner):
         :param n_unit_threshold: Minimum number of seqeunces for an unit to be included in the analysis. Default is 1.
         :param sample_id_list: A list of sample IDs to plot. Default is None (plot all samples).
         """
-        os.makedirs(save_dir, exist_ok=True)
-
-        ml_fasta_path = os.path.join(save_dir, f'{save_prefix}.aln')
-
         self._load_sample_id_list(sample_id_list)
+        try:
+            self._create_tmpdir()
+            self._write_mltree_fasta(
+                taxa_list=taxa_list,
+                taxa_level=taxa_level,
+                unit_level=unit_level,
+                n_unit_threshold=n_unit_threshold,
+                dereplicate_sequence=dereplicate_sequence,
+            )
+            self._run_iqtree2(
+                save_dir=save_dir,
+                save_prefix=save_prefix,
+                model=model,
+                bootstrap=bootstrap,
+                threads=threads
+            )
+        finally:
+            self.tmpdir.cleanup()
 
-        self._write_mltree_fasta(
-            target_list=target_list,
-            target_level=target_level,
-            unit_level=unit_level,
-            save_path=ml_fasta_path,
-            n_unit_threshold=n_unit_threshold,
-            dereplicate_sequence=dereplicate_sequence,
-        )
+    def _create_tmpdir(self):
+        self.tmpdir = tempfile.TemporaryDirectory(delete=False)
+        self.fasta_path = os.path.join(self.tmpdir.name, 'mltree.fa')
+        self.ml_fasta_path = os.path.join(self.tmpdir.name, f'mltree.aln')
 
-        self._run_iqtree2(
-            seq_path=ml_fasta_path,
-            save_dir=save_dir,
-            save_prefix=save_prefix,
-            model=model,
-            bootstrap=bootstrap,
-            threads=threads
-        )
-
-        self.analysis_type = "mltree_run"
-        self.results_dir = save_dir
-        self.parameters.update(
-            {
-                "target_list": target_list,
-                "target_level": target_level,
-                "unit_level": unit_level,
-                "save_prefix": save_prefix,
-                "model": model,
-                "bootstrap": bootstrap,
-                "threads": threads,
-                "dereplicate_sequence": dereplicate_sequence,
-                "n_unit_threshold": n_unit_threshold,
-            }
-        )
-
-    def run_plot(self):
-        return super().run_plot()
-
+    @base_logger.prog_log("Check overwrite")
     def _check_mltree_overwrite(self, save_dir: str, save_prefix: str) -> str:
         # TODO(SW): Eventually, replace with argparse.
         """
@@ -111,48 +94,33 @@ class MLTreeRunner(base_runner.SequenceRunner):
         else:
             pass
 
+    @base_logger.prog_log("Write MLTree FASTA file")
     def _write_mltree_fasta(self,
-            target_list: list[str],
-            target_level: str,
+            taxa_list: list[str],
+            taxa_level: str,
             unit_level: str,
-            save_path: str,
             n_unit_threshold: int,
             dereplicate_sequence: bool,
         ) -> None:
-        """
-        Write an aligned FASTA file for a list of targets.
-        """
-        self.logger.info(f"Writing MLTree FASTA file: {save_path}...")
- 
-        try:
-            temp_dir = tempfile.TemporaryDirectory()
-            fasta_path = os.path.join(temp_dir.name, 'mltree.fa')
+        for taxon_name in taxa_list:
+            self._load_units2fasta_dict(
+                taxon_name=taxon_name,
+                taxa_level=taxa_level,
+                unit_level=unit_level,
+                n_unit_threshold=n_unit_threshold
+            )
+        utils_sequence.write_fasta(self.units2fasta, save_path=self.fasta_path, dereplicate=dereplicate_sequence)
+        utils_sequence.align_fasta(seq_path=self.fasta_path, aln_path=self.ml_fasta_path)
 
-            for target_name in target_list:
-                self._load_units2fasta_dict(
-                    target_name=target_name,
-                    target_level=target_level,
-                    unit_level=unit_level,
-                    n_unit_threshold=n_unit_threshold
-                )
-
-            utils_sequence.write_fasta(self.units2fasta, save_path=fasta_path, dereplicate=dereplicate_sequence)
-            utils_sequence.align_fasta(seq_path=fasta_path, aln_path=save_path)
-
-        finally:
-            temp_dir.cleanup()
-
+    @base_logger.prog_log("Run IQTREE2")
     def _run_iqtree2(self,
-            seq_path:str,
             save_dir: str,
             save_prefix: str,
             model:str = None,
             bootstrap: int = None,
             threads: int = None
         ) -> None:
-        """
-        Run IQTREE2 command.
-        """
+        os.makedirs(save_dir, exist_ok=True)
         checkpoint = self._check_mltree_overwrite(save_dir, save_prefix)
         if checkpoint == 'stop':
             self.logger.info("Stopping the run.")
@@ -163,7 +131,7 @@ class MLTreeRunner(base_runner.SequenceRunner):
         threads = threads or 'AUTO'
 
         cmd = [
-            'iqtree2', '-m', model, '-s', seq_path, '--prefix', prefix_path, '-nt', threads
+            'iqtree2', '-m', model, '-s', self.ml_fasta_path, '--prefix', prefix_path, '-nt', threads
         ]
         if bootstrap:
             cmd.extend(["-b", str(bootstrap)])

@@ -1,26 +1,27 @@
-from Bio import AlignIO, SeqIO
 import os
-import numpy as np
-import pandas as pd
 import tempfile
 
-from ..runner_build import (base_runner, utils_sequence)
-from . import runner_hdbscan
+from Bio import AlignIO, SeqIO
+import numpy as np
+import pandas as pd
+
+from ..runner_build import (base_logger, utils_sequence, SeqWriter)
+from . import seq_hdbscan_clusterer
 
 
-class NexusRunner(base_runner.SequenceRunner):
+class NexusWriter(SeqWriter):
 
-    def __init__(self, samplesdata):
-        super().__init__(samplesdata)
+    def __init__(self, samplesdata, no_verbose: bool = False):
+        super().__init__(samplesdata, no_verbose)
         self.uniq_seqs2label_freq = {}
 
-    @base_runner.log_execution("Write NEXUS file", "write_nexus.log")
-    def run_write(self,
+    @base_logger.prog_log("Write NEXUS file")
+    def write_nexus(self,
             index_path: str,
             species_name: str,
             label_type: str,
             save_dir: str = '.',
-            sample_id_list: list[str] = []
+            sample_id_list: list[str] | None = None
         ) -> None:
         """
         Write a NEXUS file for a given species. The file can be used as input for Popart to plot a haplotype network.
@@ -63,21 +64,8 @@ class NexusRunner(base_runner.SequenceRunner):
 
             self.logger.info(f"Saved NEXUS file to: {nex_path}")
 
-            self.analysis_type = "nexus_write"
-            self.results_dir = save_dir
-            self.parameters.update(
-                {
-                    "index_path": index_path,
-                    "species_name": species_name,
-                    "label_type": label_type
-                }
-            )
-
         finally:
             temp_dir.cleanup()
-
-    def run_plot(self):
-        return super().run_plot()
 
     def _load_points_labels(self,
             index_path: str,
@@ -91,7 +79,7 @@ class NexusRunner(base_runner.SequenceRunner):
         subindex = index[index["unit"] == species_name]
         if label_type == 'hdbscan':
             points = subindex[["umap1", "umap2"]].to_numpy()
-            self.seq_labels, _, _, _ = runner_hdbscan.HdbscanRunner._fit_hdbscan(points=points, min_samples=10, min_cluster_size=5) # TODO(SW): FIX THIS
+            self.seq_labels, _, _, _ = seq_hdbscan_clusterer.HdbscanRunner._fit_hdbscan(points=points, min_samples=10, min_cluster_size=5) # TODO(SW): FIX THIS
         elif label_type == 'site':
             self.seq_labels = ["taoyuan" if "taoyuan" in i else "keelung" for i in subindex["seq_id"]]
         else:

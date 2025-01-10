@@ -6,40 +6,43 @@ import numpy as np
 
 from ..runner_build import Clusterer
 
+# hdbscan settings (https://scikit-learn.org/1.5/modules/generated/sklearn.cluster.HDBSCAN.html)
+HDBSCAN_DEFAULT_SETTINGS = {
+    "min_cluster_size": 5,
+    "min_samples": None,
+    "metric": 'euclidean',
+    "p": None,
+    "alpha": 1.0,
+    "cluster_selection_epsilon": 0.0,
+    "algorithm": 'best',
+    "leaf_size": 40,
+    "approx_min_span_tree": True,
+    "gen_min_span_tree": False,
+    "core_dist_n_jobs": 4,
+    "cluster_selection_method": 'eom',
+    "allow_single_cluster": False,
+    "prediction_data": False,
+    "match_reference_implementation": False,
+}
 class HdbClusterer(Clusterer):
 
     def __init__(
             self,
             index,
-            **settings
+            **kwargs
         ):
-        self.add_default_settings(settings=settings)
+        HdbClusterer.add_default_settings(self, settings=kwargs)
         super().__init__(index=index)
 
     @override
     def add_default_settings(self, settings):
-        defaults = {
-            # hdbscan settings (https://scikit-learn.org/1.5/modules/generated/sklearn.cluster.HDBSCAN.html)
-            "min_cluster_size": 5,
-            "min_samples": None,
-            "metric": 'euclidean',
-            "p": None,
-            "alpha": 1.0,
-            "cluster_selection_epsilon": 0.0,
-            "algorithm": 'best',
-            "leaf_size": 40,
-            "approx_min_span_tree": True,
-            "gen_min_span_tree": False,
-            "core_dist_n_jobs": 4,
-            "cluster_selection_method": 'eom',
-            "allow_single_cluster": False,
-            "prediction_data": False,
-            "match_reference_implementation": False,
+        DEFAULT_SETTINGS = {
             # output settings
             "show_plot": True,
             "plot_path": None
         }
-        for key, value in defaults.items():
+        DEFAULT_SETTINGS.update(HDBSCAN_DEFAULT_SETTINGS)
+        for key, value in DEFAULT_SETTINGS.items():
             if key not in settings:
                 settings[key] = value
         self.settings = settings

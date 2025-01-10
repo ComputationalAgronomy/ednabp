@@ -1,27 +1,30 @@
+from collections import defaultdict
 import os
 import tempfile
+from typing import Literal
 
 from Bio import AlignIO, SeqIO
+import hdbscan
 import numpy as np
 import pandas as pd
 
 from ..runner_build import (base_logger, utils_sequence, SeqWriter)
-from . import seq_hdbscan_clusterer
+from .seq_hdbscan_clusterer import HDBSCAN_DEFAULT_SETTINGS
 
 
 class NexusWriter(SeqWriter):
 
     def __init__(self, samplesdata, no_verbose: bool = False):
         super().__init__(samplesdata, no_verbose)
-        self.uniq_seqs2label_freq = {}
 
     @base_logger.prog_log("Write NEXUS file")
     def write_nexus(self,
             index_path: str,
             species_name: str,
-            label_type: str,
+            label_type: Literal["hdbscan", "site"],
             save_dir: str = '.',
-            sample_id_list: list[str] | None = None
+            sample_id_list: list[str] | None = None,
+            **kwargs
         ) -> None:
         """
         Write a NEXUS file for a given species. The file can be used as input for Popart to plot a haplotype network.
@@ -34,40 +37,60 @@ class NexusWriter(SeqWriter):
         :param label_type: Type of labels to use. Either 'hdbscan' or 'site'.
         :param save_dir: Directory where the NEXUS file will be saved. Default is the current directory.
         :param sample_id_list: List of sample IDs to include in the NEXUS file. The list should be same as that specified by the index file. Default is None (plot all samples).
+        :param kwargs: Additional HDBSCAN settings to override default parameters. Only applied when label_type is 'hdbscan'.
         """
         try:
+            self.uniq_seqs2label_freq = {}
+            NexusWriter._add_hdbscan_default_settings(self, settings=kwargs)
             self._load_sample_id_list(sample_id_list)
-
-            self._load_points_labels(
-                index_path=index_path,
-                species_name=species_name,
-                label_type=label_type
-            )
-
-            self._load_units2fasta_dict(
-                target_name=species_name,
-                target_level='species',
-                unit_level='species',
-            )
-
-            os.makedirs(save_dir, exist_ok=True)
-            temp_dir = tempfile.TemporaryDirectory()
-            fasta_path = os.path.join(temp_dir.name, f"{species_name}.fa")
-            uniq_fasta_path = os.path.join(temp_dir.name, f"{species_name}_uniq.fa")
-            aln_fasta_path = os.path.join(temp_dir.name, f"{species_name}_uniq.aln")
-            nex_path = os.path.join(save_dir, f"{species_name}.nex")
-            self._write_seq_files(fasta_path, uniq_fasta_path, aln_fasta_path, nex_path)
-
-            self._count_uniq_seq_frequency(fasta_path, uniq_fasta_path)
-            self._assemble_nex_format_freq_string()
-            self._add_freq_string2nex_path(nex_path)
-
-            self.logger.info(f"Saved NEXUS file to: {nex_path}")
+            self._get_files_path(save_dir)
+            self._write_spc_seq_files(species_name)
+            self._write_nexus_seq_part()
+            self._write_nexus_freq_part()
+            self.logger.info(f"Saved NEXUS file to: {self.nex_path}")
 
         finally:
-            temp_dir.cleanup()
+            self._clean_tmp_files()
 
-    def _load_points_labels(self,
+    def _add_hdbscan_default_settings(self, settings: dict):
+        for key, value in settings.items():
+            if key in HDBSCAN_DEFAULT_SETTINGS:
+                HDBSCAN_DEFAULT_SETTINGS[key] = value
+        self.hdbscan_settings = HDBSCAN_DEFAULT_SETTINGS
+
+    def _get_files_path(self, save_dir: str):
+        os.makedirs(save_dir, exist_ok=True)
+        self.tmp_dir = tempfile.TemporaryDirectory(delete=False)
+
+        self.fa_path = os.path.join(self.tmp_dir.name, f"seq.fa")
+        self.uniq_fa_path = os.path.join(self.tmp_dir.name, f"seq_uniq.fa")
+        self.uniq_aln_path = os.path.join(self.tmp_dir.name, f"seq_uniq.aln")
+        self.nex_path = os.path.join(save_dir, f"haplotype_network.nex")
+
+    def _clean_tmp_files(self):
+        self.tmp_dir.cleanup()
+
+    def _write_spc_seq_files(self, species_name):
+        self._load_units2fasta_dict(
+            taxon_name=species_name,
+            taxa_level='species',
+            unit_level='species',
+        )
+        utils_sequence.write_fasta(self.units2fasta, save_path=self.fa_path, dereplicate=False)
+        utils_sequence.write_fasta(self.units2fasta, save_path=self.uniq_fa_path, dereplicate=True)
+        utils_sequence.align_fasta(seq_file=self.uniq_fa_path, aln_file=self.uniq_aln_path) # TODO(SW): This is a logic issuse. This function should be outside write_nexus_file()
+
+    def _write_nexus_seq_part(self):
+        AlignIO.convert(self.uniq_aln_path, "fasta", self.nex_path, "nexus", molecule_type="DNA")
+
+    def _write_nexus_freq_part(self, index_path, species_name, label_type):
+        self._get_points_labels(index_path, species_name, label_type)
+        self._count_uniq_seq_freq()
+        self._assemble_nexus_freq_str()
+        with open(self.nex_path, 'a') as nex_handle:
+            nex_handle.write(self.freq_string)
+
+    def _get_points_labels(self,
             index_path: str,
             species_name: str,
             label_type: str
@@ -79,39 +102,32 @@ class NexusWriter(SeqWriter):
         subindex = index[index["unit"] == species_name]
         if label_type == 'hdbscan':
             points = subindex[["umap1", "umap2"]].to_numpy()
-            self.seq_labels, _, _, _ = seq_hdbscan_clusterer.HdbscanRunner._fit_hdbscan(points=points, min_samples=10, min_cluster_size=5) # TODO(SW): FIX THIS
+            self.seq_labels = hdbscan.HDBSCAN(
+                **self.hdbscan_settings
+            ).fit_predict(points)
         elif label_type == 'site':
             self.seq_labels = ["taoyuan" if "taoyuan" in i else "keelung" for i in subindex["seq_id"]]
         else:
             raise ValueError("Label type must be 'hdbscan' or 'site'.")
 
-    def _write_seq_files(self, fasta_path, uniq_fasta_path, aln_fasta_path, nex_path):
-        utils_sequence.write_fasta(self.units2fasta, save_path=fasta_path, dereplicate=False)
-        utils_sequence.write_fasta(self.units2fasta, save_path=uniq_fasta_path, dereplicate=True)
-        utils_sequence.align_fasta(seq_file=uniq_fasta_path, aln_file=aln_fasta_path) # TODO(SW): This is a logic issuse. This function should be outside write_nexus_file()
-        AlignIO.convert(aln_fasta_path, "fasta", nex_path, "nexus", molecule_type="DNA")
-
-    def _count_uniq_seq_frequency(self, fasta_path, uniq_fasta_path) -> str:
+    def _count_uniq_seq_freq(self) -> str:
         """
         Count the frequency of each label category for each unique sequence in the 'uniq_seqs_path' file based on the 'seqs_path' file.
 
         :param seqs_path: Path to the input FASTA file containing all sequences.
         :param uniq_seqs_path: Path to the input FASTA file containing only unique sequences.
         """
-        self.uniq_labels = np.unique(self.seq_labels)
+        with open(self.uniq_fa_path, 'r') as uniq_fa_handle, open(self.fa_path, 'r') as fa_handle:
+            uniq_fa_records = list(SeqIO.parse(uniq_fa_handle, 'fasta'))
+            fa_records = list(SeqIO.parse(fa_handle, 'fasta'))
+            for ufr in uniq_fa_records:
+                self.uniq_seqs2label_freq[ufr.name] = defaultdict(int)
 
-        with open(uniq_fasta_path, 'r') as uniq_handle:
-            uniq_records = list(SeqIO.parse(uniq_handle, 'fasta'))
-            for record in uniq_records:
-                self.uniq_seqs2label_freq[record.name] = {uniq_label: 0 for uniq_label in self.uniq_labels}
+                for i, fr in enumerate(fa_records):
+                    if str(fr.seq) == str(ufr.seq):
+                        self.uniq_seqs2label_freq[ufr.name][self.seq_labels[i]] += 1
 
-        with open(fasta_path, 'r') as seq_handle:
-            for i, seq_record in enumerate(SeqIO.parse(seq_handle, 'fasta')):
-                for uniq_record in uniq_records:
-                    if seq_record.seq == uniq_record.seq:
-                        self.uniq_seqs2label_freq[uniq_record.name][self.seq_labels[i]] += 1
-
-    def _assemble_nex_format_freq_string(self):
+    def _assemble_nexus_freq_str(self):
         self.freq_string = (
             f"Begin Traits;\n"
             f"Dimensions NTraits={len(self.uniq_labels)};\n"
@@ -125,8 +141,3 @@ class NexusWriter(SeqWriter):
             self.freq_string += f"{seq_id} {freq_values}\n"
 
         self.freq_string += ";\nend;\n"
-    
-    def _add_freq_string2nex_path(self, nex_path):
-        with open(nex_path, 'a') as nex_handle:
-            nex_handle.write(self.freq_string)
-

@@ -1,3 +1,5 @@
+# cli: (eDNAbp -h)
+# example: eDNAbp -i .\stage_test\fastq\ -o .\stage_test\ -db .\data\database\MiFish -ln .\data\database\lineage.csv --n-cpu 20
 from ednabp import FastqProcessor
 
 FastqProcessor(

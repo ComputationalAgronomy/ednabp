@@ -19,7 +19,7 @@ classifiers = [
 ]
 
 [project.scripts]
-eDNAbp = "ednabp.cli:main"
+eDNAbp = "cli:main"
 
 [project.urls]
 "Homepage" = "https://github.com/ComputationalAgronomy/ednabp.git"

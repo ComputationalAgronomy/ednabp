@@ -160,7 +160,7 @@ class FastqProcessor:
         self.config_settings = {k: settings.get(k, v) for k, v in DEFAULT_SETTINGS['config'].items()}
 
     def add_config(self):
-        fp_fh = base_logger._get_file_handler(os.path.join(self.outdir_path, "stages.log"))
+        fp_fh = base_logger.get_file_handler(os.path.join(self.outdir_path, "stages.log"))
         self.config_settings["logger"].addHandler(fp_fh)
         self.config = stage_config.StageConfig(settings = self.config_settings)
 

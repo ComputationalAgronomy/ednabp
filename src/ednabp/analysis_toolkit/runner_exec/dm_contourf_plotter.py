@@ -1,12 +1,7 @@
 import os
 
-from geokrige.methods import OrdinaryKriging
-from geokrige.tools import TransformerGDF
-import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import plotly.graph_objects as go
 import pandas as pd
 
 from ..runner_build import DMPlotter, base_logger
@@ -69,6 +64,7 @@ class ContourPlotter(DMPlotter):
 
     @base_logger.prog_log("Model interpolation")
     def _model_interpolation(self):
+        from geokrige.methods import OrdinaryKriging
         self.kgn = OrdinaryKriging()
         self.kgn.load(self.lon_lat, self.counts)
 
@@ -78,10 +74,12 @@ class ContourPlotter(DMPlotter):
 
     @base_logger.prog_log("Load geographical map")
     def _load_shp(self, shp_path: str):
+        import geopandas as gpd
         self.prediction_gdf = gpd.read_file(shp_path).to_crs(crs='EPSG:4326')
 
     @base_logger.prog_log("Transform geographical map to meshgrid")
     def _transform_grid_and_mask(self, grid_density: float):
+        from geokrige.tools import TransformerGDF
         transformer = TransformerGDF()
         transformer.load(self.prediction_gdf)
 

@@ -4,8 +4,6 @@ import tempfile
 from typing import Literal
 
 from Bio import AlignIO, SeqIO
-import hdbscan
-import numpy as np
 import pandas as pd
 
 from ..runner_build import (base_logger, utils_sequence, SeqWriter)
@@ -101,6 +99,7 @@ class NexusWriter(SeqWriter):
         index = pd.read_csv(index_path, sep='\t')
         subindex = index[index["unit"] == species_name]
         if label_type == 'hdbscan':
+            import hdbscan
             points = subindex[["umap1", "umap2"]].to_numpy()
             self.seq_labels = hdbscan.HDBSCAN(
                 **self.hdbscan_settings

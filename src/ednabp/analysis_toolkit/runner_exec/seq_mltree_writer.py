@@ -1,5 +1,4 @@
 import os
-import subprocess
 import tempfile
 
 from ..runner_build import (base_logger, utils, utils_sequence, SeqWriter)

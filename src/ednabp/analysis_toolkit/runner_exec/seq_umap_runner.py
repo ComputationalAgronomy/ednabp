@@ -9,9 +9,6 @@ from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy import sparse
-import umap
-from umap.plot import _datashade_points, _themes
 
 from ..runner_build import (base_logger, utils_sequence, utils, SeqWriter)
 from . import seq_hdbscan_clusterer
@@ -222,6 +219,7 @@ class UmapRunner(SeqWriter):
         :param dist_path: Path to the input distance matrix file.
         :return: Sparse distance matrix as a NumPy array.
         """
+        from scipy import sparse
         self.matrix = pd.read_csv(dist_path, header=None, sep='\t')
         self.logger.info(f"Loading sparse {max(self.matrix[0])+1} x {max(self.matrix[0])+1} distance matrix from: {dist_path}")
 
@@ -280,6 +278,7 @@ class UmapRunner(SeqWriter):
         :param random_state: Random state for umap.
         :param precomputed: Whether the elements of the matrix are distances or not.
         """
+        import umap
         self.reducer = umap.UMAP(
             n_neighbors=neighbors,
             min_dist=min_dist,
@@ -502,6 +501,7 @@ class UmapRunner(SeqWriter):
         if points.shape[0] <= width * height // 10:
             ax = UmapRunner._matplotlib_points(points, ax, labels, markers, values, color_key, cmap, background, width, height, show_legend)
         else:
+            from umap.plot import _datashade_points
             ax = _datashade_points(points, ax, labels, values, color_key, cmap, background, width, height, show_legend)
 
         ax.set(xticks=[], yticks=[])

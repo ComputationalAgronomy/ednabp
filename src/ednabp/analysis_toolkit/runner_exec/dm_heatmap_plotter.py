@@ -4,7 +4,6 @@ from typing import Annotated
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import umap
 
 from ..runner_build import DMPlotter, base_logger
 
@@ -66,6 +65,7 @@ class HeatmapPlotter(DMPlotter):
         self._sort_index()
 
     def _sort_index(self):
+        import umap
         self.s_index = umap.UMAP(n_components=1, n_neighbors=15, random_state=42).fit(np.array(self.pivot_table)).embedding_
         self.s_index = np.argsort(self.s_index[:,0])
 

@@ -3,9 +3,6 @@
 
 import argparse
 
-from .fastq_processor.run_processor import FastqProcessor
-
-
 def main():
     argument_groups = {
         "Required Input & Output Path": [
@@ -75,6 +72,7 @@ def main():
 
     options = vars(parser.parse_args())
 
+    from ednabp import FastqProcessor
     FastqProcessor(**options)
 
 class MyFormatter(argparse.HelpFormatter):

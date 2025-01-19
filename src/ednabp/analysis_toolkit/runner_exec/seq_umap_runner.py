@@ -1,32 +1,31 @@
+import os
+import tempfile
+from typing import Literal
+
 from Bio import SeqIO
 import matplotlib.cm
 import matplotlib.colors
 from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import pandas as pd
-from scipy import sparse
-import subprocess
-import tempfile
-import umap
-from umap.plot import _datashade_points, _themes
 
-from ..runner_build import (base_runner, utils_sequence)
+from ..runner_build import (base_logger, utils_sequence, utils, SeqWriter)
+from . import seq_hdbscan_clusterer
 
-class UmapRunner(base_runner.SequenceRunner):
+class UmapRunner(SeqWriter):
     """
     Class for managing UMAP analysis.
     """
     def __init__(self, samplesdata):
         super().__init__(samplesdata)
-        self.units2targets = {}
+        self.units2taxa = {}
         self.index_list = []
 
-    @base_runner.log_execution("Write UMAP index file", "write_umap.log")
-    def run_write(self,
-            target_list: list[str],
-            target_level: str,
+    @base_logger.prog_log("Write UMAP index file")
+    def write_umap_index(self,
+            taxa_list: list[str],
+            taxa_level: str,
             unit_level: str = "species",
             save_dir: str = ".",
             neighbors: int = 15,
@@ -41,15 +40,15 @@ class UmapRunner(base_runner.SequenceRunner):
         (UMAP parameters reference: https://umap-learn.readthedocs.io/en/latest/parameters.html)
         Step:
             1. Load sample ID list
-            2. Load units2fasta and units2targets dictionaries
+            2. Load units2fasta and units2taxa dictionaries
             3. Write index FASTA file
             4. Run UMAP
             5. Create index DataFrame (index, sequence ID, unit name)
-            6. Update index columns (target, source, UMAP coordinates)
+            6. Update index columns (taxa, source, UMAP coordinates)
             7. Write index TSV file
 
-        :param target_list: A list of targets to be used (e.g., ["FamilyA", "FamilyB", etc]).
-        :param target_level: The taxonomic level of the targets (e.g., family, genus, species).
+        :param taxa_list: A list of taxas to be used (e.g., ["FamilyA", "FamilyB", etc]).
+        :param taxa_level: The taxonomic level of the taxas (e.g., family, genus, species).
         :param units_level: The taxonomic level of the units. Default is "species"
         :param save_dir: Directory where the output files (FASTA, aligned FASTA, index) will be saved. Default is current directory.
         :param n_neighbors: Number of neighbors to consider for UMAP. Default is 15.
@@ -65,9 +64,9 @@ class UmapRunner(base_runner.SequenceRunner):
 
         self._load_sample_id_list(sample_id_list)
 
-        self._load_units2fasta_units2targets(
-            target_list=target_list,
-            target_level=target_level,
+        self._load_units2fasta_units2taxa(
+            taxa_list=taxa_list,
+            taxa_level=taxa_level,
             unit_level=unit_level,
         )
 
@@ -88,52 +87,31 @@ class UmapRunner(base_runner.SequenceRunner):
         self._create_index_df()
         self._update_index_columns()
         self.index.to_csv(index_path, sep='\t', index=False)
+        self.logger.info(f'Index TSV saved_to: {index_path}')
 
-        self.logger.info(f'Saved index TSV to: {index_path}')
-
-        self.analysis_type = "umap_write"
-        self.results_dir = save_dir
-        self.parameters.update(
-            {
-                "target_list": target_list,
-                "target_level": target_level,
-                "unit_level": unit_level,
-                "n_neighbors": neighbors,
-                "min_dist": min_dist,
-                "random_state": random_state,
-                "calc_dist": calc_dist,
-                "dereplicate_sequence": dereplicate_sequence,
-            }
-        )
-
-    @base_runner.log_execution("Plot UMAP results", "plot_umap.log")
-    def run_plot(self,
+    @base_logger.prog_log("Plot UMAP embedding")
+    def plot_umap(self,
         index_path: str,
         n_unit_threshold: int,
-        category: str,
+        category: Literal["taxa", "unit", "all"],
         save_dir: str = ".",
         cmap: str = "rainbow",
         show_legend: bool = True
     ):
         """
-        Plot UMAP results based on the specified category (unit, target, or all).
+        Plot UMAP results based on the specified category (unit, taxa, or all).
 
         :param index_path: Path to the pre-created UMAP index file.
         :param n_unit_threshold: Minimum number of sequences for an unit to be included in the analysis. The value should be set equal to UMAP n_neighbors.
-        :param category: Column name to group the units by, restricted to 'unit', 'target', or 'all'.
+        :param category: Column name to group the units by, restricted to 'unit', 'taxa', or 'all'.
         :param save_dir: The directory to save the PNG files in. Default is the current directory.
         :param cmap: The colormap to use for the plots. Default is "rainbow".
         :param show_legend: Whether to show the legend in the plots. Default is True.
         """
-        if category not in ['unit', 'target', 'all']:
-            raise ValueError("Invalid category. Must be 'unit', 'target', or 'all'.")
-
-        os.makedirs(save_dir, exist_ok=True)
-
+        if category not in ['unit', 'taxa', 'all']:
+            raise ValueError("Invalid category. Must be 'unit', 'taxa', or 'all'.")
         self.index = pd.read_csv(index_path, sep='\t')
-
         self.filtered_index = UmapRunner._filter_index_by_unit_occurrence(self.index, n_unit_threshold)
-
         self._plot_umap_by_category(
             category=category,
             save_dir=save_dir,
@@ -141,36 +119,33 @@ class UmapRunner(base_runner.SequenceRunner):
             show_legend=show_legend
         )
 
-        self.analysis_type = "umap_plot"
-        self.results_dir = save_dir
-        self.parameters.update(
-            {
-                "index_path": index_path,
-                "category": category,
-                "save_dir": save_dir,
-                "n_unit_threshold": n_unit_threshold,
-                "cmap": cmap,
-                "show_legend": show_legend
-            }
-        )
+    @base_logger.prog_log("Run HDBSCAN clustering for UMAP embedding")
+    def hdbscan_umap(self,
+            index_path: str,
+            n_unit_threshold: int,
+            **settings
+        ):
+        self.index = pd.read_csv(index_path, sep='\t')
+        self.filtered_index = UmapRunner._filter_index_by_unit_occurrence(self.index, n_unit_threshold)
+        seq_hdbscan_clusterer.HdbClusterer(self.filtered_index, **settings)
 
-    def _load_units2fasta_units2targets(self,
-            target_list: list[str],
-            target_level: str,
+    def _load_units2fasta_units2taxa(self,
+            taxa_list: list[str],
+            taxa_level: str,
             unit_level: str,
             sample_id_list: list[str]
         ) -> tuple[dict[str, str], dict[str, str]]:
         """
-        Updates UMAP units to FASTA mapping for a given set of targets.
-        It also updates a dictionary linking unit labels to their corresponding target labels.
+        Updates UMAP units to FASTA mapping for a given set of taxas.
+        It also updates a dictionary linking unit labels to their corresponding taxa labels.
         """
-        for target_name in target_list:
+        for taxon_name in taxa_list:
             self._load_units2fasta_dict(
-                target_name=target_name,
-                target_level=target_level,
+                taxon_name=taxon_name,
+                taxa_level=taxa_level,
                 unit_level=unit_level
             )
-            self.units2targets.update(dict.fromkeys(list(self.units2fasta.keys()), target_name))
+            self.units2taxa.update(dict.fromkeys(list(self.units2fasta.keys()), taxon_name))
 
     def _write_index_fasta(self,
             aln_index_fasta_path: str,
@@ -210,6 +185,7 @@ class UmapRunner(base_runner.SequenceRunner):
         finally:
             temp_dir.cleanup()
 
+    @base_logger.prog_log("Calculate distance matrix")
     def _calc_distmx(self,
             fasta_path: str,
             dist_path: str,
@@ -227,22 +203,15 @@ class UmapRunner(base_runner.SequenceRunner):
         :param termdist: The distance threshold for terminating the calculation. Default is 1.0.
         :param threads: Number of threads to use for the calculation. Default is 12.
         """
-        self.logger.info("Calculating distance matrix...")
-
         cmd = [
             "usearch", "-calc_distmx", fasta_path, "-tabbedout", dist_path,
             "-maxdist", str(maxdist), "-termdist", str(termdist)
         ]
         if threads:
             cmd.extend(["-threads", str(threads)])
+        utils.run_subprocess("USEARCH", cmd, dist_path)
 
-        self.logger.info("> Running USEARCH command:", cmd)
-        try:
-            subprocess.run(cmd, check=True)
-            self.logger.info(f"USEARCH finished. Output distance matrix file saved to: {dist_path}")
-        except subprocess.CalledProcessError as e:
-            self.logger.error(f"Error occurred during the calculation of the distance matrix: {e.stderr}")
-
+    @base_logger.prog_log("Load distance matrix")
     def _load_sparse_dist_matrix(self, dist_path: str):
         """
         Load a sparse distance matrix from a distance matrix file created by the 'calc_distmx' function.
@@ -250,6 +219,7 @@ class UmapRunner(base_runner.SequenceRunner):
         :param dist_path: Path to the input distance matrix file.
         :return: Sparse distance matrix as a NumPy array.
         """
+        from scipy import sparse
         self.matrix = pd.read_csv(dist_path, header=None, sep='\t')
         self.logger.info(f"Loading sparse {max(self.matrix[0])+1} x {max(self.matrix[0])+1} distance matrix from: {dist_path}")
 
@@ -278,6 +248,7 @@ class UmapRunner(base_runner.SequenceRunner):
 
         return one_hot_encoded
 
+    @base_logger.prog_log("Load one-hot encoded matrix")
     def _load_one_hot_matrix(self, fasta_path: str):
         """
         Read in a aligned FASTA file and output a one-hot encoded matrix.
@@ -292,6 +263,7 @@ class UmapRunner(base_runner.SequenceRunner):
             for record in SeqIO.parse(handle, 'fasta'):
                 self.matrix.append(UmapRunner._sequence_to_one_hot(record.seq))
 
+    @base_logger.prog_log("Create UMAP embedding")
     def _fit_umap(self,
             neighbors: int,
             min_dist: float,
@@ -306,15 +278,13 @@ class UmapRunner(base_runner.SequenceRunner):
         :param random_state: Random state for umap.
         :param precomputed: Whether the elements of the matrix are distances or not.
         """
-        self.logger.info(f'Creating UMAP embedding with {neighbors} neighbors...')
-
+        import umap
         self.reducer = umap.UMAP(
             n_neighbors=neighbors,
             min_dist=min_dist,
             random_state=random_state,
             metric="precomputed" if calc_dist else "euclidean"
         )
-
         self.embedding = self.reducer.fit_transform(self.matrix)
 
     def _run_umap(self,
@@ -340,19 +310,19 @@ class UmapRunner(base_runner.SequenceRunner):
         """
         self.index = pd.DataFrame(self.index_list, columns=["index", "seq_id", "unit"])
 
-    def _update_index_target_column(self):
+    def _update_index_taxa_column(self):
         """
-        uses the "unit" column of index pd.DataFrame and uses the 'unit2target' dictionary to map unit labels to target labels.
+        uses the "unit" column of index pd.DataFrame and uses the 'unit2taxa' dictionary to map unit labels to taxa labels.
         If a unit label is not found in the dictionary, it assigns the label "unknown".
         """
-        target_labels = []
+        taxa_labels = []
         for unit in self.index["unit"]:
-            if unit in self.units2targets:
-                target_labels.append(self.units2targets[unit])
+            if unit in self.units2taxa:
+                taxa_labels.append(self.units2taxa[unit])
             else:
-                target_labels.append("unknown")
+                taxa_labels.append("unknown")
 
-        self.index["target"] = target_labels
+        self.index["taxa"] = taxa_labels
 
     def _update_index_source_column(self):
         """
@@ -381,10 +351,10 @@ class UmapRunner(base_runner.SequenceRunner):
 
     def _update_index_columns(self):
         """
-        The steps for updating the index DataFrame with source/target labels and UMAP cordinates.
+        The steps for updating the index DataFrame with source/taxa labels and UMAP cordinates.
         """
-        if self.units2targets is not None:
-            self._update_index_target_column()
+        if self.units2taxa is not None:
+            self._update_index_taxa_column()
         self._update_index_source_column()
         self._updata_index_embedding_columns()
 
@@ -531,6 +501,7 @@ class UmapRunner(base_runner.SequenceRunner):
         if points.shape[0] <= width * height // 10:
             ax = UmapRunner._matplotlib_points(points, ax, labels, markers, values, color_key, cmap, background, width, height, show_legend)
         else:
+            from umap.plot import _datashade_points
             ax = _datashade_points(points, ax, labels, values, color_key, cmap, background, width, height, show_legend)
 
         ax.set(xticks=[], yticks=[])
@@ -564,7 +535,6 @@ class UmapRunner(base_runner.SequenceRunner):
 
     def _plot_umap_by_category(self,
             category: str,
-            prefix: str,
             save_dir: str,
             cmap: str,
             show_legend: bool
@@ -572,6 +542,8 @@ class UmapRunner(base_runner.SequenceRunner):
         """
         Plot the UMAP embedding and save the plot as a PNG file, grouped by the specified category.
         """
+        os.makedirs(save_dir, exist_ok=True)
+
         if category == 'all':
             self.logger.info("Drawing PNG for all units...")
             png_path = os.path.join(save_dir, f"all_umap.png")

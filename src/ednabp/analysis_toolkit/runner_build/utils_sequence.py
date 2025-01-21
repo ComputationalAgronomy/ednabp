@@ -1,5 +1,4 @@
 import os
-import subprocess
 import tempfile
 
 from . import (base_logger, utils)

@@ -98,12 +98,15 @@ class SampleData():
               p.s. Suffix of denoise table would be `re.sub(r"\.\w+", "_report.txt", DENOISE_SUFFIX)`.
             - assigntaxa_suffix: Suffix for taxa CSV table files. Default: "_taxa.csv".
         """
+        self.import_sample_id_list = []
         self._parse_import_info(dereplicate_dir, denoise_dir, assigntaxa_dir, suffixes)
 
         self._read_sample_data(sample_id_list)
 
         if sample_metadata_path is not None:
             self._read_sample_metadata(sample_metadata_path)
+
+        self.sample_id_list.extend(self.import_sample_id_list)
 
     def _parse_import_info(self,
             dereplicate_dir: str,
@@ -145,7 +148,7 @@ class SampleData():
             self.logger.info("Specified sample id list.")
             self._add_specified_sample_id_list(sample_id_list)
 
-        for sample_id in self.sample_id_list:
+        for sample_id in self.import_sample_id_list:
             self.logger.info(f"Sample ID: {sample_id}")
             base_logger.print_space(self.logger)
             self._get_files_path(sample_id)
@@ -158,15 +161,25 @@ class SampleData():
         file_list = os.listdir(uniq_dir)
         sample_id_list = [file.replace(suffix, '') for file in file_list if file.endswith(suffix)]
         self.logger.info(f"Found {len(sample_id_list)} samples.")
+        for sample_id in sample_id_list:
+            if sample_id in self.sample_id_list:
+                self.logger.warning(
+                    f"WARNING: Sample ID '{sample_id}' already exists in the current instance. "
+                    "Skipping import."
+                )
+                continue
+            self.import_sample_id_list.append(sample_id)
         base_logger.print_space(self.logger)
-        self.sample_id_list.extend(sample_id_list)
 
     def _add_specified_sample_id_list(self, sample_id_list: list[str]):
         for sample_id in sample_id_list:
-            if sample_id not in self.sample_id_list:
-                self.sample_id_list.append(sample_id)
-            else:
-                self.logger.warning(f"WARNING: Sample ID '{sample_id}' already exists in the current instance. Skipping import.")
+            if sample_id in self.sample_id_list:
+                self.logger.warning(
+                    f"WARNING: Sample ID '{sample_id}' already exists in the current instance. "
+                    "Skipping import."
+                )
+                continue
+            self.import_sample_id_list.append(sample_id)
         base_logger.print_space(self.logger)
 
     def _get_files_path(self, sample_id: str):
@@ -181,7 +194,7 @@ class SampleData():
     def _read_sample_metadata(self, sample_metadata_path: str) -> None:
         self.sample_metadata = {}
         df = pd.read_csv(sample_metadata_path, index_col="Sample_id")
-        for sample_id in self.sample_id_list:
+        for sample_id in self.import_sample_id_list:
             if sample_id not in df.index:
                 self.logger.warning(f"WARNING: Sample ID '{sample_id}' not found in the sample metadata table.")
             else:

@@ -54,6 +54,7 @@ class OneMitoData():
             self._validate_metadata_columns()
             self.spc_metadata_df = self.spc_metadata_df.dropna(how="all")
             self.spc_metadata_df = self.spc_metadata_df[self.spc_metadata_df["Class"] != "Followings are non-fish species"]
+            self.spc_metadata_df = self.spc_metadata_df.fillna("Not record")
         except Exception as e:
             raise ValueError(f"Error reading Excel sheets: {str(e)}")
 

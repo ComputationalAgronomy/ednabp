@@ -1,5 +1,6 @@
 from abc import ABC
 from collections import defaultdict
+from itertools import product
 import os   
 from typing import Literal
 
@@ -19,6 +20,7 @@ class DMWriter(base_writer.Writer, ABC):
     '''
     ABUNDANCE_COLUMN = "abundance"
     RICHNESS_COLUMN = "richness"
+    DETECTPROB_COLUMN = "detect_prob"
     UNIT_COLUMN = "unit"
     SAMPLE_ID_COLUMN = "sample_id"
 
@@ -31,7 +33,7 @@ class DMWriter(base_writer.Writer, ABC):
             taxa_level: str,
             unit_level: str = "species",
             sample_id_list: list[str] | None = None,
-        ):
+        ) -> pd.DataFrame:
         """
         Write the richness data to a CSV file.
 
@@ -44,7 +46,7 @@ class DMWriter(base_writer.Writer, ABC):
         self._load_sample_id_list(sample_id_list)
         self._create_richness_df(taxa_level, unit_level)
         self._export_df(save_dir, f"{taxa_level}_{unit_level}_richness.csv", self.richness_df)
-        self.analysis_type = "Write species richness to csv"
+        return self.richness_df
 
     @base_logger.prog_log("Write Abundance table")
     def write_abundance_table(self,
@@ -52,7 +54,7 @@ class DMWriter(base_writer.Writer, ABC):
             taxa_level: str,
             process: Literal["norm", "log"] | None = None,
             sample_id_list: list[str] | None = None
-        ):
+        ) -> pd.DataFrame:
         """
         Write the abundance data to a CSV file.
 
@@ -64,13 +66,31 @@ class DMWriter(base_writer.Writer, ABC):
             - None: No processing (default)
         :param sample_id_list: A list of sample IDs to write.
         """
-        os.makedirs(save_dir, exist_ok=True)
-
         self._load_sample_id_list(sample_id_list)
         self._create_abundance_df(taxa_level, process)
         process = "" if process is None else f"_{process}"
         self._export_df(save_dir, f"{taxa_level}{process}_abundance.csv", self.abundance_df)
-        self.analysis_type = "Write species abundance to csv"
+        return self.abundance_df
+
+    @base_logger.prog_log("Write detection probability table")
+    def write_detectprob_table(self,
+            save_dir: str,
+            taxa_level: str,
+            sample_column: str = "Sample",
+            sample_id_list: list[str] | None = None
+        ) -> pd.DataFrame:
+        """
+        Write the detect probability data to a CSV file.
+
+        :param save_dir: The directory to save the CSV file.
+        :param taxa_level: The name of the level to target (e.g., species, family, etc.).
+        :param sample_column: The column name of replicate sample in the metadata csv file
+        :param sample_id_list: A list of sample IDs to write.
+        """
+        self._load_sample_id_list(sample_id_list)
+        self._create_dp_df(taxa_level, sample_column)
+        self._export_df(save_dir, f"{taxa_level}_detectprob.csv", self.dp_df)
+        return self.dp_df
 
     @base_logger.prog_log("Calculate taxa richness and create dataframe")
     def _create_richness_df(self, taxa_level, unit_level):
@@ -108,6 +128,20 @@ class DMWriter(base_writer.Writer, ABC):
                                    "abundance_df") # columns: taxa_level, Abundance, Sample_id
         self._add_sample_metadata("abundance_df") # columns: taxa_level, Abundance, Sample_id, Site, Year, Month, Sample
 
+    @base_logger.prog_log("Calculate taxa detection probability and create dataframe")
+    def _create_dp_df(self, taxa_level: str, sample_column:str):
+        self.taxa_occurrence = pd.DataFrame()
+        for sample_id in self.sample_id_used:
+            self.logger.info(f"Sample ID: {sample_id}")
+            self._get_sample_units_occurence(sample_id, taxa_level, taxa_level)
+            self._update_metric_df(sample_id,
+                                   self.units_occurrence,
+                                   [taxa_level, self.UNIT_COLUMN, self.DETECTPROB_COLUMN],
+                                   "taxa_occurrence") # columns: taxa_level, unit, detect_prob, Sample_id
+        self._fill_non_detect_zero(taxa_level)
+        self._add_sample_metadata("taxa_occurrence") # columns: taxa_level, detect_prob, Sample_id, Site, Year, Month, Sample
+        self._convert_taxa_occurrence_to_taxa_dp(sample_column) # columns: taxa_level, detect_prob, Site, Year, Month
+
     @base_logger.prog_log("Export dataframe to CSV file")
     def _export_df(self, save_dir, file_name, metric_df):
         os.makedirs(save_dir, exist_ok=True)
@@ -126,7 +160,7 @@ class DMWriter(base_writer.Writer, ABC):
             unit_name = DMWriter._get_unit_name(level_dict, unit_level, hap)
             unit = (taxon_name, unit_name, 1)
             if unit not in self.units_occurrence:
-                self.units_occurrence.append(unit) # e.g. {'SpA': 1, 'SpB': 1, 'SpC': 1}
+                self.units_occurrence.append(unit) # e.g. [('FamA', 'SpcA1', 1), ('FamA', 'SpcA2', 1)]
 
     def _get_unit_name(level_dict: dict, unit_level: str, hap: str) -> str:
         if unit_level in level_dict:
@@ -138,7 +172,8 @@ class DMWriter(base_writer.Writer, ABC):
     def _update_metric_df(self, *args):
         sample_id, metric_data, metric_columns_name, metric_df_name = args
         df = pd.DataFrame(metric_data, columns=metric_columns_name)
-        df[self.SAMPLE_ID_COLUMN] = sample_id
+        if sample_id is not None:
+            df[self.SAMPLE_ID_COLUMN] = sample_id
         metric_df = getattr(self, metric_df_name)
         updated_metric_df = pd.concat([metric_df, df], ignore_index=True)
         setattr(self, metric_df_name, updated_metric_df)
@@ -154,7 +189,7 @@ class DMWriter(base_writer.Writer, ABC):
             left=metric_df,
             right=metadata_df,
             on=self.SAMPLE_ID_COLUMN,
-            how="outer"
+            how="left"
         )
         if updated_metric_df.isna().any().any():
             self.logger.warning(f"WARNING: Some samples are missing metadata. Filling them with 'Unknown'.")
@@ -199,3 +234,25 @@ class DMWriter(base_writer.Writer, ABC):
 
     def _log_taxa_abundance(self):
         self.taxa_abundance = {key: np.log(value) for key, value in self.taxa_abundance.items()}
+
+    def _fill_non_detect_zero(self, taxa_level):
+        non_detect_taxa = []
+        taxa_set = set(self.taxa_occurrence[taxa_level])
+        sample_id_set = set(self.taxa_occurrence[self.SAMPLE_ID_COLUMN])
+        for taxa, sample_id in product(taxa_set, sample_id_set):
+            if not (self.taxa_occurrence[(self.taxa_occurrence[taxa_level] == taxa) & (self.taxa_occurrence[self.SAMPLE_ID_COLUMN] == sample_id)]).empty:
+                continue
+            non_detect_taxa.append((taxa, taxa, 0, sample_id))
+        self._update_metric_df(None,
+                               non_detect_taxa,
+                               [taxa_level, self.UNIT_COLUMN, self.DETECTPROB_COLUMN, self.SAMPLE_ID_COLUMN],
+                               "taxa_occurrence")
+
+    def _convert_taxa_occurrence_to_taxa_dp(self, sample_column):
+        groupby_columns = self.taxa_occurrence.columns.drop([self.UNIT_COLUMN, self.DETECTPROB_COLUMN, self.SAMPLE_ID_COLUMN, sample_column]).tolist()
+        self.dp_df = (
+            self.taxa_occurrence.groupby(groupby_columns)
+            [self.DETECTPROB_COLUMN]
+            .mean()
+            .reset_index()
+        )

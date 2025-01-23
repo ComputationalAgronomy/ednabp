@@ -33,6 +33,7 @@ class DMWriter(base_writer.Writer, ABC):
             taxa_level: str,
             unit_level: str = "species",
             sample_id_list: list[str] | None = None,
+            overwrite: bool = False
         ) -> pd.DataFrame:
         """
         Write the richness data to a CSV file.
@@ -45,7 +46,7 @@ class DMWriter(base_writer.Writer, ABC):
 
         self._load_sample_id_list(sample_id_list)
         self._create_richness_df(taxa_level, unit_level)
-        self._export_df(save_dir, f"{taxa_level}_{unit_level}_richness.csv", self.richness_df)
+        self._export_df(save_dir, f"{taxa_level}_{unit_level}_richness.csv", self.richness_df, overwrite)
         return self.richness_df
 
     @base_logger.prog_log("Write Abundance table")
@@ -53,7 +54,8 @@ class DMWriter(base_writer.Writer, ABC):
             save_dir: str,
             taxa_level: str,
             process: Literal["norm", "log"] | None = None,
-            sample_id_list: list[str] | None = None
+            sample_id_list: list[str] | None = None,
+            overwrite: bool = False
         ) -> pd.DataFrame:
         """
         Write the abundance data to a CSV file.
@@ -69,7 +71,7 @@ class DMWriter(base_writer.Writer, ABC):
         self._load_sample_id_list(sample_id_list)
         self._create_abundance_df(taxa_level, process)
         process = "" if process is None else f"_{process}"
-        self._export_df(save_dir, f"{taxa_level}{process}_abundance.csv", self.abundance_df)
+        self._export_df(save_dir, f"{taxa_level}{process}_abundance.csv", self.abundance_df, overwrite)
         return self.abundance_df
 
     @base_logger.prog_log("Write detection probability table")
@@ -77,7 +79,8 @@ class DMWriter(base_writer.Writer, ABC):
             save_dir: str,
             taxa_level: str,
             sample_column: str = "Sample",
-            sample_id_list: list[str] | None = None
+            sample_id_list: list[str] | None = None,
+            overwrite: bool = False
         ) -> pd.DataFrame:
         """
         Write the detect probability data to a CSV file.
@@ -89,7 +92,7 @@ class DMWriter(base_writer.Writer, ABC):
         """
         self._load_sample_id_list(sample_id_list)
         self._create_dp_df(taxa_level, sample_column)
-        self._export_df(save_dir, f"{taxa_level}_detectprob.csv", self.dp_df)
+        self._export_df(save_dir, f"{taxa_level}_detectprob.csv", self.dp_df, overwrite)
         return self.dp_df
 
     @base_logger.prog_log("Calculate taxa richness and create dataframe")
@@ -143,10 +146,13 @@ class DMWriter(base_writer.Writer, ABC):
         self._convert_taxa_occurrence_to_taxa_dp(sample_column) # columns: taxa_level, detect_prob, Site, Year, Month
 
     @base_logger.prog_log("Export dataframe to CSV file")
-    def _export_df(self, save_dir, file_name, metric_df):
-        os.makedirs(save_dir, exist_ok=True)
+    def _export_df(self, save_dir, file_name, metric_df, overwrite, save_index=False):
         output_path = os.path.join(save_dir, file_name)
-        metric_df.to_csv(output_path, index=False)
+        if os.path.exists(output_path) and not overwrite:
+            self.logger.warning(f"WARNING: File already exists: {output_path}. Stop saving.")
+            return
+        os.makedirs(save_dir, exist_ok=True)
+        metric_df.to_csv(output_path, index=save_index)
         self.logger.info(f"Dataframe exported to: {output_path}")
 
     def _get_sample_units_occurence(self, sample_id: str, taxa_level: str, unit_level: str):

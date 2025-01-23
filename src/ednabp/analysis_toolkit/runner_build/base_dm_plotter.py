@@ -10,6 +10,8 @@ class DMPlotter(ABC):
     def __init__(self, no_versose: bool):
         if no_versose:
             self.logger.setLevel("WARNING")
+        else:
+            self.logger.setLevel("INFO")
 
     @base_logger.prog_log("Load and validate input csv")
     def _load_and_validate_data(self, csv_path, required_columns):

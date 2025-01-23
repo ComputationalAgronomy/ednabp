@@ -75,6 +75,8 @@ class SampleData():
 
         if self.no_verbose:
             self.logger.setLevel("WARNING")
+        else:
+            self.logger.setLevel("INFO")
 
     def import_data(self,
             dereplicate_dir: str,

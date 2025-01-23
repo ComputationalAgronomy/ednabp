@@ -9,6 +9,8 @@ class Writer(ABC):
         self.logger = base_logger.logger
         if no_verbose:
             self.logger.setLevel("WARNING")
+        else:
+            self.logger.setLevel("INFO")
         self.sample_id_used = None
         self._import_data(sampledata)
 

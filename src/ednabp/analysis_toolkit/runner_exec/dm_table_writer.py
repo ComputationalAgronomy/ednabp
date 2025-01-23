@@ -70,8 +70,8 @@ class DMWriter(base_writer.Writer, ABC):
         """
         self._load_sample_id_list(sample_id_list)
         self._create_abundance_df(taxa_level, process)
-        process = "" if process is None else f"_{process}"
-        self._export_df(save_dir, f"{taxa_level}{process}_abundance.csv", self.abundance_df, overwrite)
+        process = "raw" if process is None else f"{process}"
+        self._export_df(save_dir, f"{taxa_level}_{process}_abundance.csv", self.abundance_df, overwrite)
         return self.abundance_df
 
     @base_logger.prog_log("Write detection probability table")

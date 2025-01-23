@@ -36,7 +36,8 @@ class ContourPlotter(DMPlotter):
         ContourPlotter._process_data(self, shp_path, grid_density, {"Longitude", "Latitude", metric_column})
         ContourPlotter._prepare_plot_data(self)
         ContourPlotter._create_plot(self, value_step, cmap)
-        ContourPlotter._display_and_save_plot(self, save_dir, overwrite)
+        ContourPlotter._display_and_save(self, save_dir, overwrite)
+        return self.data
 
     @override
     @base_logger.prog_log("Load and validate data")
@@ -50,9 +51,9 @@ class ContourPlotter(DMPlotter):
             raise ValueError(f"{required_columns[2]} values cannot be negative")
 
     def _process_data(self, shp_path, grid_density, required_columns):
-        data = self.df.groupby(required_columns[:2]+[self.SAMPLE_ID_COLUMN])[required_columns[2]].sum().reset_index().to_numpy()
-        self.lon_lat = np.column_stack([data[:, 0], data[:, 1]]) #long/lati
-        self.counts = np.array(data[:, 3])
+        self.data = self.df.groupby(required_columns[:2]+[self.SAMPLE_ID_COLUMN])[required_columns[2]].sum().reset_index().to_numpy()
+        self.lon_lat = np.column_stack([self.data[:, 0], self.data[:, 1]]) #long/lati
+        self.counts = np.array(self.data[:, 3])
 
         self._model_interpolation()
         self._load_shp(shp_path)
@@ -117,10 +118,20 @@ class ContourPlotter(DMPlotter):
         # ax.clabel(clabels, fontsize=8)
 
     @base_logger.prog_log("Display and save plot (if 'save_dir' provided)")
-    def _display_and_save_plot(self, save_dir: str | None, overwrite: bool):
+    def _display_and_save(self, save_dir: str | None, overwrite: bool):
         self.fig.show()
         if save_dir:
             ContourPlotter._save_plot(self, save_dir, overwrite)
+            ContourPlotter._save_csv(self, save_dir, overwrite)
+
+    def _save_csv(self, save_dir, overwrite):
+        csv_path = os.path.join(save_dir, "contour.csv")
+        if os.path.exists(csv_path) and not overwrite:
+            self.logger.warning(f"WARNING: File already exists: {csv_path}. Stop saving.")
+            return
+        self.data.to_csv(csv_path)
+        self.logger.info(f"CSV saved to: {csv_path}")
+
 
     def _save_plot(self, save_png_dir: str, overwrite: bool):
         fig_path = os.path.join(save_png_dir, "contour.png")

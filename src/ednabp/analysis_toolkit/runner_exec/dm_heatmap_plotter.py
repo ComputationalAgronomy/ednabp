@@ -35,7 +35,8 @@ class HeatmapPlotter(DMPlotter):
         HeatmapPlotter._process_data(self, values, index, columns, aggfunc)
         HeatmapPlotter._prepare_plot_data(self)
         HeatmapPlotter._create_plot(self, colorscale)
-        HeatmapPlotter._display_and_save_plot(self, save_dir, overwrite)
+        HeatmapPlotter._display_and_save(self, save_dir, overwrite)
+        return self.pivot_table
 
     @base_logger.prog_log("Create pivot table")
     def _process_data(self, values, index, columns, aggfunc):
@@ -78,11 +79,20 @@ class HeatmapPlotter(DMPlotter):
         )
         self.fig.update_layout(yaxis_title=None, width=1000, height=600)
 
-    @base_logger.prog_log("Display and save plot (if 'save_dir' provided)")
-    def _display_and_save_plot(self, save_dir: str | None, overwrite: bool):
+    @base_logger.prog_log("Display and save (if 'save_dir' provided)")
+    def _display_and_save(self, save_dir: str | None, overwrite: bool):
         self.fig.show()
         if save_dir:
+            HeatmapPlotter._save_csv(self, save_dir, overwrite)
             HeatmapPlotter._save_plot(self, save_dir, overwrite)
+
+    def _save_csv(self, save_dir, overwrite):
+        csv_path = os.path.join(save_dir, "heatmap.csv")
+        if os.path.exists(csv_path) and not overwrite:
+            self.logger.warning(f"WARNING: File already exists: {csv_path}. Stop saving.")
+            return
+        self.pivot_table.to_csv(csv_path)
+        self.logger.info(f"CSV saved to: {csv_path}")
 
     def _save_plot(self, save_html_dir: str, overwrite: bool):
         fig_path = os.path.join(save_html_dir, "heatmap.html")

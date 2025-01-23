@@ -45,7 +45,11 @@ class DMPlotter(ABC):
         pass
 
     @abstractmethod
-    def _display_and_save_plot(self):
+    def _display_and_save(self):
+        pass
+
+    @abstractmethod
+    def _save_csv(self):
         pass
 
     @abstractmethod

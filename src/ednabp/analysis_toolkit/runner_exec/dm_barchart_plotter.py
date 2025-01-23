@@ -1,7 +1,8 @@
 import os
+from typing import Annotated, Literal
 
-import pandas as pd
-import plotly.express as px
+import numpy as np
+import plotly.graph_objs as go
 
 from ..runner_build import DMPlotter, base_logger
 
@@ -11,10 +12,13 @@ class BarchartPlotter(DMPlotter):
     @base_logger.prog_log("Plot barchart")
     def plot_barchart(self,
             csv_path: str,
-            taxa_column: str,
-            metric_column: str,
+            values: str,
+            index: str,
+            columns: str | Annotated[list[str], 2],
+            aggfunc: Literal["mean", "sum"] = "mean",
             save_dir: str | None = None,
-            overwrite: bool = False
+            overwrite: bool = False,
+            **kwargs
         ):
         """
         Plot a barchart to visualize the abundance of a level across samples.
@@ -25,87 +29,94 @@ class BarchartPlotter(DMPlotter):
         :param save_dir: If provided, the barchart will be saved as a .HTML file. Default is None.
         :param overwrite: Whether to overwrite existing files. Default: False.
         """
-        BarchartPlotter._load_and_validate_data(self, csv_path, taxa_column, metric_column)
-        BarchartPlotter._process_data(self, taxa_column, metric_column)
+        BarchartPlotter._load_and_validate_data(self, csv_path, set(columns + [values, index]))
+        BarchartPlotter._process_data(self, values, index, columns, aggfunc)
         BarchartPlotter._prepare_plot_data(self)
-        BarchartPlotter._create_plot(self)
+        BarchartPlotter._create_plot(self, kwargs)
         BarchartPlotter._display_and_save_plot(self, save_dir, overwrite)
-
-    @base_logger.prog_log("Load and validate data")
-    def _load_and_validate_data(self, csv_path: str, taxa_column: str, metric_column: str):
-        try:
-            self.df = pd.read_csv(csv_path)
-            required_columns = {self.SAMPLE_ID_COLUMN, taxa_column, metric_column}
-            if not required_columns.issubset(self.df.columns):
-                missing = required_columns - set(self.df.columns)
-                raise ValueError(f"Missing required columns: {missing}")
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Could not find CSV file: {csv_path}")
+        return self.pivot_table
 
     @base_logger.prog_log("Create pivot table")
-    def _process_data(self, taxa_column: str, metric_column: str):
-        self.pivot_df = self.df.pivot(
-            index=self.SAMPLE_ID_COLUMN,
-            columns=taxa_column,
-            values=metric_column
-        ).fillna(0)
+    def _process_data(self, values, index, columns, aggfunc):
+        self._create_pivot_table(values, index, columns, aggfunc)
+        self._sort_pivot_table()
 
+    def _sort_pivot_table(self):
         # Sort columns by sum of values (descending)
-        column_sums = self.pivot_df.sum()
-        self.pivot_df = self.pivot_df[column_sums.sort_values(ascending=False).index]
+        # column_sums = self.pivot_table.sum()
+        # self.pivot_table = self.pivot_table[column_sums.sort_values(ascending=False).index]
 
         # Sort rows by sum of values (descending)
-        row_sums = self.pivot_df.sum(axis=1)
-        self.pivot_df = self.pivot_df.loc[row_sums.sort_values(ascending=False).index]
+        row_sums = self.pivot_table.sum(axis=1)
+        self.pivot_table = self.pivot_table.loc[row_sums.sort_values(ascending=False).index]
 
     @base_logger.prog_log("Prepare plot data")
     def _prepare_plot_data(self):
-        cols = self.pivot_df.columns.tolist()
-        idx = self.pivot_df.index.tolist()
-        self.plot_data = {
-            'x': [i for i in idx for _ in range(len(cols))],
-            'y': self.pivot_df.values.flatten(),
-            'color': cols * len(idx)
-        }
+        column_names = self.pivot_table.columns.names
+        if len(column_names) == 1:
+            self.x = self.pivot_table.columns
+        else:
+            self.x = []
+            for column in column_names:
+                todrop_columns = column_names.copy()
+                todrop_columns.remove(column)
+                self.x.append(self.pivot_table.columns.droplevel(todrop_columns))
+            if len(column_names) > 2:
+                self.logger.warning("WARNING: More than two-level categorical x-axis is not yet available in Plotly yet. This is a substitute implementation that combines the first n-1 categories into the first level.")
+                self.x = [["<br>".join(list(map(str, x))[::-1]) for x in zip(*self.x[:-1])], self.x[-1]]
+
+        self.y = np.array(self.pivot_table)
+        self.color = self.pivot_table.index
 
     @base_logger.prog_log("Create plot")
-    def _create_plot(self):
-        self.fig = px.bar(
-            x=self.plot_data['x'],
-            y=self.plot_data['y'],
-            color=self.plot_data['color']
-        )
+    def _create_plot(self, kwargs):
+        self.fig = go.Figure()
+        for y, c in zip(self.y, self.color):
+            self.fig.add_bar(x=self.x, y=y, name=c)
+        self._update_fig_default_settings(kwargs)
         self._add_fig_setting()
 
-    def _add_fig_setting(self,
-            axes_title_font: int = 20,
-            axes_tick_font: int = 18,
-            legend_font: int = 15,
-            legend_x_position: float = 1.05,
-            legend_y_position: float = 1.0
-        ):
+    def _update_fig_default_settings(self, kwargs):
+        FIG_DEFAULT_SETTINGS = {
+            "x_axis_title": "Sample ID",
+            "y_axis_title": "Percentage (%)",
+            "axes_title_font": 20,
+            "axes_tick_font": 18,
+            "legend_font": 15,
+            "legend_x_position": 1.05,
+            "legend_y_position": 1.0
+        }
+        for key, value in kwargs.items():
+            if key in FIG_DEFAULT_SETTINGS:
+                FIG_DEFAULT_SETTINGS[key] = value
+
+        self.fig_sets = FIG_DEFAULT_SETTINGS
+
+    def _add_fig_setting(self,):
         self.fig.update_xaxes(
             tickmode='linear',
             title=dict(
-                text="Sample ID",
-                font=dict(size=axes_title_font)
+                text=self.fig_sets["x_axis_title"],
+                font=dict(size=self.fig_sets["axes_title_font"])
                 ),
-            tickfont=dict(size=axes_tick_font)
+            tickfont=dict(size=self.fig_sets["axes_tick_font"])
         )
         self.fig.update_yaxes(
             title=dict(
-                text="Percentage (%)",
-                font=dict(size=axes_title_font)
+                text=self.fig_sets["y_axis_title"],
+                font=dict(size=self.fig_sets["axes_title_font"])
             ),
-            tickfont=dict(size=axes_tick_font)
+            tickfont=dict(size=self.fig_sets["axes_tick_font"])
         )
         self.fig.update_layout(
+            autosize=True,
+            barmode='stack',
             legend={
-                "x": legend_x_position,
-                "y": legend_y_position,
+                "x": self.fig_sets["legend_x_position"],
+                "y": self.fig_sets["legend_y_position"],
                 "traceorder": 'normal',
                 "orientation": 'h',
-                "font": dict(size=legend_font)
+                "font": dict(size=self.fig_sets["legend_font"])
             },
         )
 
@@ -114,6 +125,7 @@ class BarchartPlotter(DMPlotter):
         self.fig.show()
         if save_dir:
             BarchartPlotter._save_plot(self, save_dir, overwrite)
+
     def _save_plot(self, save_html_dir: str, overwrite: bool):
         fig_path = os.path.join(save_html_dir, "barchart.html")
         if os.path.exists(fig_path) and not overwrite:

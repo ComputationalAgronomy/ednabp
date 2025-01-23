@@ -1,8 +1,8 @@
 import os
+from typing import override
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
 from ..runner_build import DMPlotter, base_logger
 
@@ -32,32 +32,28 @@ class ContourPlotter(DMPlotter):
         :param save_dir: If provided, the contour will be saved as a .PNG file. Default: None.
         :param overwrite: Whether to overwrite existing files. Default: False.
         """
-        ContourPlotter._load_and_validate_data(self, csv_path, metric_column)
-        ContourPlotter._process_data(self, shp_path, grid_density)
+        ContourPlotter._load_and_validate_data(self, csv_path, {"Longitude", "Latitude", metric_column})
+        ContourPlotter._process_data(self, shp_path, grid_density, {"Longitude", "Latitude", metric_column})
         ContourPlotter._prepare_plot_data(self)
         ContourPlotter._create_plot(self, value_step, cmap)
         ContourPlotter._display_and_save_plot(self, save_dir, overwrite)
 
+    @override
     @base_logger.prog_log("Load and validate data")
-    def _load_and_validate_data(self, csv_path: str, metric_column: str):
-        df = pd.read_csv(csv_path)
-        required_columns = ["Longitude", "Latitude", metric_column]
-
-        missing_columns = set(required_columns) - set(df.columns)
-        if missing_columns:
-            raise ValueError(f"Missing required columns: {missing_columns}")
-        if not df["Longitude"].between(-180, 180).all():
+    def _load_and_validate_data(self, csv_path: str, required_columns: str):
+        super()._load_and_validate_data(csv_path, required_columns)
+        if not self.df["Longitude"].between(-180, 180).all():
             raise ValueError("Longitude values must be between -180 and 180")
-        if not df["Latitude"].between(-90, 90).all():
+        if not self.df["Latitude"].between(-90, 90).all():
             raise ValueError("Latitude values must be between -90 and 90")
-        if (df[required_columns[2]] < 0).any():
+        if (self.df[required_columns[2]] < 0).any():
             raise ValueError(f"{required_columns[2]} values cannot be negative")
 
-        data = df.groupby(required_columns[:2]+[self.SAMPLE_ID_COLUMN])[metric_column].sum().reset_index().to_numpy()
+    def _process_data(self, shp_path, grid_density, required_columns):
+        data = self.df.groupby(required_columns[:2]+[self.SAMPLE_ID_COLUMN])[required_columns[2]].sum().reset_index().to_numpy()
         self.lon_lat = np.column_stack([data[:, 0], data[:, 1]]) #long/lati
         self.counts = np.array(data[:, 3])
 
-    def _process_data(self, shp_path, grid_density):
         self._model_interpolation()
         self._load_shp(shp_path)
         self._transform_grid_and_mask(grid_density)

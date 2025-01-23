@@ -10,7 +10,6 @@ from ..read import denoise_report_reader
 from ..read import fasta_reader
 from ..runner_build import base_logger
 
-
 class OneSampleData():
     """
     Container for handling and processing data from various bioinformatics files.
@@ -66,6 +65,7 @@ class SampleData():
     :attribute sample_id_list: A list to store sample IDs.
     :attribute no_verbose: A boolean flag to control logging verbosity. Default is True.
     """
+    SAMPLE_ID_COLUMN = "sample_id"
 
     def __init__(self, no_verbose = False):
         self.sample_data = {}
@@ -84,6 +84,8 @@ class SampleData():
             assigntaxa_dir: str,
             sample_id_list: list[str] | None = None,
             sample_metadata_path: str | None = None,
+            date_column: str = "Date",
+            date_format: str = "%Y-%m",
             **suffixes
         ):
         """
@@ -106,7 +108,7 @@ class SampleData():
         self._read_sample_data(sample_id_list)
 
         if sample_metadata_path is not None:
-            self._read_sample_metadata(sample_metadata_path)
+            self._read_sample_metadata(sample_metadata_path, date_column, date_format)
 
         self.sample_id_list.extend(self.import_sample_id_list)
 
@@ -193,14 +195,34 @@ class SampleData():
                 raise FileNotFoundError(f"File does not exist: {file_path}.")
 
     @base_logger.prog_log(prog_name="Import sample metadata")
-    def _read_sample_metadata(self, sample_metadata_path: str) -> None:
+    def _read_sample_metadata(self, sample_metadata_path: str, date_column, date_format) -> None:
         self.sample_metadata = {}
-        df = pd.read_csv(sample_metadata_path, index_col="Sample_id")
+        df = pd.read_csv(sample_metadata_path, index_col=self.SAMPLE_ID_COLUMN)
+
+        df = self._convert_str_to_date(df, date_column, date_format)
+
         for sample_id in self.import_sample_id_list:
             if sample_id not in df.index:
                 self.logger.warning(f"WARNING: Sample ID '{sample_id}' not found in the sample metadata table.")
             else:
                 self.sample_metadata[sample_id] = df.loc[df.index == sample_id].to_dict("records")[0]
+
+    def _convert_str_to_date(self, df, date_column: str, date_format: str) -> pd.DataFrame:
+        if date_column is None:
+            return df
+
+        if date_column not in df.columns:
+            self.logger.warning(
+                f"Date column '{date_column}' not found in the sample metadata table. "
+                "Double check your metadata CSV or set `date_column` to `None` to prevent this warning"
+            )
+            return df
+
+        try:
+            df[date_column] = pd.to_datetime(df[date_column], format=date_format).dt.to_period('M')
+        except ValueError as e:
+            self.logger.error(f"Failed to convert date column '{date_column}': {str(e)}")
+        return df
 
     @base_logger.prog_log(prog_name="Pickle sample data")
     def pickle_data(self,

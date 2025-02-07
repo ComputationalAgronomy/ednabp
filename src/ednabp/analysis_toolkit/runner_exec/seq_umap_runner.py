@@ -17,8 +17,8 @@ class UmapRunner(SeqWriter):
     """
     Class for managing UMAP analysis.
     """
-    def __init__(self, samplesdata):
-        super().__init__(samplesdata)
+    def __init__(self, sampledata, no_verbose=False):
+        super().__init__(sampledata, no_verbose)
         self.units2taxa = {}
         self.index_list = []
 
@@ -33,7 +33,7 @@ class UmapRunner(SeqWriter):
             random_state: int = 42,
             calc_dist: bool = True,
             dereplicate_sequence: bool = False,
-            sample_id_list: list[str] = [],
+            sample_id_list: list[str] | None = None,
         ) -> pd.DataFrame:
         """
         Run the UMAP pipeline and write the index TSV file.
@@ -133,7 +133,6 @@ class UmapRunner(SeqWriter):
             taxa_list: list[str],
             taxa_level: str,
             unit_level: str,
-            sample_id_list: list[str]
         ) -> tuple[dict[str, str], dict[str, str]]:
         """
         Updates UMAP units to FASTA mapping for a given set of taxas.
@@ -169,7 +168,7 @@ class UmapRunner(SeqWriter):
             with open(fasta_path, 'r') as in_handle, open(index_fasta_path, 'w') as out_handle:
                 for i, record in enumerate(SeqIO.parse(in_handle, 'fasta')):
                     index = str(i)
-                    unit = record.description.rsplit("-", 1)[0]
+                    unit = record.description.split("-")[0]
                     seq_id = record.description
 
                     self.index_list.append([index, seq_id, unit])
@@ -179,7 +178,6 @@ class UmapRunner(SeqWriter):
                     record.name = index
 
                     SeqIO.write(record, out_handle, 'fasta')
-
             utils_sequence.align_fasta(seq_path=index_fasta_path, aln_path=aln_index_fasta_path)
 
         finally:

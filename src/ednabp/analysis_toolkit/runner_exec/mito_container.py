@@ -102,6 +102,7 @@ class OneMitoData():
 
         for hap, level in self.hap2level.items():
             self.hap2level[hap].update(spc2level[level["species"]])
+            self.hap2level[hap] = {k.lower(): v for k, v in self.hap2level[hap].items()}
 
     def _create_species_info_mapping(self):
         self.spc_info = (self.spc_metadata_df
@@ -149,7 +150,10 @@ class MitoData(SampleData):
         for sample_id in self.import_sample_id_list:
             self.logger.info(f"Sample ID: {sample_id}")
             base_logger.print_space(self.logger)
-            self.sample_data[sample_id] = OneMitoData(self._get_file_path(sample_id))
+            one_mito_data = OneMitoData(self._get_file_path(sample_id))
+            self.spc_info.update(getattr(one_mito_data, "spc_info"))
+            delattr(one_mito_data, "spc_info")
+            self.sample_data[sample_id] = one_mito_data
 
     @override
     def _add_unspecified_sample_id_list(self):

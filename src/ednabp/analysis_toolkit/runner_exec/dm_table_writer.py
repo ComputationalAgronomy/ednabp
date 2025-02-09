@@ -78,7 +78,7 @@ class DMWriter(base_writer.Writer, ABC):
     def write_detectprob_table(self,
             save_dir: str,
             taxa_level: str,
-            sample_column: str = "Sample",
+            detectprob_column: str | list[str] = "Sample",
             sample_id_list: list[str] | None = None,
             overwrite: bool = False
         ) -> pd.DataFrame:
@@ -87,11 +87,11 @@ class DMWriter(base_writer.Writer, ABC):
 
         :param save_dir: The directory to save the CSV file.
         :param taxa_level: The name of the level to target (e.g., species, family, etc.).
-        :param sample_column: The column name of replicate sample in the metadata csv file
+        :param sample_column: The column name(s) to calculate detection probability in the metadata csv file
         :param sample_id_list: A list of sample IDs to write.
         """
         self._load_sample_id_list(sample_id_list)
-        self._create_dp_df(taxa_level, sample_column)
+        self._create_dp_df(taxa_level, detectprob_column)
         self._export_df(save_dir, f"{taxa_level}_detectprob.csv", self.dp_df, overwrite)
         return self.dp_df
 
@@ -108,6 +108,7 @@ class DMWriter(base_writer.Writer, ABC):
         # self._filter_richness_df()
         self._convert_units_occurrence_to_taxa_richness(taxa_level) # columns: taxa_level, Richness, Sample_id
         self._add_sample_metadata("richness_df") # columns: taxa_level, Richness, Sample_id, Site, Year, Month, Sample
+        self._add_spc_info("richness_df", taxa_level)
 
     @base_logger.prog_log("Calculate taxa abundance and create dataframe")
     def _create_abundance_df(self, taxa_level: str, process: str):
@@ -130,6 +131,7 @@ class DMWriter(base_writer.Writer, ABC):
                                    [taxa_level, self.ABUNDANCE_COLUMN],
                                    "abundance_df") # columns: taxa_level, Abundance, Sample_id
         self._add_sample_metadata("abundance_df") # columns: taxa_level, Abundance, Sample_id, Site, Year, Month, Sample
+        self._add_spc_info("abundance_df", taxa_level)
 
     @base_logger.prog_log("Calculate taxa detection probability and create dataframe")
     def _create_dp_df(self, taxa_level: str, sample_column:str):
@@ -144,6 +146,7 @@ class DMWriter(base_writer.Writer, ABC):
         self._fill_non_detect_zero(taxa_level)
         self._add_sample_metadata("taxa_occurrence") # columns: taxa_level, detect_prob, Sample_id, Site, Year, Month, Sample
         self._convert_taxa_occurrence_to_taxa_dp(sample_column) # columns: taxa_level, detect_prob, Site, Year, Month
+        self._add_spc_info("taxa_occurence", taxa_level)
 
     @base_logger.prog_log("Export dataframe to CSV file")
     def _export_df(self, save_dir, file_name, metric_df, overwrite, save_index=False):
@@ -185,6 +188,9 @@ class DMWriter(base_writer.Writer, ABC):
         setattr(self, metric_df_name, updated_metric_df)
     
     def _add_sample_metadata(self, metric_df_name):
+        if not hasattr(self, "sample_metadata"):
+            self.logger.warning(f"WARNING: No metadata found. Skipping.")
+            return
         metric_df = getattr(self, metric_df_name)
         metadata_df = (pd.DataFrame
             .from_dict(self.sample_metadata, orient="index")
@@ -198,8 +204,31 @@ class DMWriter(base_writer.Writer, ABC):
             how="left"
         )
         if updated_metric_df.isna().any().any():
-            self.logger.warning(f"WARNING: Some samples are missing metadata. Filling them with 'Unknown'.")
-            updated_metric_df = updated_metric_df.fillna("Unknown")
+            self.logger.warning(f"WARNING: Some samples are missing metadata. Filling them with 'Not record'.")
+            updated_metric_df = updated_metric_df.fillna("Not record")
+        setattr(self, metric_df_name, updated_metric_df)
+
+    def _add_spc_info(self, metric_df_name, taxa_level):
+        if taxa_level != "species":
+            return
+        if not hasattr(self, "spc_info"):
+            self.logger.warning(f"WARNING: No species info found. Skipping.")
+            return
+        metric_df = getattr(self, metric_df_name)
+        spc_info_df = (pd.DataFrame
+            .from_dict(self.spc_info, orient="index")
+            .reset_index()
+            .rename(columns={'index': "species"})
+        )
+        updated_metric_df = pd.merge(
+            left=metric_df,
+            right=spc_info_df,
+            on="species",
+            how="left"
+        )
+        if updated_metric_df.isna().any().any():
+            self.logger.warning(f"WARNING: Some samples are missing metadata. Filling them with 'Not record'.")
+            updated_metric_df = updated_metric_df.fillna("Not record")
         setattr(self, metric_df_name, updated_metric_df)
 
     # def _filter_richness_df(self, site_occur_thres: int = 0, sample_occur_thres: int = 0):
@@ -254,8 +283,8 @@ class DMWriter(base_writer.Writer, ABC):
                                [taxa_level, self.UNIT_COLUMN, self.DETECTPROB_COLUMN, self.SAMPLE_ID_COLUMN],
                                "taxa_occurrence")
 
-    def _convert_taxa_occurrence_to_taxa_dp(self, sample_column):
-        groupby_columns = self.taxa_occurrence.columns.drop([self.UNIT_COLUMN, self.DETECTPROB_COLUMN, self.SAMPLE_ID_COLUMN, sample_column]).tolist()
+    def _convert_taxa_occurrence_to_taxa_dp(self, detectprob_column):
+        groupby_columns = self.taxa_occurrence.columns.drop([self.UNIT_COLUMN, self.DETECTPROB_COLUMN, self.SAMPLE_ID_COLUMN] + list(detectprob_column)).tolist()
         self.dp_df = (
             self.taxa_occurrence.groupby(groupby_columns)
             [self.DETECTPROB_COLUMN]

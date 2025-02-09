@@ -13,7 +13,7 @@ class AssignTaxaStage(stage_builder.StageBuilder):
                  in_dir="", out_dir="",
                  in_suffix="_denoise.fasta", out_suffix="_blast.csv",
                  db_path: str = "",
-                 lineage_path: str = "",
+                 lineage_path: str = None,
                  maxhitnum: int = 1,
                  evalue: float = 0.00001,
                  qcov_hsp_perc: int = 90,
@@ -28,7 +28,7 @@ class AssignTaxaStage(stage_builder.StageBuilder):
         self.blast_outfile = None
         self.lineage_path = lineage_path
         self.parse_params(db_path, maxhitnum, evalue, qcov_hsp_perc, perc_identity, outfmt, specifiers)
-        if os.path.isfile(lineage_path):
+        if lineage_path is not None and os.path.isfile(lineage_path):
             self.parse_genus2otherlv(lineage_path)
 
     def parse_params(self, db_path, maxhitnum, evalue, qcov_hsp_perc, perc_identity, outfmt, specifiers):

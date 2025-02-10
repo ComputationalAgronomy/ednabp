@@ -146,12 +146,12 @@ class SampleData():
         DEFAULT_SUFFIXES = {
             "dereplicate_suffix": "_uniqs.fasta",
             "denoise_suffix": "_zotus.fasta",
+            "denoise_report_suffix": "_denoise_report.txt",
             "assigntaxa_suffix": "_taxa.csv"
         }
         for key, value in DEFAULT_SUFFIXES.items():
             if key not in self.suffixes:
                 self.suffixes[key] = value
-        self.suffixes["denoise_report_suffix"] = re.sub(r"\.\w+", "_report.txt", self.suffixes["denoise_suffix"])
 
     def _check_import_dir(self):
         for in_dir, _ in self.import_info:
@@ -261,6 +261,7 @@ class SampleData():
             for species_name in all_species:
                 (genus_name, *species_subnames) = species_name.split('_')
                 species_subname = species_subnames[0] if len(species_subnames) > 0 else 'sp'
+                species_subname = species_subname.replace("'", "").replace("-", "_")
                 fb_data = link_fishbase.filter(
                     f"Genus = '{genus_name}' AND Species = '{species_subname}'"
                 ).project(

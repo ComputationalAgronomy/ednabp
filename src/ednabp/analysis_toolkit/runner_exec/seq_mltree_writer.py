@@ -6,8 +6,8 @@ from ..runner_build import (base_logger, utils, utils_sequence, SeqWriter)
 
 class MLTreeWriter(SeqWriter):
 
-    def __init__(self, samplesdata, no_verbose: bool = False):
-        super().__init__(samplesdata, no_verbose)
+    def __init__(self, sampledata, no_verbose: bool = False):
+        super().__init__(sampledata, no_verbose)
 
     @base_logger.prog_log("Reconstruct ML tree")
     def write_mltree(self,

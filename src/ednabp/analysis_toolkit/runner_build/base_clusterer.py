@@ -8,21 +8,27 @@ from sklearn.metrics import silhouette_score, adjusted_rand_score
 
 class Clusterer(ABC):
 
-    def __init__(
-            self,
-            index: pd.DataFrame,
-        ):
-        self.index = index
-        self.get_embeddings()
-        self.run_clustering()
-        self.calc_metrics()
-        self.output_metrics()
+    def __init__(self):
+        pass
 
-    def add_default_settings(self) -> None:
+    def run(
+            self,
+            index_path: str | None = None,
+            points: np.ndarray | None = None,
+            true_labels: np.ndarray | None = None
+        ) -> tuple[int, int, float, float, float]:
+        self._get_data(index_path, points, true_labels)
+        self._run_clustering()
+        self._calc_metrics()
+        return (self.actual_num, self.cluster_num, self.cluster_perc, self.silhouette_avg, self.ari)
+
+    def _add_default_settings(self) -> None:
+        # default output settings
         defaults = {
-            "show_log": True,
+            "print_metrics_log": True,
             "metrics_log_path": None,
-            "log_overwrite": True,
+            "show_plot": True,
+            "plot_path": None,
             "cmap": "Spectral",
             "background": "white",
             "width": 800,
@@ -32,48 +38,60 @@ class Clusterer(ABC):
             if key not in self.settings:
                 self.settings[key] = value
 
-    # def load_index(self, index_path: str) -> None:
-    #     self.index = pd.read_csv(index_path, sep='\t')
+    def _get_data(self, index_path, points, true_labels) -> None:
+        if index_path is not None:
+            self._load_index(index_path)
+            self._get_embeddings()
+            self._get_true_labels()
+        elif points is not None and true_labels is not None:
+            self.points = points
+            self.true_labels = true_labels
+        else:
+            raise ValueError("Either index_path or (points and true_labels) must be provided")
 
-    def get_embeddings(self) -> None:
+    def _load_index(self, index_path: str) -> None:
+        assert os.path.exists(index_path), f"Index file not found: {index_path}"
+        self.index = pd.read_csv(index_path, sep='\t')
+
+    def _get_embeddings(self) -> None:
         self.points = self.index[["umap1", "umap2"]].to_numpy()
 
+    def _get_true_labels(self) -> None:
+        self.true_labels = self.index["unit"]
+
     @abstractmethod
-    def run_clustering(self) -> None:
+    def _run_clustering(self) -> None:
         pass
 
-    def calc_metrics(self) -> None:
-        true_labels = self.index["unit"]
-        self.actual_num = len(true_labels.unique())
-        self.cluster_num = max(self.labels) + 1
+    def _calc_metrics(self) -> None:
+        self.actual_num = len(np.unique(self.true_labels))
+        self.cluster_num = max(self.cluster_labels) + 1
 
-        noise_counts = sum(1 for i in self.labels if i < 0)
-        self.cluster_perc = (1 - noise_counts / len(self.labels)) * 100
+        noise_counts = sum(1 for i in self.cluster_labels if i < 0)
+        self.cluster_perc = (1 - noise_counts / len(self.cluster_labels)) * 100
 
-        if len(np.unique(self.labels)) == 1:
+        if len(np.unique(self.cluster_labels)) == 1:
             self.silhouette_avg = 0
             self.ari = 0
         else:
-            self.silhouette_avg = silhouette_score(self.points, self.labels)
-            self.ari = adjusted_rand_score(true_labels, self.labels)
+            self.silhouette_avg = silhouette_score(self.points, self.cluster_labels)
+            self.ari = adjusted_rand_score(self.true_labels, self.cluster_labels)
 
-    def output_metrics(self) -> None:
+        if self.settings["print_metrics_log"] is not True and self.settings["metrics_log_path"] is None:
+            return
+
         FORMAT = "%(message)s"
         logger = logging.getLogger()
         logger.setLevel(logging.INFO)
         formatter = logging.Formatter(FORMAT) #, TIME_FORMAT)
 
-        if self.settings["show_log"] is not True and self.settings["metrics_log_path"] is None:
-            raise ValueError("At least one of `show_log` or `metrics_log_path` must be True")
-
-        if self.settings["show_log"] is True:
+        if self.settings["print_metrics_log"] is True:
             sh = logging.StreamHandler()
             sh.setLevel(logging.INFO)
             sh.setFormatter(formatter)
-            logger.addHandler(sh)
 
         if self.settings["metrics_log_path"] is not None:
-            if os.path.exists(self.settings["metrics_log_path"]) and self.settings["log_overwrite"]:
+            if os.path.exists(self.settings["metrics_log_path"]):
                 os.remove(self.settings["metrics_log_path"])
             fh = logging.FileHandler(filename=self.settings["metrics_log_path"])
             fh.setLevel(logging.INFO)
@@ -85,5 +103,6 @@ class Clusterer(ABC):
         logger.info(f"Cluster percentage: {self.cluster_perc:.2f}%")
         logger.info(f"Silhouette score: {self.silhouette_avg:.4f}")
         logger.info(f"Adjusted Rand Index: {self.ari:.4f}")
+
         while logger.hasHandlers():
             logger.removeHandler(logger.handlers[0])

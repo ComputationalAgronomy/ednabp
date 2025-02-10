@@ -123,11 +123,12 @@ class UmapRunner(SeqWriter):
     def hdbscan_umap(self,
             index_path: str,
             n_unit_threshold: int,
+            category: Literal["taxa", "unit", "all"],
             **settings
-        ):
+        ) -> pd.DataFrame:
         self.index = pd.read_csv(index_path, sep='\t')
         self.filtered_index = UmapRunner._filter_index_by_unit_occurrence(self.index, n_unit_threshold)
-        seq_hdbscan_clusterer.HdbClusterer(self.filtered_index, **settings)
+        return self._hdbscan_umap_by_category(category=category, settings=settings)
 
     def _load_units2fasta_units2taxa(self,
             taxa_list: list[str],
@@ -555,3 +556,24 @@ class UmapRunner(SeqWriter):
             png_path = os.path.join(save_dir, f"{value}_umap.png")
             self.subindex = self.filtered_index[self.filtered_index[category] == value]
             self._plot_umap(png_path, cmap, show_legend)
+
+    def _hdbscan_umap_by_category(self,
+            category: str,
+            settings: dict
+        ) -> pd.DataFrame:
+        df = pd.DataFrame(columns=["class", "actual_num", "cluster_num", "cluster_perc", "silhouette_avg", "ari"])
+        if category == 'all':
+            self.logger.info("HDBSCAN UMAP embeddings for all units...")
+            points = self.filtered_index[["umap1", "umap2"]].to_numpy()
+            true_labels = self.filtered_index["unit"]
+            df.loc[len(df)] = ["all"] + list(seq_hdbscan_clusterer.HdbClusterer().run(points=points, true_labels=true_labels, **settings))
+            return df
+
+        unique_values = np.unique(self.filtered_index[category])
+        for value in unique_values:
+            self.logger.info(f"HDBSCAN UMAP embeddings for {value}...")
+            self.subindex = self.filtered_index[self.filtered_index[category] == value]
+            points = self.subindex[["umap1", "umap2"]].to_numpy()
+            true_labels = self.subindex["unit"]
+            df.loc[len(df)] = [value] + list(seq_hdbscan_clusterer.HdbClusterer().run(points=points, true_labels=true_labels, **settings))
+        return df

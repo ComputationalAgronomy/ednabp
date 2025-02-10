@@ -93,21 +93,21 @@ class BarchartPlotter(DMPlotter):
         self.fig_sets = FIG_DEFAULT_SETTINGS
 
     def _add_fig_setting(self,):
-        self.fig.update_xaxes(
-            tickmode='linear',
-            title=dict(
-                text=self.fig_sets["x_axis_title"],
-                font=dict(size=self.fig_sets["axes_title_font"])
-                ),
-            tickfont=dict(size=self.fig_sets["axes_tick_font"])
-        )
-        self.fig.update_yaxes(
-            title=dict(
-                text=self.fig_sets["y_axis_title"],
-                font=dict(size=self.fig_sets["axes_title_font"])
-            ),
-            tickfont=dict(size=self.fig_sets["axes_tick_font"])
-        )
+        # self.fig.update_xaxes(
+        #     tickmode='linear',
+        #     title=dict(
+        #         text=self.fig_sets["x_axis_title"],
+        #         font=dict(size=self.fig_sets["axes_title_font"])
+        #         ),
+        #     tickfont=dict(size=self.fig_sets["axes_tick_font"])
+        # )
+        # self.fig.update_yaxes(
+        #     title=dict(
+        #         text=self.fig_sets["y_axis_title"],
+        #         font=dict(size=self.fig_sets["axes_title_font"])
+        #     ),
+        #     tickfont=dict(size=self.fig_sets["axes_tick_font"])
+        # )
         self.fig.update_layout(
             autosize=True,
             barmode='stack',

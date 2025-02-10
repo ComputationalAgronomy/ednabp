@@ -9,13 +9,18 @@ class Writer(ABC):
         self.logger = base_logger.logger
         if no_verbose:
             self.logger.setLevel("WARNING")
+        else:
+            self.logger.setLevel("INFO")
         self.sample_id_used = None
         self._import_data(sampledata)
 
     def _import_data(self, samplesdata):
         self.sample_data = samplesdata.sample_data
         self.sample_id_list = samplesdata.sample_id_list
-        self.sample_metadata = samplesdata.sample_metadata
+        if samplesdata.sample_metadata:
+            self.sample_metadata = samplesdata.sample_metadata
+        if samplesdata.spc_info:
+            self.spc_info = samplesdata.spc_info
 
     @base_logger.prog_log(prog_name="Load sample ID list")
     def _load_sample_id_list(self, sample_id_list: list[str] | None = None):

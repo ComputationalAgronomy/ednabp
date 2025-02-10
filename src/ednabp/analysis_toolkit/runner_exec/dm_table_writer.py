@@ -146,7 +146,7 @@ class DMWriter(base_writer.Writer, ABC):
         self._fill_non_detect_zero(taxa_level)
         self._add_sample_metadata("taxa_occurrence") # columns: taxa_level, detect_prob, Sample_id, Site, Year, Month, Sample
         self._convert_taxa_occurrence_to_taxa_dp(sample_column) # columns: taxa_level, detect_prob, Site, Year, Month
-        self._add_spc_info("taxa_occurence", taxa_level)
+        self._add_spc_info("dp_df", taxa_level)
 
     @base_logger.prog_log("Export dataframe to CSV file")
     def _export_df(self, save_dir, file_name, metric_df, overwrite, save_index=False):

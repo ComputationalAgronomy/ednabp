@@ -25,27 +25,54 @@ HDBSCAN_DEFAULT_SETTINGS = {
 }
 class HdbClusterer(Clusterer):
 
-    def __init__(
-            self,
-            index,
-            **kwargs
-        ):
-        HdbClusterer.add_default_settings(self, settings=kwargs)
-        super().__init__(index=index)
+    def __init__(self):
+        super().__init__()
+
+    @override
+    def run(
+        self,
+        index_path: str | None = None,
+        points: np.ndarray | None = None,
+        true_labels: np.ndarray | None = None,
+        **settings
+    ) -> tuple[int, int, float, float, float]:
+        """
+        :param index_path: Path to the index file containing the UMAP embeddings to cluster.
+        :param settings: Keyword arguments for both plotting and HDBSCAN configuration:
+            Metrics log settings:
+                - print_metrics_log: Whether to print metrics. Default to True.
+                - metrics_log_path: Path to save the calculated metrics log. Default to None (don't save).
+            Plotting settings:
+                - cmap (str): Colormap for plotting. Default to "Spectral".
+                - background (str): Background color for plot. Default to "white".
+                - width (int): Width of the output plot in pixels. Default to 800.
+                - height (int): Height of the output plot in pixels. Default to 800.
+                - show_plot (bool): Whether to display the plot. Default to True.
+                - plot_path (str): Path to save the plot. Default to None (don't save).
+            HDBSCAN settings:
+                - Any parameter accepted by HDBSCAN (https://scikit-learn.org/1.5/modules/generated/sklearn.cluster.HDBSCAN.html)
+        :return: A tuple containing five clustering metrics:
+            - actual_num (int): The actual number of clusters set
+            - cluster_num (int): The number of clusters specified
+            - cluster_perc (float): The percentage of data points assigned to clusters
+            - silhouette_avg (float): The average silhouette score for the clustering
+            - ari (float): The Adjusted Rand Index score
+        """
+        self._add_default_settings(settings=settings)
+        return super().run(
+            index_path=index_path,
+            points=points,
+            true_labels=true_labels
+        )
 
     @override
     def add_default_settings(self, settings):
-        DEFAULT_SETTINGS = {
-            # output settings
-            "show_plot": True,
-            "plot_path": None
-        }
-        DEFAULT_SETTINGS.update(HDBSCAN_DEFAULT_SETTINGS)
+        DEFAULT_SETTINGS = HDBSCAN_DEFAULT_SETTINGS
         for key, value in DEFAULT_SETTINGS.items():
             if key not in settings:
                 settings[key] = value
         self.settings = settings
-        super().add_default_settings()
+        super()._add_default_settings()
 
     @override
     def run_clustering(self) -> None:

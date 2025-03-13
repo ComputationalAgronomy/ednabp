@@ -89,10 +89,14 @@ class HeatmapPlotter(DMPlotter):
     def _create_plot(self, colorscale):
         self.fig = go.Figure(
             data=go.Heatmap(
-                z=self.z, y=self.y, x=self.x, colorscale=colorscale
+                z=self.z,
+                y=self.y,
+                x=self.x,
+                colorscale=colorscale,
+                colorbar={"tickfont": {"size": 40}},
             )
         )
-        self.fig.update_layout(yaxis_title=None, width=1000, height=600)
+        self.fig.update_layout(yaxis_title=None)
 
     @base_logger.prog_log("Display and save (if 'save_dir' provided)")
     def _display_and_save(self, save_dir: str | None, overwrite: bool):

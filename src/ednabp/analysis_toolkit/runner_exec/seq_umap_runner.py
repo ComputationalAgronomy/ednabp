@@ -596,6 +596,7 @@ class UmapRunner(SeqWriter):
             markers=self.subindex["source"],
             cmap=cmap,
             show_legend=show_legend,
+            background="black",
         )
         ax.figure.savefig(png_path, bbox_inches="tight")
         self.logger.info(f"Saved PNG to: {png_path}")

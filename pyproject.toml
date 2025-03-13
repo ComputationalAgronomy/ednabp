@@ -17,9 +17,12 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+dynamic = ["dependencies"]
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
 
 [project.scripts]
-eDNAbp = "cli:main"
+eDNAbp = "fastq_processor_cli.cli:main"
 
 [project.urls]
 "Homepage" = "https://github.com/ComputationalAgronomy/ednabp.git"
@@ -36,3 +39,30 @@ include = ["*"]  # ["*"] by defaultgit
 
 [flake8]
 per-file-ignores = "tests/*: E501"  # E501 line too long
+
+[tool.ruff]
+line-length = 79
+target-version = "py311"
+extend-include = ["*.ipynb"]
+
+[tool.ruff.lint]
+select = [
+  "E",  # pycodestyle errors
+  "W",  # pycodestyle warnings
+  "F",  # pyflakes
+  "I",  # isort
+  "B",  # flake8-bugbear
+  "C4", # flake8-comprehensions
+  "UP", # pyupgrade
+  # "ARG001", # unused arguments in functions
+]
+ignore = [
+  "E402", # module level import not at top of file
+  "E501", # line too long, handled by black
+  "B008", # do not perform function calls in argument defaults
+  "W191", # indentation contains tabs
+  "B904", # Allow raising exceptions without from e, for HTTPException
+]
+
+[tool.ruff.format]
+quote-style = "double"

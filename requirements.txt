@@ -1,12 +1,13 @@
 Bio==1.7.1
 biopython==1.83
+duckdb==1.2.1
 geokrige==0.0.1
 geopandas==1.0.1
 hdbscan==0.8.36
-matplotlib==3.10.0
-numpy==2.2.2
+matplotlib==3.10.1
+numpy==2.2.3
 pandas==2.2.3
-plotly==5.24.0
+plotly==5.24.1
 scikit_learn==1.6.1
 scipy==1.7.3
 umap_learn==0.5.7

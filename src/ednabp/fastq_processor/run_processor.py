@@ -2,18 +2,22 @@ import os
 
 from ..analysis_toolkit.runner_build import base_logger
 from .step_build import stage_config
-from .step_exec import (decompress, merge, cut_primer, fq_to_fa, dereplicate, denoise, assign_taxa,)
+from .step_exec import (
+    assign_taxa,
+    cut_primer,
+    decompress,
+    denoise,
+    dereplicate,
+    fq_to_fa,
+    merge,
+)
+
 
 class FastqProcessor:
-
-    def __init__(self,
-                 input_path: str,
-                 output_path: str,
-                 **settings
-                 ):
-        '''
+    def __init__(self, input_path: str, output_path: str, **settings):
+        """
         A pipeline for processing eDNA bioinformatics workflows.
-        
+
         :param input_path (str): The input path for raw sequences. This can be either a directory containing files or the path to a single file.
         :param output_path (str): The directory where output files will be saved.
         :param enabled_stages (list[str]): The process stages to be executed. The execution order will match the list order. Default:
@@ -58,7 +62,7 @@ class FastqProcessor:
             - evalue (float): Expectation value (E) threshold for saving hits. Default: 0.00001.
             - qcov_hsp_perc (int): The %threshold of the query sequence that has to form an alignment against the reference to be retained. Default: 90.
             - perc_identity (int): Minimum percentage identity required for taxonomic assignment. Default: 90.
-            - specifiers (str): Output format specifiers for BLAST results. Default: 
+            - specifiers (str): Output format specifiers for BLAST results. Default:
               "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore".
 
           Configuration Settings:
@@ -67,12 +71,16 @@ class FastqProcessor:
             - logger (Logger): Logger object for pipeline logging. Default: base_logger.logger.
             - n_cpu (int): Number of CPU cores to be used for processing. Default: 1.
             - memory (int): Maximum memory (in GB) allowed for processing. Default: 8.
-        '''
-        assert os.path.exists(input_path), f"Error: input path does not exist: {input_path}"
+        """
+        assert os.path.exists(input_path), (
+            f"Error: input path does not exist: {input_path}"
+        )
         os.makedirs(output_path, exist_ok=True)
         input_is_dir = True if os.path.isdir(input_path) else False
 
-        self.indir_path = input_path if input_is_dir else os.path.dirname(input_path)
+        self.indir_path = (
+            input_path if input_is_dir else os.path.dirname(input_path)
+        )
         self.outdir_path = output_path
 
         self.add_default_settings(settings)
@@ -98,8 +106,16 @@ class FastqProcessor:
         }
 
         DEFAULT_SETTINGS = {
-            'enabled_stages': ["decompress", "merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "assigntaxa"],
-            'stage_dir_name':{
+            "enabled_stages": [
+                "decompress",
+                "merge",
+                "cutprimer",
+                "fqtofa",
+                "dereplicate",
+                "denoise",
+                "assigntaxa",
+            ],
+            "stage_dir_name": {
                 "decompress": "decompress",
                 "merge": "merge",
                 "cutprimer": "cutprimer",
@@ -108,7 +124,7 @@ class FastqProcessor:
                 "denoise": "denoise",
                 "assigntaxa": "assigntaxa",
             },
-            'suffix': {
+            "suffix": {
                 "raw": "_R1.fastq.gz",
                 "decompress": "_R1.fastq",
                 "merge": "_merged.fastq",
@@ -117,22 +133,22 @@ class FastqProcessor:
                 "denoise": "_zotus.fasta",
                 "assigntaxa": "_taxa.csv",
             },
-            'merge': {
+            "merge": {
                 "maxdiff": 5,
                 "pctid": 90,
             },
-            'cutprimer': {
+            "cutprimer": {
                 "rm_p_5": "GTCGGTAAAACTCGTGCCAGC",
                 "rm_p_3": "CAAACTGGGATTAGATACCCCACTATG",
                 "error_rate": 0.15,
                 "min_read_len": 204,
                 "max_read_len": 254,
             },
-            'denoise': {
+            "denoise": {
                 "minsize": 8,
                 "alpha": 2,
             },
-            'assigntaxa': {
+            "assigntaxa": {
                 "db_path": None,
                 "lineage_path": None,
                 "evalue": 0.00001,
@@ -140,37 +156,66 @@ class FastqProcessor:
                 "perc_identity": 90,
                 "specifiers": "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
             },
-            'config': {
+            "config": {
                 "verbose": True,
                 "dry": False,
                 "logger": base_logger.logger,
                 "n_cpu": 1,
-                "memory": 8
-            }
+                "memory": 8,
+            },
         }
 
-        self.enabled_stages = settings.get("enabled_stages", DEFAULT_SETTINGS['enabled_stages'])
-        self.stage_dir_name = {k: settings.get(f"{k}_dir_name", v) for k, v in DEFAULT_SETTINGS['stage_dir_name'].items()}
-        self.stage_dir = {k: os.path.join(self.outdir_path, v) for k, v in self.stage_dir_name.items()}
-        self.stage_suffix = {k: settings.get(f"{k}_suffix", v) for k, v in DEFAULT_SETTINGS['suffix'].items()}
-        self.merge_settings = {k: settings.get(k, v) for k, v in DEFAULT_SETTINGS['merge'].items()}
-        self.cutprimer_settings = {k: settings.get(k, v) for k, v in DEFAULT_SETTINGS['cutprimer'].items()}
-        self.denoise_settings = {k: settings.get(k, v) for k, v in DEFAULT_SETTINGS['denoise'].items()}
-        self.assigntaxa_settings = {k: settings.get(k, v) for k, v in DEFAULT_SETTINGS['assigntaxa'].items()}
-        self.config_settings = {k: settings.get(k, v) for k, v in DEFAULT_SETTINGS['config'].items()}
+        self.enabled_stages = settings.get(
+            "enabled_stages", DEFAULT_SETTINGS["enabled_stages"]
+        )
+        self.stage_dir_name = {
+            k: settings.get(f"{k}_dir_name", v)
+            for k, v in DEFAULT_SETTINGS["stage_dir_name"].items()
+        }
+        self.stage_dir = {
+            k: os.path.join(self.outdir_path, v)
+            for k, v in self.stage_dir_name.items()
+        }
+        self.stage_suffix = {
+            k: settings.get(f"{k}_suffix", v)
+            for k, v in DEFAULT_SETTINGS["suffix"].items()
+        }
+        self.merge_settings = {
+            k: settings.get(k, v) for k, v in DEFAULT_SETTINGS["merge"].items()
+        }
+        self.cutprimer_settings = {
+            k: settings.get(k, v)
+            for k, v in DEFAULT_SETTINGS["cutprimer"].items()
+        }
+        self.denoise_settings = {
+            k: settings.get(k, v)
+            for k, v in DEFAULT_SETTINGS["denoise"].items()
+        }
+        self.assigntaxa_settings = {
+            k: settings.get(k, v)
+            for k, v in DEFAULT_SETTINGS["assigntaxa"].items()
+        }
+        self.config_settings = {
+            k: settings.get(k, v)
+            for k, v in DEFAULT_SETTINGS["config"].items()
+        }
 
     def add_config(self):
-        fp_fh = base_logger.get_file_handler(os.path.join(self.outdir_path, "stages.log"))
+        fp_fh = base_logger.get_file_handler(
+            os.path.join(self.outdir_path, "stages.log")
+        )
         self.config_settings["logger"].addHandler(fp_fh)
-        self.config = stage_config.StageConfig(settings = self.config_settings)
+        self.config = stage_config.StageConfig(settings=self.config_settings)
 
     def setup_stages(self):
-        self.stages = dict()
+        self.stages = {}
         curr_dir = self.indir_path
         curr_suffix = self.stage_suffix["raw"]
         for stage in self.enabled_stages:
             if stage == "fqtofa":
-                self.stage_suffix["fqtofa"] = curr_suffix.replace("fastq", "fasta")
+                self.stage_suffix["fqtofa"] = curr_suffix.replace(
+                    "fastq", "fasta"
+                )
             stage_args = {
                 "config": self.config,
                 "in_dir": curr_dir,
@@ -199,10 +244,14 @@ class FastqProcessor:
     def run_stages_files(self):
         suffix = self.stage_suffix["raw"]
         files = os.listdir(self.indir_path)
-        prefixes = [file.replace(suffix, "") for file in files if file.endswith(suffix)]
+        prefixes = [
+            file.replace(suffix, "") for file in files if file.endswith(suffix)
+        ]
         for prefix in prefixes:
             self.run_one_file(prefix)
 
     def run_stages_one_file(self, input_path):
-        prefix = os.path.basename(input_path).replace(self.stage_suffix["raw"], "")
+        prefix = os.path.basename(input_path).replace(
+            self.stage_suffix["raw"], ""
+        )
         self.run_one_file(prefix, self.stages)

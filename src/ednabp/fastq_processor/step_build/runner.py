@@ -4,7 +4,6 @@ from . import stage_config
 
 
 class Runner(ABC):
-
     """
     Abstract base class for defining a runner that executes a program.
 
@@ -30,7 +29,6 @@ class Runner(ABC):
             self.logger = config.logger
         except AttributeError as e:
             print(e)
-
 
     @abstractmethod
     def run(self):

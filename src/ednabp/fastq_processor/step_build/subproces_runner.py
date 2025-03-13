@@ -6,7 +6,6 @@ from . import runner
 
 
 class SubprocessRunner(runner.Runner):
-
     """
     Runner class for executing a command as a subprocess.
 
@@ -15,7 +14,9 @@ class SubprocessRunner(runner.Runner):
         shell (bool): Whether to execute the command through the shell.
     """
 
-    def __init__(self, prog_name: str, command: str, config, shell: bool = False):
+    def __init__(
+        self, prog_name: str, command: str, config, shell: bool = False
+    ):
         super().__init__(prog_name, config)
 
         self.command = command
@@ -34,27 +35,35 @@ class SubprocessRunner(runner.Runner):
             args = self.command
         else:
             args = shlex.split(self.command, posix="win" not in sys.platform)
-            args = [arg.replace("\"", "") for arg in args]
+            args = [arg.replace('"', "") for arg in args]
 
         if not self.dry:
             try:
-                self.capture_output = subprocess.run(args,
-                                                     capture_output=False,
-                                                     shell=self.shell,
-                                                     check=True,
-                                                     text=True,
-                                                     stdout=subprocess.PIPE,
-                                                     stderr=subprocess.PIPE)
+                self.capture_output = subprocess.run(
+                    args,
+                    capture_output=False,
+                    shell=self.shell,
+                    check=True,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
                 self.logger.info(f"COMPLETE: {self.prog_name}.")
                 return True
             except subprocess.CalledProcessError as e:
-                self.logger.error(f"FAIL: {self.prog_name}. SubprocessError: {e.stderr}.")
+                self.logger.error(
+                    f"FAIL: {self.prog_name}. SubprocessError: {e.stderr}."
+                )
                 return False
             except FileNotFoundError as e:
-                self.logger.error(f"FAIL: {self.prog_name}. FileNotFoundError: {e.strerror}.")
+                self.logger.error(
+                    f"FAIL: {self.prog_name}. FileNotFoundError: {e.strerror}."
+                )
                 return False
             except Exception as e:
-                self.logger.error(f"FAIL: {self.prog_name}. Other Exception: {e}.")
+                self.logger.error(
+                    f"FAIL: {self.prog_name}. Other Exception: {e}."
+                )
                 return False
 
 
@@ -66,7 +75,15 @@ class RedirectOutputRunner(runner.Runner):
         runner (SubprocessRunner): The subprocess runner whose output to redirect.
         outfile (str): The file to write the output to.
     """
-    def __init__(self, prog_name: str, runner: SubprocessRunner, stdout_file: str, stderr_file: str, config):
+
+    def __init__(
+        self,
+        prog_name: str,
+        runner: SubprocessRunner,
+        stdout_file: str,
+        stderr_file: str,
+        config,
+    ):
         super().__init__(prog_name, config)
 
         if isinstance(runner, SubprocessRunner):
@@ -89,7 +106,10 @@ class RedirectOutputRunner(runner.Runner):
 
         if not self.dry:
             try:
-                with open(self.stdout_file, "w") as out_f, open(self.stderr_file, "w") as err_f:
+                with (
+                    open(self.stdout_file, "w") as out_f,
+                    open(self.stderr_file, "w") as err_f,
+                ):
                     pass
                 if self.runner.capture_output.stdout:
                     with open(self.stdout_file, "a") as out_f:

@@ -1,7 +1,7 @@
-from abc import ABC, abstractmethod
 import os
+from abc import ABC, abstractmethod
 
-from . import (stage_config, subproces_runner, function_runner)
+from . import function_runner, stage_config, subproces_runner
 
 
 class StageBuilder(ABC):
@@ -15,7 +15,13 @@ class StageBuilder(ABC):
         output (list): List of outputs from the executed runners.
     """
 
-    def __init__(self, heading: str, config: stage_config.StageConfig, in_dir: str, out_dir: str):
+    def __init__(
+        self,
+        heading: str,
+        config: stage_config.StageConfig,
+        in_dir: str,
+        out_dir: str,
+    ):
         self.heading = heading
         self.config = config
         self.runners = []
@@ -32,10 +38,14 @@ class StageBuilder(ABC):
         :param command: The command to execute.
         :param shell: Whether to execute the command through the shell.
         """
-        stage = subproces_runner.SubprocessRunner(prog_name, command, self.config, shell=shell)
+        stage = subproces_runner.SubprocessRunner(
+            prog_name, command, self.config, shell=shell
+        )
         self.runners.append(stage)
 
-    def add_stage_output_to_file(self, prog_name: str, stage: int, outfile_name: str, errfile_name: str):
+    def add_stage_output_to_file(
+        self, prog_name: str, stage: int, outfile_name: str, errfile_name: str
+    ):
         """
         Adds a stage that redirects output to a file.
 
@@ -43,7 +53,13 @@ class StageBuilder(ABC):
         :param stage: The index of the stage whose output to redirect.
         :param outfile_name: The name of the file to write the output to.
         """
-        rd_stage = subproces_runner.RedirectOutputRunner(prog_name, self.runners[stage], outfile_name, errfile_name, self.config)
+        rd_stage = subproces_runner.RedirectOutputRunner(
+            prog_name,
+            self.runners[stage],
+            outfile_name,
+            errfile_name,
+            self.config,
+        )
         self.runners.append(rd_stage)
 
     def add_stage_function(self, prog_name: str, func):
@@ -54,7 +70,9 @@ class StageBuilder(ABC):
         :param func: The function to execute.
         :param kwargs: Keyword arguments for the function.
         """
-        func_stage = function_runner.FunctionRunner(prog_name, func, self.config)
+        func_stage = function_runner.FunctionRunner(
+            prog_name, func, self.config
+        )
         self.runners.append(func_stage)
 
     def check_infile(self):
@@ -90,7 +108,7 @@ class StageBuilder(ABC):
         # self.config.logger.flush()
         self.runners = []
         return all(self.output)
-    
+
     @abstractmethod
     def setup(self):
         pass

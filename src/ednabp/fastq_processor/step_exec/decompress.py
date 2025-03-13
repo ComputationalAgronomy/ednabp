@@ -1,16 +1,23 @@
-import os
 import gzip
+import os
 from typing import override
 
 from ..step_build import stage_builder
 
 
 class DecompressStage(stage_builder.StageBuilder):
-    def __init__(self, config, heading="stage_gzip_decompress.py",
-                 in_dir="", out_dir="",
-                 in_suffix="_R1.fastq.gz", out_suffix="_R1.fastq"
-                 ):
-        super().__init__(heading=heading, config=config, in_dir=in_dir, out_dir=out_dir)
+    def __init__(
+        self,
+        config,
+        heading="stage_gzip_decompress.py",
+        in_dir="",
+        out_dir="",
+        in_suffix="_R1.fastq.gz",
+        out_suffix="_R1.fastq",
+    ):
+        super().__init__(
+            heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
+        )
         in_suffix2 = in_suffix.replace("R1", "R2")
         out_suffix2 = out_suffix.replace("R1", "R2")
         self.insuffix_list = [in_suffix, in_suffix2]
@@ -19,8 +26,13 @@ class DecompressStage(stage_builder.StageBuilder):
         self.outfile_list = []
 
     def gunzip(self):
-        for infile, outfile in zip(self.infile_list, self.outfile_list):
-            with gzip.open(infile, 'rb')as in_handler, open(outfile, 'wb') as out_handler:
+        for infile, outfile in zip(
+            self.infile_list, self.outfile_list, strict=False
+        ):
+            with (
+                gzip.open(infile, "rb") as in_handler,
+                open(outfile, "wb") as out_handler,
+            ):
                 for line in in_handler:
                     out_handler.write(line)
 

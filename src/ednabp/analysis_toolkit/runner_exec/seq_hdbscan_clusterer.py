@@ -9,22 +9,23 @@ from ..runner_build import Clusterer
 HDBSCAN_DEFAULT_SETTINGS = {
     "min_cluster_size": 5,
     "min_samples": None,
-    "metric": 'euclidean',
+    "metric": "euclidean",
     "p": None,
     "alpha": 1.0,
     "cluster_selection_epsilon": 0.0,
-    "algorithm": 'best',
+    "algorithm": "best",
     "leaf_size": 40,
     "approx_min_span_tree": True,
     "gen_min_span_tree": False,
     "core_dist_n_jobs": 4,
-    "cluster_selection_method": 'eom',
+    "cluster_selection_method": "eom",
     "allow_single_cluster": False,
     "prediction_data": False,
     "match_reference_implementation": False,
 }
-class HdbClusterer(Clusterer):
 
+
+class HdbClusterer(Clusterer):
     def __init__(self):
         super().__init__()
 
@@ -34,7 +35,7 @@ class HdbClusterer(Clusterer):
         index_path: str | None = None,
         points: np.ndarray | None = None,
         true_labels: np.ndarray | None = None,
-        **settings
+        **settings,
     ) -> tuple[int, int, float, float, float]:
         """
         :param index_path: Path to the index file containing the UMAP embeddings to cluster.
@@ -60,13 +61,11 @@ class HdbClusterer(Clusterer):
         """
         self._add_default_settings(settings=settings)
         return super().run(
-            index_path=index_path,
-            points=points,
-            true_labels=true_labels
+            index_path=index_path, points=points, true_labels=true_labels
         )
 
     @override
-    def add_default_settings(self, settings):
+    def _add_default_settings(self, settings):
         DEFAULT_SETTINGS = HDBSCAN_DEFAULT_SETTINGS
         for key, value in DEFAULT_SETTINGS.items():
             if key not in settings:
@@ -75,21 +74,27 @@ class HdbClusterer(Clusterer):
         super()._add_default_settings()
 
     @override
-    def run_clustering(self) -> None:
+    def _run_clustering(self) -> None:
         self.init_clusterer()
         self.fit_hdbscan()
-        if self.settings["plot_path"] is not None or self.settings["show_plot"] is True:
+        if (
+            self.settings["plot_path"] is not None
+            or self.settings["show_plot"] is True
+        ):
             self.output_hdbscan()
 
     def init_clusterer(self):
         import hdbscan
+
         self.clusterer = hdbscan.HDBSCAN(
             min_cluster_size=self.settings["min_cluster_size"],
             min_samples=self.settings["min_samples"],
             metric=self.settings["metric"],
             p=self.settings["p"],
             alpha=self.settings["alpha"],
-            cluster_selection_epsilon=self.settings["cluster_selection_epsilon"],
+            cluster_selection_epsilon=self.settings[
+                "cluster_selection_epsilon"
+            ],
             algorithm=self.settings["algorithm"],
             leaf_size=self.settings["leaf_size"],
             approx_min_span_tree=self.settings["approx_min_span_tree"],
@@ -98,16 +103,23 @@ class HdbClusterer(Clusterer):
             cluster_selection_method=self.settings["cluster_selection_method"],
             allow_single_cluster=self.settings["allow_single_cluster"],
             prediction_data=self.settings["prediction_data"],
-            match_reference_implementation=self.settings["match_reference_implementation"]
+            match_reference_implementation=self.settings[
+                "match_reference_implementation"
+            ],
         )
 
     def fit_hdbscan(self) -> None:
-        self.labels = self.clusterer.fit_predict(self.points)
-        self.clustered = (self.labels >= 0)
+        self.cluster_labels = self.clusterer.fit_predict(self.points)
+        self.clustered = self.cluster_labels >= 0
 
     def output_hdbscan(self) -> None:
         dpi = plt.rcParams["figure.dpi"]
-        fig = plt.figure(figsize=(self.settings["width"] / dpi, self.settings["height"] / dpi))
+        fig = plt.figure(
+            figsize=(
+                self.settings["width"] / dpi,
+                self.settings["height"] / dpi,
+            )
+        )
         ax = fig.add_subplot(111)
         ax.set_facecolor(self.settings["background"])
 
@@ -118,16 +130,18 @@ class HdbClusterer(Clusterer):
             self.points[~self.clustered, 1],
             color=(0.5, 0.5, 0.5),
             s=point_size,
-            alpha=0.5
+            alpha=0.5,
         )
         ax.scatter(
             self.points[self.clustered, 0],
             self.points[self.clustered, 1],
-            c=self.labels[self.clustered],
+            c=self.cluster_labels[self.clustered],
             s=point_size,
-            cmap=self.settings["cmap"]
+            cmap=self.settings["cmap"],
         )
-        ax.tick_params(bottom=False, left=False, labelbottom=False, labelleft=False)
+        ax.tick_params(
+            bottom=False, left=False, labelbottom=False, labelleft=False
+        )
         if self.settings["plot_path"] is not None:
             ax.figure.savefig(self.settings["plot_path"])
         if self.settings["show_plot"] is True:

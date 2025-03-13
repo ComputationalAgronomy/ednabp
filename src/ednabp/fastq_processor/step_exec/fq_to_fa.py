@@ -1,20 +1,28 @@
-from Bio import SeqIO
 import os
+
+from Bio import SeqIO
 
 from ..step_build import stage_builder
 
 
 class FqToFaStage(stage_builder.StageBuilder):
-    def __init__(self, config, heading="stage_fq_to_fa.py",
-                 in_dir="", out_dir="",
-                 in_suffix="_cut.fastq", out_suffix="_cut.fasta"
-                 ):
-        super().__init__(heading=heading, config=config, in_dir=in_dir, out_dir=out_dir)
+    def __init__(
+        self,
+        config,
+        heading="stage_fq_to_fa.py",
+        in_dir="",
+        out_dir="",
+        in_suffix="_cut.fastq",
+        out_suffix="_cut.fasta",
+    ):
+        super().__init__(
+            heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
+        )
         self.in_suffix = in_suffix
         self.out_suffix = out_suffix
 
     def fq_to_fa(self):
-        with open(self.infile, "r") as fq, open(self.outfile, "w") as fa:
+        with open(self.infile) as fq, open(self.outfile, "w") as fa:
             for record in SeqIO.parse(fq, "fastq"):
                 SeqIO.write(record, fa, "fasta")
 

@@ -1,28 +1,28 @@
 import os
 import tempfile
 
-from ..runner_build import (base_logger, utils, utils_sequence, SeqWriter)
+from ..runner_build import SeqWriter, base_logger, utils, utils_sequence
 
 
 class MLTreeWriter(SeqWriter):
-
     def __init__(self, sampledata, no_verbose: bool = False):
         super().__init__(sampledata, no_verbose)
 
     @base_logger.prog_log("Reconstruct ML tree")
-    def write_mltree(self,
-            save_dir:str,
-            taxa_list: list[str],
-            taxa_level: str,
-            unit_level:str = "species",
-            save_prefix: str = "ml_tree",
-            model: str = None,
-            bootstrap: int = None,
-            threads: int = None,
-            dereplicate_sequence: bool = True,
-            n_unit_threshold:int = 1,
-            sample_id_list: list[str] | None = None,
-        ) -> None:
+    def write_mltree(
+        self,
+        save_dir: str,
+        taxa_list: list[str],
+        taxa_level: str,
+        unit_level: str = "species",
+        save_prefix: str = "ml_tree",
+        model: str = None,
+        bootstrap: int = None,
+        threads: int = None,
+        dereplicate_sequence: bool = True,
+        n_unit_threshold: int = 1,
+        sample_id_list: list[str] | None = None,
+    ) -> None:
         """
         Reconstruct a phylogenetic tree for a list of targets using IQTREE and write a .TREEFILE file.
         (IQTREE2 command reference: http://www.iqtree.org/doc/Command-Reference)
@@ -54,15 +54,15 @@ class MLTreeWriter(SeqWriter):
                 save_prefix=save_prefix,
                 model=model,
                 bootstrap=bootstrap,
-                threads=threads
+                threads=threads,
             )
         finally:
             self.tmpdir.cleanup()
 
     def _create_tmpdir(self):
         self.tmpdir = tempfile.TemporaryDirectory(delete=False)
-        self.fasta_path = os.path.join(self.tmpdir.name, 'mltree.fa')
-        self.ml_fasta_path = os.path.join(self.tmpdir.name, f'mltree.aln')
+        self.fasta_path = os.path.join(self.tmpdir.name, "mltree.fa")
+        self.ml_fasta_path = os.path.join(self.tmpdir.name, "mltree.aln")
 
     @base_logger.prog_log("Check overwrite")
     def _check_mltree_overwrite(self, save_dir: str, save_prefix: str) -> str:
@@ -75,7 +75,9 @@ class MLTreeWriter(SeqWriter):
         :param prefix: Prefix for the output file names.
         :return: User input choice ('-redo', '--redo-tree', '--undo', or 'stop').
         """
-        ckp_path = os.path.join(save_dir, save_prefix + '.ckp.gz') # e.g. save/dir/SpA.ckp.gz
+        ckp_path = os.path.join(
+            save_dir, save_prefix + ".ckp.gz"
+        )  # e.g. save/dir/SpA.ckp.gz
         if os.path.exists(ckp_path):
             print(
                 f"> MLTree checkpoint fileCheckpoint ({ckp_path}) indicates that a previous run successfully finished  already exists.\n"
@@ -83,7 +85,7 @@ class MLTreeWriter(SeqWriter):
                 "Use `--redo-tree` option if you want to restore ModelFinder and only redo tree search.\n"
                 "Use `--undo` option if you want to continue previous run when changing/adding options.\n"
             )
-            user_input_choice = ['-redo', '--redo-tree', '--undo', 'stop']
+            user_input_choice = ["-redo", "--redo-tree", "--undo", "stop"]
             help_msg = f"({'/'.join(user_input_choice)}): "
             while True:
                 user_input = input(help_msg).strip().lower()
@@ -94,43 +96,59 @@ class MLTreeWriter(SeqWriter):
             pass
 
     @base_logger.prog_log("Write MLTree FASTA file")
-    def _write_mltree_fasta(self,
-            taxa_list: list[str],
-            taxa_level: str,
-            unit_level: str,
-            n_unit_threshold: int,
-            dereplicate_sequence: bool,
-        ) -> None:
+    def _write_mltree_fasta(
+        self,
+        taxa_list: list[str],
+        taxa_level: str,
+        unit_level: str,
+        n_unit_threshold: int,
+        dereplicate_sequence: bool,
+    ) -> None:
         for taxon_name in taxa_list:
             self._load_units2fasta_dict(
                 taxon_name=taxon_name,
                 taxa_level=taxa_level,
                 unit_level=unit_level,
-                n_unit_threshold=n_unit_threshold
+                n_unit_threshold=n_unit_threshold,
             )
-        utils_sequence.write_fasta(self.units2fasta, save_path=self.fasta_path, dereplicate=dereplicate_sequence)
-        utils_sequence.align_fasta(seq_path=self.fasta_path, aln_path=self.ml_fasta_path)
+        utils_sequence.write_fasta(
+            self.units2fasta,
+            save_path=self.fasta_path,
+            dereplicate=dereplicate_sequence,
+        )
+        utils_sequence.align_fasta(
+            seq_path=self.fasta_path, aln_path=self.ml_fasta_path
+        )
 
     @base_logger.prog_log("Run IQTREE2")
-    def _run_iqtree2(self,
-            save_dir: str,
-            save_prefix: str,
-            model:str = None,
-            bootstrap: int = None,
-            threads: int = None
-        ) -> None:
+    def _run_iqtree2(
+        self,
+        save_dir: str,
+        save_prefix: str,
+        model: str = None,
+        bootstrap: int = None,
+        threads: int = None,
+    ) -> None:
         os.makedirs(save_dir, exist_ok=True)
         checkpoint = self._check_mltree_overwrite(save_dir, save_prefix)
-        if checkpoint == 'stop':
+        if checkpoint == "stop":
             self.logger.info("Stopping the run.")
             return
 
-        model = model or 'TEST'
+        model = model or "TEST"
         prefix_path = os.path.join(save_dir, save_prefix)
-        threads = threads or 'AUTO'
+        threads = threads or "AUTO"
 
         cmd = [
-            'iqtree2', '-m', model, '-s', self.ml_fasta_path, '--prefix', prefix_path, '-nt', threads
+            "iqtree2",
+            "-m",
+            model,
+            "-s",
+            self.ml_fasta_path,
+            "--prefix",
+            prefix_path,
+            "-nt",
+            threads,
         ]
         if bootstrap:
             cmd.extend(["-b", str(bootstrap)])

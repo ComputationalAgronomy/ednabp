@@ -1,11 +1,10 @@
 from Bio import SeqIO
 
-from .base_reader import Reader
 from ..runner_build import base_logger
+from .base_reader import Reader
 
 
 class FastaReader(Reader):
-
     def __init__(self):
         super().__init__()
         self.seq_dict = {}

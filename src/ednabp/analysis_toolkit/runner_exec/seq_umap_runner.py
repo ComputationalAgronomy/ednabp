@@ -2,39 +2,42 @@ import os
 import tempfile
 from typing import Literal
 
-from Bio import SeqIO
 import matplotlib.cm
 import matplotlib.colors
-from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from Bio import SeqIO
+from matplotlib.patches import Patch
 
-from ..runner_build import (base_logger, utils_sequence, utils, SeqWriter)
+from ..runner_build import SeqWriter, base_logger, utils, utils_sequence
 from . import seq_hdbscan_clusterer
+
 
 class UmapRunner(SeqWriter):
     """
     Class for managing UMAP analysis.
     """
+
     def __init__(self, sampledata, no_verbose=False):
         super().__init__(sampledata, no_verbose)
         self.units2taxa = {}
         self.index_list = []
 
     @base_logger.prog_log("Write UMAP index file")
-    def write_umap_index(self,
-            taxa_list: list[str],
-            taxa_level: str,
-            unit_level: str = "species",
-            save_dir: str = ".",
-            neighbors: int = 15,
-            min_dist: float = 0.1,
-            random_state: int = 42,
-            calc_dist: bool = True,
-            dereplicate_sequence: bool = False,
-            sample_id_list: list[str] | None = None,
-        ) -> pd.DataFrame:
+    def write_umap_index(
+        self,
+        taxa_list: list[str],
+        taxa_level: str,
+        unit_level: str = "species",
+        save_dir: str = ".",
+        neighbors: int = 15,
+        min_dist: float = 0.1,
+        random_state: int = 42,
+        calc_dist: bool = True,
+        dereplicate_sequence: bool = False,
+        sample_id_list: list[str] | None = None,
+    ) -> pd.DataFrame:
         """
         Run the UMAP pipeline and write the index TSV file.
         (UMAP parameters reference: https://umap-learn.readthedocs.io/en/latest/parameters.html)
@@ -72,7 +75,7 @@ class UmapRunner(SeqWriter):
 
         self._write_index_fasta(
             aln_index_fasta_path=aln_index_fasta_path,
-            dereplicate_sequence=dereplicate_sequence
+            dereplicate_sequence=dereplicate_sequence,
         )
 
         self._run_umap(
@@ -81,22 +84,23 @@ class UmapRunner(SeqWriter):
             neighbors=neighbors,
             min_dist=min_dist,
             random_state=random_state,
-            calc_dist=calc_dist
+            calc_dist=calc_dist,
         )
 
         self._create_index_df()
         self._update_index_columns()
-        self.index.to_csv(index_path, sep='\t', index=False)
-        self.logger.info(f'Index TSV saved_to: {index_path}')
+        self.index.to_csv(index_path, sep="\t", index=False)
+        self.logger.info(f"Index TSV saved_to: {index_path}")
 
     @base_logger.prog_log("Plot UMAP embedding")
-    def plot_umap(self,
+    def plot_umap(
+        self,
         index_path: str,
         n_unit_threshold: int,
         category: Literal["taxa", "unit", "all"],
         save_dir: str = ".",
         cmap: str = "rainbow",
-        show_legend: bool = True
+        show_legend: bool = True,
     ):
         """
         Plot UMAP results based on the specified category (unit, taxa, or all).
@@ -108,33 +112,44 @@ class UmapRunner(SeqWriter):
         :param cmap: The colormap to use for the plots. Default is "rainbow".
         :param show_legend: Whether to show the legend in the plots. Default is True.
         """
-        if category not in ['unit', 'taxa', 'all']:
-            raise ValueError("Invalid category. Must be 'unit', 'taxa', or 'all'.")
-        self.index = pd.read_csv(index_path, sep='\t')
-        self.filtered_index = UmapRunner._filter_index_by_unit_occurrence(self.index, n_unit_threshold)
+        if category not in ["unit", "taxa", "all"]:
+            raise ValueError(
+                "Invalid category. Must be 'unit', 'taxa', or 'all'."
+            )
+        self.index = pd.read_csv(index_path, sep="\t")
+        self.filtered_index = UmapRunner._filter_index_by_unit_occurrence(
+            self.index, n_unit_threshold
+        )
         self._plot_umap_by_category(
             category=category,
             save_dir=save_dir,
             cmap=cmap,
-            show_legend=show_legend
+            show_legend=show_legend,
         )
 
     @base_logger.prog_log("Run HDBSCAN clustering for UMAP embedding")
-    def hdbscan_umap(self,
-            index_path: str,
-            n_unit_threshold: int,
-            category: Literal["taxa", "unit", "all"],
-            **settings
-        ) -> pd.DataFrame:
-        self.index = pd.read_csv(index_path, sep='\t')
-        self.filtered_index = UmapRunner._filter_index_by_unit_occurrence(self.index, n_unit_threshold)
-        return self._hdbscan_umap_by_category(category=category, settings=settings)
+    def hdbscan_umap(
+        self,
+        index_path: str,
+        n_unit_threshold: int,
+        category: Literal["taxa", "unit", "all"],
+        save_dir=None,
+        **settings,
+    ) -> pd.DataFrame:
+        self.index = pd.read_csv(index_path, sep="\t")
+        self.filtered_index = UmapRunner._filter_index_by_unit_occurrence(
+            self.index, n_unit_threshold
+        )
+        return self._hdbscan_umap_by_category(
+            category=category, save_dir=save_dir, settings=settings
+        )
 
-    def _load_units2fasta_units2taxa(self,
-            taxa_list: list[str],
-            taxa_level: str,
-            unit_level: str,
-        ) -> tuple[dict[str, str], dict[str, str]]:
+    def _load_units2fasta_units2taxa(
+        self,
+        taxa_list: list[str],
+        taxa_level: str,
+        unit_level: str,
+    ) -> tuple[dict[str, str], dict[str, str]]:
         """
         Updates UMAP units to FASTA mapping for a given set of taxas.
         It also updates a dictionary linking unit labels to their corresponding taxa labels.
@@ -143,14 +158,15 @@ class UmapRunner(SeqWriter):
             self._load_units2fasta_dict(
                 taxon_name=taxon_name,
                 taxa_level=taxa_level,
-                unit_level=unit_level
+                unit_level=unit_level,
             )
-            self.units2taxa.update(dict.fromkeys(list(self.units2fasta.keys()), taxon_name))
+            self.units2taxa.update(
+                dict.fromkeys(list(self.units2fasta.keys()), taxon_name)
+            )
 
-    def _write_index_fasta(self,
-            aln_index_fasta_path: str,
-            dereplicate_sequence: bool
-        ):
+    def _write_index_fasta(
+        self, aln_index_fasta_path: str, dereplicate_sequence: bool
+    ):
         """
         Read a units2fasta dict and output an aligned index FASTA file replacing the sequence IDs with indexes.
 
@@ -160,14 +176,21 @@ class UmapRunner(SeqWriter):
         :param dereplicate_sequence: Whether to dereplicate the sequences.
         """
         temp_dir = tempfile.TemporaryDirectory()
-        fasta_path = os.path.join(temp_dir.name, 'umap.fa')
+        fasta_path = os.path.join(temp_dir.name, "umap.fa")
         index_fasta_path = os.path.join(temp_dir.name, "input.fa")
 
         try:
-            utils_sequence.write_fasta(units2fasta_dict=self.units2fasta, save_path=fasta_path, dereplicate=dereplicate_sequence)
- 
-            with open(fasta_path, 'r') as in_handle, open(index_fasta_path, 'w') as out_handle:
-                for i, record in enumerate(SeqIO.parse(in_handle, 'fasta')):
+            utils_sequence.write_fasta(
+                units2fasta_dict=self.units2fasta,
+                save_path=fasta_path,
+                dereplicate=dereplicate_sequence,
+            )
+
+            with (
+                open(fasta_path) as in_handle,
+                open(index_fasta_path, "w") as out_handle,
+            ):
+                for i, record in enumerate(SeqIO.parse(in_handle, "fasta")):
                     index = str(i)
                     unit = record.description.split("-")[0]
                     seq_id = record.description
@@ -175,23 +198,26 @@ class UmapRunner(SeqWriter):
                     self.index_list.append([index, seq_id, unit])
 
                     record.id = index
-                    record.description = ''
+                    record.description = ""
                     record.name = index
 
-                    SeqIO.write(record, out_handle, 'fasta')
-            utils_sequence.align_fasta(seq_path=index_fasta_path, aln_path=aln_index_fasta_path)
+                    SeqIO.write(record, out_handle, "fasta")
+            utils_sequence.align_fasta(
+                seq_path=index_fasta_path, aln_path=aln_index_fasta_path
+            )
 
         finally:
             temp_dir.cleanup()
 
     @base_logger.prog_log("Calculate distance matrix")
-    def _calc_distmx(self,
-            fasta_path: str,
-            dist_path: str,
-            maxdist: float = 1.0,
-            termdist: float = 1.0,
-            threads: int = 12
-        ):
+    def _calc_distmx(
+        self,
+        fasta_path: str,
+        dist_path: str,
+        maxdist: float = 1.0,
+        termdist: float = 1.0,
+        threads: int = 12,
+    ):
         """
         Calculate distance matrix using USEARCH.
         (USEARCH command reference: https://drive5.com/usearch/manual/cmd_calc_distmx.html)
@@ -203,8 +229,15 @@ class UmapRunner(SeqWriter):
         :param threads: Number of threads to use for the calculation. Default is 12.
         """
         cmd = [
-            "usearch", "-calc_distmx", fasta_path, "-tabbedout", dist_path,
-            "-maxdist", str(maxdist), "-termdist", str(termdist)
+            "usearch",
+            "-calc_distmx",
+            fasta_path,
+            "-tabbedout",
+            dist_path,
+            "-maxdist",
+            str(maxdist),
+            "-termdist",
+            str(termdist),
         ]
         if threads:
             cmd.extend(["-threads", str(threads)])
@@ -219,8 +252,11 @@ class UmapRunner(SeqWriter):
         :return: Sparse distance matrix as a NumPy array.
         """
         from scipy import sparse
-        self.matrix = pd.read_csv(dist_path, header=None, sep='\t')
-        self.logger.info(f"Loading sparse {max(self.matrix[0])+1} x {max(self.matrix[0])+1} distance matrix from: {dist_path}")
+
+        self.matrix = pd.read_csv(dist_path, header=None, sep="\t")
+        self.logger.info(
+            f"Loading sparse {max(self.matrix[0]) + 1} x {max(self.matrix[0]) + 1} distance matrix from: {dist_path}"
+        )
 
         diagonal = self.matrix[0] == self.matrix[1]
         row = np.concatenate([self.matrix[0], self.matrix[1][~diagonal]])
@@ -236,10 +272,12 @@ class UmapRunner(SeqWriter):
         :param sequence: DNA sequence.
         :return: One-hot encoded vector.
         """
-        base_map = {'A':[1, 0, 0, 0],
-                    'C':[0, 1, 0, 0],
-                    'G':[0, 0, 1, 0],
-                    'T':[0, 0, 0, 1]}
+        base_map = {
+            "A": [1, 0, 0, 0],
+            "C": [0, 1, 0, 0],
+            "G": [0, 0, 1, 0],
+            "T": [0, 0, 0, 1],
+        }
 
         one_hot_encoded = []
         for base in sequence:
@@ -258,17 +296,18 @@ class UmapRunner(SeqWriter):
         self.logger.info(f"Creating one-hot encoded matrix from: {fasta_path}")
 
         self.matrix = []
-        with open(fasta_path, 'r') as handle:
-            for record in SeqIO.parse(handle, 'fasta'):
+        with open(fasta_path) as handle:
+            for record in SeqIO.parse(handle, "fasta"):
                 self.matrix.append(UmapRunner._sequence_to_one_hot(record.seq))
 
     @base_logger.prog_log("Create UMAP embedding")
-    def _fit_umap(self,
-            neighbors: int,
-            min_dist: float,
-            random_state: int,
-            calc_dist: bool,
-        ):
+    def _fit_umap(
+        self,
+        neighbors: int,
+        min_dist: float,
+        random_state: int,
+        calc_dist: bool,
+    ):
         """
         Fit UMAP and store the UMAP object and the embedding.
 
@@ -278,22 +317,24 @@ class UmapRunner(SeqWriter):
         :param precomputed: Whether the elements of the matrix are distances or not.
         """
         import umap
+
         self.reducer = umap.UMAP(
             n_neighbors=neighbors,
             min_dist=min_dist,
             random_state=random_state,
-            metric="precomputed" if calc_dist else "euclidean"
+            metric="precomputed" if calc_dist else "euclidean",
         )
         self.embedding = self.reducer.fit_transform(self.matrix)
 
-    def _run_umap(self,
-            fasta_path: str,
-            save_dir: str,
-            neighbors: int,
-            min_dist: float,
-            random_state: int,
-            calc_dist: bool
-        ):
+    def _run_umap(
+        self,
+        fasta_path: str,
+        save_dir: str,
+        neighbors: int,
+        min_dist: float,
+        random_state: int,
+        calc_dist: bool,
+    ):
         if calc_dist:
             dist_path = os.path.join(save_dir, "distance.txt")
             self._calc_distmx(fasta_path, dist_path)
@@ -307,7 +348,9 @@ class UmapRunner(SeqWriter):
         """
         Creates an index DataFrame with columns for index, sequence ID, unit name, and UMAP coordinates.
         """
-        self.index = pd.DataFrame(self.index_list, columns=["index", "seq_id", "unit"])
+        self.index = pd.DataFrame(
+            self.index_list, columns=["index", "seq_id", "unit"]
+        )
 
     def _update_index_taxa_column(self):
         """
@@ -345,8 +388,8 @@ class UmapRunner(SeqWriter):
         """
         Updates the index DataFrame with UMAP coordinates.
         """
-        self.index["umap1"] = self.embedding[:,0]
-        self.index["umap2"] = self.embedding[:,1]
+        self.index["umap1"] = self.embedding[:, 0]
+        self.index["umap2"] = self.embedding[:, 1]
 
     def _update_index_columns(self):
         """
@@ -387,7 +430,7 @@ class UmapRunner(SeqWriter):
         height=800,
         show_legend=True,
         alpha=None,
-        symbol_map = ["o", "D", "*", "s", "h", "8", "X", "p"]
+        symbol_map=["o", "D", "*", "s", "h", "8", "X", "p"],
     ):
         point_size = 300.0 / np.sqrt(points.shape[0])
 
@@ -405,9 +448,7 @@ class UmapRunner(SeqWriter):
             if labels.shape[0] != points.shape[0]:
                 raise ValueError(
                     "Labels must have a label for "
-                    "each sample (size mismatch: {} {})".format(
-                        labels.shape[0], points.shape[0]
-                    )
+                    f"each sample (size mismatch: {labels.shape[0]} {points.shape[0]})"
                 )
             if color_key is None:
                 unique_labels = np.unique(labels)
@@ -422,7 +463,8 @@ class UmapRunner(SeqWriter):
                 colors = pd.Series(labels).map(color_key)
                 unique_labels = np.unique(labels)
                 legend_elements = [
-                    Patch(facecolor=color_key[k], label=k) for k in unique_labels
+                    Patch(facecolor=color_key[k], label=k)
+                    for k in unique_labels
                 ]
             else:
                 unique_labels = np.unique(labels)
@@ -453,99 +495,128 @@ class UmapRunner(SeqWriter):
                             m.append(symbol_map[i])
             colors = list(colors)
             for i in range(len(points[:, 0])):
-                ax.scatter(points[i, 0], points[i, 1], s=point_size, c=colors[i], marker=m[i], alpha=alpha)
+                ax.scatter(
+                    points[i, 0],
+                    points[i, 1],
+                    s=point_size,
+                    c=colors[i],
+                    marker=m[i],
+                    alpha=alpha,
+                )
             # ax.scatter(points[:, 0], points[:, 1], s=point_size, c=colors, markers=m, alpha=alpha)
-
 
         # Color by values
         elif values is not None:
             if values.shape[0] != points.shape[0]:
                 raise ValueError(
                     "Values must have a value for "
-                    "each sample (size mismatch: {} {})".format(
-                        values.shape[0], points.shape[0]
-                    )
+                    f"each sample (size mismatch: {values.shape[0]} {points.shape[0]})"
                 )
             ax.scatter(
-                points[:, 0], points[:, 1], s=point_size, c=values, cmap=cmap, alpha=alpha
+                points[:, 0],
+                points[:, 1],
+                s=point_size,
+                c=values,
+                cmap=cmap,
+                alpha=alpha,
             )
 
         # No color (just pick the midpoint of the cmap)
         else:
-
             color = plt.get_cmap(cmap)(0.5)
             ax.scatter(points[:, 0], points[:, 1], s=point_size, c=color)
 
         if show_legend and legend_elements is not None:
-            ax.legend(handles=legend_elements, loc='center left', bbox_to_anchor=(1, 0.5))
+            ax.legend(
+                handles=legend_elements,
+                loc="center left",
+                bbox_to_anchor=(1, 0.5),
+            )
 
         return ax
 
-    def _plot_points(points,
-            labels,
-            markers,
-            cmap,
-            show_legend,
-            values=None,
-            color_key=None,
-            background="white",
-            width=800,
-            height=800
-        ):
-
+    def _plot_points(
+        points,
+        labels,
+        markers,
+        cmap,
+        show_legend,
+        values=None,
+        color_key=None,
+        background="black",
+        width=800,
+        height=800,
+    ):
         dpi = plt.rcParams["figure.dpi"]
         fig = plt.figure(figsize=(width / dpi, height / dpi))
         ax = fig.add_subplot(111)
 
         if points.shape[0] <= width * height // 10:
-            ax = UmapRunner._matplotlib_points(points, ax, labels, markers, values, color_key, cmap, background, width, height, show_legend)
+            ax = UmapRunner._matplotlib_points(
+                points,
+                ax,
+                labels,
+                markers,
+                values,
+                color_key,
+                cmap,
+                background,
+                width,
+                height,
+                show_legend,
+            )
         else:
             from umap.plot import _datashade_points
-            ax = _datashade_points(points, ax, labels, values, color_key, cmap, background, width, height, show_legend)
+
+            ax = _datashade_points(
+                points,
+                ax,
+                labels,
+                values,
+                color_key,
+                cmap,
+                background,
+                width,
+                height,
+                show_legend,
+            )
 
         ax.set(xticks=[], yticks=[])
 
         return ax
 
-    def _plot_umap(self,
-            png_path: str,
-            cmap: str,
-            show_legend: bool
-        ):
+    def _plot_umap(self, png_path: str, cmap: str, show_legend: bool):
         """
         Plot the UMAP embedding and save the plot as a PNG file.
         """
         points = self.subindex[["umap1", "umap2"]].to_numpy()
         ax = UmapRunner._plot_points(
             points=points,
-            labels=self.subindex['unit'],
-            markers=self.subindex['source'],
+            labels=self.subindex["unit"],
+            markers=self.subindex["source"],
             cmap=cmap,
-            show_legend=show_legend
+            show_legend=show_legend,
         )
-        ax.figure.savefig(png_path, bbox_inches='tight')
+        ax.figure.savefig(png_path, bbox_inches="tight")
         self.logger.info(f"Saved PNG to: {png_path}")
-    
+
         # print('\n> Drawing interactive plot...')
         # p = umap.plot.interactive(reducer, labels=index['label'], theme=theme, width=width, height=height, hover_data=index);
         # bokeh.plotting.output_file(html_path)
         # bokeh.plotting.save(p)
         # print(f'Saved plot HTML to: {html_path}')
 
-    def _plot_umap_by_category(self,
-            category: str,
-            save_dir: str,
-            cmap: str,
-            show_legend: bool
-        ) -> None:
+    def _plot_umap_by_category(
+        self, category: str, save_dir: str, cmap: str, show_legend: bool
+    ) -> None:
         """
         Plot the UMAP embedding and save the plot as a PNG file, grouped by the specified category.
         """
         os.makedirs(save_dir, exist_ok=True)
 
-        if category == 'all':
+        if category == "all":
             self.logger.info("Drawing PNG for all units...")
-            png_path = os.path.join(save_dir, f"all_umap.png")
+            png_path = os.path.join(save_dir, "all_umap.png")
             self.subindex = self.filtered_index.copy()
             self._plot_umap(png_path, cmap, show_legend)
             return
@@ -554,26 +625,51 @@ class UmapRunner(SeqWriter):
         for value in unique_values:
             self.logger.info(f"Drawing PNG for {value}...")
             png_path = os.path.join(save_dir, f"{value}_umap.png")
-            self.subindex = self.filtered_index[self.filtered_index[category] == value]
+            self.subindex = self.filtered_index[
+                self.filtered_index[category] == value
+            ]
             self._plot_umap(png_path, cmap, show_legend)
 
-    def _hdbscan_umap_by_category(self,
-            category: str,
-            settings: dict
-        ) -> pd.DataFrame:
-        df = pd.DataFrame(columns=["class", "actual_num", "cluster_num", "cluster_perc", "silhouette_avg", "ari"])
-        if category == 'all':
+    def _hdbscan_umap_by_category(
+        self, category: str, save_dir, settings: dict
+    ) -> pd.DataFrame:
+        df = pd.DataFrame(
+            columns=[
+                "class",
+                "actual_num",
+                "cluster_num",
+                "cluster_perc",
+                "silhouette_avg",
+                "ari",
+            ]
+        )
+        if category == "all":
             self.logger.info("HDBSCAN UMAP embeddings for all units...")
             points = self.filtered_index[["umap1", "umap2"]].to_numpy()
             true_labels = self.filtered_index["unit"]
-            df.loc[len(df)] = ["all"] + list(seq_hdbscan_clusterer.HdbClusterer().run(points=points, true_labels=true_labels, **settings))
+            df.loc[len(df)] = ["all"] + list(
+                seq_hdbscan_clusterer.HdbClusterer().run(
+                    points=points, true_labels=true_labels, **settings
+                )
+            )
             return df
 
         unique_values = np.unique(self.filtered_index[category])
         for value in unique_values:
             self.logger.info(f"HDBSCAN UMAP embeddings for {value}...")
-            self.subindex = self.filtered_index[self.filtered_index[category] == value]
+            self.subindex = self.filtered_index[
+                self.filtered_index[category] == value
+            ]
             points = self.subindex[["umap1", "umap2"]].to_numpy()
             true_labels = self.subindex["unit"]
-            df.loc[len(df)] = [value] + list(seq_hdbscan_clusterer.HdbClusterer().run(points=points, true_labels=true_labels, **settings))
+            if save_dir:
+                plot_path = os.path.join(save_dir, f"hdbscan_{value}.png")
+            df.loc[len(df)] = [value] + list(
+                seq_hdbscan_clusterer.HdbClusterer().run(
+                    points=points,
+                    true_labels=true_labels,
+                    plot_path=plot_path,
+                    **settings,
+                )
+            )
         return df

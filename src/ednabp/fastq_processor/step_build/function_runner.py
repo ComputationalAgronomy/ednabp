@@ -1,5 +1,6 @@
 from . import runner
 
+
 class FunctionRunner(runner.Runner):
     def __init__(self, prog_name, function, config):
         super().__init__(prog_name, config)
@@ -13,7 +14,7 @@ class FunctionRunner(runner.Runner):
         """
         if self.verbose:
             self.logger.info(self.message)
-        
+
         if not self.dry:
             try:
                 self.function()

@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
+
 import pandas as pd
 
 from . import base_logger
+
 
 class DMPlotter(ABC):
     SAMPLE_ID_COLUMN = "sample_id"
@@ -25,12 +27,13 @@ class DMPlotter(ABC):
 
     @base_logger.prog_log("Create pivot table")
     def _create_pivot_table(self, values, index, columns, aggfunc):
-        self.pivot_table = pd.pivot_table(self.df,
+        self.pivot_table = pd.pivot_table(
+            self.df,
             values=values,
             index=index,
             columns=columns,
             aggfunc=aggfunc,
-            fill_value=0
+            fill_value=0,
         )
         # self.pivot_table = self.pivot_table.fillna(0)
 

@@ -1,16 +1,15 @@
-from datetime import date
 import os
 import pickle
 import re
+from datetime import date
 
 import pandas as pd
 
-from ..read import taxa_table_reader
-from ..read import denoise_report_reader
-from ..read import fasta_reader
+from ..read import denoise_report_reader, fasta_reader, taxa_table_reader
 from ..runner_build import base_logger
 
-class OneSampleData():
+
+class OneSampleData:
     """
     Container for handling and processing data from various bioinformatics files.
     This class initializes by reading data from given FASTA, denoise report, and BLAST table files,
@@ -29,12 +28,14 @@ class OneSampleData():
     :attribute hap2level: A dictionary mapping haplotypes to taxonomic levels from the BLAST table.
 
     """
-    def __init__(self,
-            uniq_fasta: str,
-            denoise_fasta: str,
-            denoise_report: str,
-            blast_table: str
-        ):
+
+    def __init__(
+        self,
+        uniq_fasta: str,
+        denoise_fasta: str,
+        denoise_report: str,
+        blast_table: str,
+    ):
         ufr = fasta_reader.FastaReader()
         ufr.read_fasta(seq_path=uniq_fasta, seq_type="Amplicon")
         self.amp_seq = ufr.seq_dict
@@ -54,7 +55,7 @@ class OneSampleData():
         self.hap2level = br.hap2level
 
 
-class SampleData():
+class SampleData:
     """
     A class for managing sample data storage.
     It provides methods for importing, pickling, unpickling, merging.
@@ -65,9 +66,10 @@ class SampleData():
     :attribute sample_id_list: A list to store sample IDs.
     :attribute no_verbose: A boolean flag to control logging verbosity. Default is True.
     """
+
     SAMPLE_ID_COLUMN = "sample_id"
 
-    def __init__(self, no_verbose = False):
+    def __init__(self, no_verbose=False):
         self.sample_data = {}
         self.sample_metadata = {}
         self.spc_info = {}
@@ -80,19 +82,20 @@ class SampleData():
         else:
             self.logger.setLevel("INFO")
 
-    def import_data(self,
-            dereplicate_dir: str,
-            denoise_dir: str,
-            assigntaxa_dir: str,
-            sample_id_list: list[str] | None = None,
-            sample_metadata_path: str | None = None,
-            fishbase_db_path: str | None = None,
-            stock_db_path: str | None = None,
-            date_column: str = "Date",
-            date_format: str = "%Y-%m",
-            **suffixes
-        ):
-        """
+    def import_data(
+        self,
+        dereplicate_dir: str,
+        denoise_dir: str,
+        assigntaxa_dir: str,
+        sample_id_list: list[str] | None = None,
+        sample_metadata_path: str | None = None,
+        fishbase_db_path: str | None = None,
+        stock_db_path: str | None = None,
+        date_column: str = "Date",
+        date_format: str = "%Y-%m",
+        **suffixes,
+    ):
+        r"""
         Import sample data by specifying the import directories, import file suffixes, and sample metadata table.
 
         :param dereplicate_dir: Path to the directory containing unique amplicon FASTA files.
@@ -107,39 +110,52 @@ class SampleData():
             - assigntaxa_suffix: Suffix for taxa CSV table files. Default: "_taxa.csv".
         """
         self.import_sample_id_list = []
-        self._parse_import_info(dereplicate_dir, denoise_dir, assigntaxa_dir, suffixes)
+        self._parse_import_info(
+            dereplicate_dir, denoise_dir, assigntaxa_dir, suffixes
+        )
 
         self._read_sample_data(sample_id_list)
 
         if sample_metadata_path is not None:
             if not os.path.isfile(sample_metadata_path):
-                self.logger.warning(f"Sample metadata file does not exist: {sample_metadata_path}")
+                self.logger.warning(
+                    f"Sample metadata file does not exist: {sample_metadata_path}"
+                )
                 return
-            self._read_sample_metadata(sample_metadata_path, date_column, date_format)
+            self._read_sample_metadata(
+                sample_metadata_path, date_column, date_format
+            )
 
         if fishbase_db_path is not None and stock_db_path is not None:
             if not os.path.isfile(fishbase_db_path):
-                self.logger.warning(f"Fishbase or stock database file does not exist: {fishbase_db_path}")
+                self.logger.warning(
+                    f"Fishbase or stock database file does not exist: {fishbase_db_path}"
+                )
                 return
             if not os.path.isfile(stock_db_path):
-                self.logger.warning(f"Fishbase or stock database file does not exist: {stock_db_path}")
+                self.logger.warning(
+                    f"Fishbase or stock database file does not exist: {stock_db_path}"
+                )
                 return
             self._read_spc_info(fishbase_db_path, stock_db_path)
 
         self.sample_id_list.extend(self.import_sample_id_list)
 
-    def _parse_import_info(self,
-            dereplicate_dir: str,
-            denoise_dir: str,
-            assigntaxa_dir: str,
-            suffixes: dict
-        ):
+    def _parse_import_info(
+        self,
+        dereplicate_dir: str,
+        denoise_dir: str,
+        assigntaxa_dir: str,
+        suffixes: dict,
+    ):
         self.suffixes = suffixes
         self._add_default_suffixes()
-        self.import_info = [(dereplicate_dir, self.suffixes["dereplicate_suffix"]),
-                            (denoise_dir, self.suffixes["denoise_suffix"]),
-                            (denoise_dir, self.suffixes["denoise_report_suffix"]),
-                            (assigntaxa_dir, self.suffixes["assigntaxa_suffix"])]
+        self.import_info = [
+            (dereplicate_dir, self.suffixes["dereplicate_suffix"]),
+            (denoise_dir, self.suffixes["denoise_suffix"]),
+            (denoise_dir, self.suffixes["denoise_report_suffix"]),
+            (assigntaxa_dir, self.suffixes["assigntaxa_suffix"]),
+        ]
         self._check_import_dir()
 
     def _add_default_suffixes(self):
@@ -147,7 +163,7 @@ class SampleData():
             "dereplicate_suffix": "_uniqs.fasta",
             "denoise_suffix": "_zotus.fasta",
             "denoise_report_suffix": "_denoise_report.txt",
-            "assigntaxa_suffix": "_taxa.csv"
+            "assigntaxa_suffix": "_taxa.csv",
         }
         for key, value in DEFAULT_SUFFIXES.items():
             if key not in self.suffixes:
@@ -176,10 +192,16 @@ class SampleData():
             self.sample_data[sample_id] = OneSampleData(*self.files_path)
 
     def _add_unspecified_sample_id_list(self):
-        uniq_dir, suffix =self.import_info[0]
-        self.logger.info(f"Searching sample IDs: prefix with the suffix '{suffix}' in the directory: {uniq_dir}.")
+        uniq_dir, suffix = self.import_info[0]
+        self.logger.info(
+            f"Searching sample IDs: prefix with the suffix '{suffix}' in the directory: {uniq_dir}."
+        )
         file_list = os.listdir(uniq_dir)
-        sample_id_list = [file.replace(suffix, '') for file in file_list if file.endswith(suffix)]
+        sample_id_list = [
+            file.replace(suffix, "")
+            for file in file_list
+            if file.endswith(suffix)
+        ]
         self.logger.info(f"Found {len(sample_id_list)} samples.")
         for sample_id in sample_id_list:
             if sample_id in self.sample_id_list:
@@ -203,7 +225,10 @@ class SampleData():
         base_logger.print_space(self.logger)
 
     def _get_files_path(self, sample_id: str):
-        self.files_path = [os.path.join(in_dir, f"{sample_id}{suffix}") for in_dir, suffix in self.import_info]
+        self.files_path = [
+            os.path.join(in_dir, f"{sample_id}{suffix}")
+            for in_dir, suffix in self.import_info
+        ]
 
     def _check_files_path(self) -> None:
         for file_path in self.files_path:
@@ -211,18 +236,26 @@ class SampleData():
                 raise FileNotFoundError(f"File does not exist: {file_path}.")
 
     @base_logger.prog_log(prog_name="Import sample metadata")
-    def _read_sample_metadata(self, sample_metadata_path: str, date_column, date_format) -> None:
+    def _read_sample_metadata(
+        self, sample_metadata_path: str, date_column, date_format
+    ) -> None:
         df = pd.read_csv(sample_metadata_path, index_col=self.SAMPLE_ID_COLUMN)
 
         df = self._convert_str_to_date(df, date_column, date_format)
 
         for sample_id in self.import_sample_id_list:
             if sample_id not in df.index:
-                self.logger.warning(f"WARNING: Sample ID '{sample_id}' not found in the sample metadata table.")
+                self.logger.warning(
+                    f"WARNING: Sample ID '{sample_id}' not found in the sample metadata table."
+                )
             else:
-                self.sample_metadata[sample_id] = df.loc[df.index == sample_id].to_dict("records")[0]
+                self.sample_metadata[sample_id] = df.loc[
+                    df.index == sample_id
+                ].to_dict("records")[0]
 
-    def _convert_str_to_date(self, df, date_column: str, date_format: str) -> pd.DataFrame:
+    def _convert_str_to_date(
+        self, df, date_column: str, date_format: str
+    ) -> pd.DataFrame:
         if date_column is None:
             return df
 
@@ -234,9 +267,13 @@ class SampleData():
             return df
 
         try:
-            df[date_column] = pd.to_datetime(df[date_column], format=date_format).dt.to_period('M')
+            df[date_column] = pd.to_datetime(
+                df[date_column], format=date_format
+            ).dt.to_period("M")
         except ValueError as e:
-            self.logger.error(f"Failed to convert date column '{date_column}': {str(e)}")
+            self.logger.error(
+                f"Failed to convert date column '{date_column}': {str(e)}"
+            )
         return df
 
     @base_logger.prog_log(prog_name="Import species information")
@@ -249,50 +286,90 @@ class SampleData():
             link_fishbase = conn.from_parquet(fishbase_db_path)
             link_stock = conn.from_parquet(stock_db_path)
             IUCN_levels = {
-                'N.E.': 'Not Evaluated', 'DD': 'Data Deficient', 'N.A.': 'Not Available', \
-                'LC': 'Least Concern', 'LR/lc': 'Lower Risk: least concern', 'NT': 'Near Threatened', \
-                'LR/cd': 'Vulnerable', 'VU': 'Vulnerable', 'LR/nt': 'Lower Risk: near threatened', \
-                'EN': 'Endangered', 'EX': 'Extinct', 'EW': 'Extinct in the Wild', 'CR': 'Critically Endangered'
+                "N.E.": "Not Evaluated",
+                "DD": "Data Deficient",
+                "N.A.": "Not Available",
+                "LC": "Least Concern",
+                "LR/lc": "Lower Risk: least concern",
+                "NT": "Near Threatened",
+                "LR/cd": "Vulnerable",
+                "VU": "Vulnerable",
+                "LR/nt": "Lower Risk: near threatened",
+                "EN": "Endangered",
+                "EX": "Extinct",
+                "EW": "Extinct in the Wild",
+                "CR": "Critically Endangered",
             }
 
-            all_species = set([level["species"] for sample_id in self.import_sample_id_list
-                                                for level     in self.sample_data[sample_id].hap2level.values()])
+            all_species = set(
+                [
+                    level["species"]
+                    for sample_id in self.import_sample_id_list
+                    for level in self.sample_data[sample_id].hap2level.values()
+                ]
+            )
 
             for species_name in all_species:
-                (genus_name, *species_subnames) = species_name.split('_')
-                species_subname = species_subnames[0] if len(species_subnames) > 0 else 'sp'
-                species_subname = species_subname.replace("'", "").replace("-", "_")
-                fb_data = link_fishbase.filter(
-                    f"Genus = '{genus_name}' AND Species = '{species_subname}'"
-                ).project(
-                    'Fresh, Brack, Saltwater, DemersPelag, \
-                    DepthRangeShallow, DepthRangeDeep, Importance, SpecCode'
-                ).fetchone()
+                (genus_name, *species_subnames) = species_name.split("_")
+                species_subname = (
+                    species_subnames[0] if len(species_subnames) > 0 else "sp"
+                )
+                species_subname = species_subname.replace("'", "").replace(
+                    "-", "_"
+                )
+                fb_data = (
+                    link_fishbase.filter(
+                        f"Genus = '{genus_name}' AND Species = '{species_subname}'"
+                    )
+                    .project(
+                        "Fresh, Brack, Saltwater, DemersPelag, \
+                    DepthRangeShallow, DepthRangeDeep, Importance, SpecCode"
+                    )
+                    .fetchone()
+                )
 
                 if fb_data is not None:
                     water = ""
                     if fb_data[0] == 1:
-                        water += 'Fresh Water; '
+                        water += "Fresh Water; "
                     if fb_data[1] == 1:
-                        water += 'Salt Water; '
+                        water += "Salt Water; "
                     if fb_data[2] == 1:
-                        water += 'Brack Water; '
-                    habitat = fb_data[3] if fb_data[3] is not None else 'Not record'
-                    depth_s = fb_data[4] if fb_data[4] is not None else 'Not record'
-                    depth_d = fb_data[5] if fb_data[5] is not None else 'Not record'
-                    fisheries_role = fb_data[6] if fb_data[6] is not None else 'Not record'
-                    iucn_data = link_stock.filter(f"SpecCode = {fb_data[7]}").project('IUCN_Code').fetchone()
-                    iucn_lv = IUCN_levels[iucn_data[0]] if iucn_data[0] in IUCN_levels else 'Not Available'
+                        water += "Brack Water; "
+                    habitat = (
+                        fb_data[3] if fb_data[3] is not None else "Not record"
+                    )
+                    depth_s = (
+                        fb_data[4] if fb_data[4] is not None else "Not record"
+                    )
+                    depth_d = (
+                        fb_data[5] if fb_data[5] is not None else "Not record"
+                    )
+                    fisheries_role = (
+                        fb_data[6] if fb_data[6] is not None else "Not record"
+                    )
+                    iucn_data = (
+                        link_stock.filter(f"SpecCode = {fb_data[7]}")
+                        .project("IUCN_Code")
+                        .fetchone()
+                    )
+                    iucn_lv = (
+                        IUCN_levels[iucn_data[0]]
+                        if iucn_data[0] in IUCN_levels
+                        else "Not Available"
+                    )
                 else:
-                    water, habitat, depth_s, depth_d, fisheries_role = ['Not record'] * 5
-                    iucn_lv = 'Not Available'
+                    water, habitat, depth_s, depth_d, fisheries_role = [
+                        "Not record"
+                    ] * 5
+                    iucn_lv = "Not Available"
                 spc_info[species_name] = {
-                    'Water area': water,
-                    'Habitat': habitat,
-                    'DepthS': depth_s,
-                    'DepthD': depth_d,
-                    'Importance in Fisheries': fisheries_role,
-                    'IUCN Red List Status': iucn_lv,
+                    "Water area": water,
+                    "Habitat": habitat,
+                    "DepthS": depth_s,
+                    "DepthD": depth_d,
+                    "Importance in Fisheries": fisheries_role,
+                    "IUCN Red List Status": iucn_lv,
                 }
 
         finally:
@@ -301,11 +378,12 @@ class SampleData():
         self.spc_info.update(spc_info)
 
     @base_logger.prog_log(prog_name="Pickle sample data")
-    def pickle_data(self,
-            save_dir: str,
-            save_prefix: str = f"eDNA_samples_{date.today()}",
-            overwrite: bool = False
-        ):
+    def pickle_data(
+        self,
+        save_dir: str,
+        save_prefix: str = f"eDNA_samples_{date.today()}",
+        overwrite: bool = False,
+    ):
         """
         Pickle the current sample data to a specified directory.
 
@@ -316,25 +394,29 @@ class SampleData():
         os.makedirs(save_dir, exist_ok=True)
         pickle_path = os.path.join(save_dir, f"{save_prefix}.pkl")
         if os.path.exists(pickle_path) and not overwrite:
-            self.logger.warning(f"WARNING: File already exists: {pickle_path}. Data didn't saved.")
+            self.logger.warning(
+                f"WARNING: File already exists: {pickle_path}. Data didn't saved."
+            )
             return
         self._pickle_instance(pickle_path)
 
     def _pickle_instance(self, pickle_path) -> None:
-        with open(pickle_path, 'wb') as f:
+        with open(pickle_path, "wb") as f:
             pickle.dump(self, f)
 
     @base_logger.prog_log(prog_name="Unpickle sample data")
     def unpickle_data(self, pickle_path) -> None:
         """
         Unpickle sample data from a specified path.
-    
+
         :param pickle_path: The path to unpickle a pre-built SamplesData pickle file.
         """
-        with open(pickle_path,'rb') as file:
+        with open(pickle_path, "rb") as file:
             self.__dict__ = pickle.load(file).__dict__
 
-    @base_logger.prog_log(prog_name="Merge input object(s) into the current object")
+    @base_logger.prog_log(
+        prog_name="Merge input object(s) into the current object"
+    )
     def merge_data(self, *sample_data: object) -> None:
         """
         Merge sample data from another SamplesContainer instance into the current instance.
@@ -344,32 +426,44 @@ class SampleData():
         for data_object in sample_data:
             self._validate_input_object(data_object)
             self._merge_single_data_object(data_object)
-    
+
     def _validate_input_object(self, data_object: object) -> None:
         if not isinstance(data_object, SampleData):
-            raise TypeError("FAIL: Input object must be an instance of SamplesData.")
-    
-    def _merge_single_data_object(self, data_object: 'SampleData') -> None:
-        new_sample_ids = [sample_id for sample_id in data_object.sample_id_list if sample_id not in self.sample_id_list]
-    
+            raise TypeError(
+                "FAIL: Input object must be an instance of SamplesData."
+            )
+
+    def _merge_single_data_object(self, data_object: "SampleData") -> None:
+        new_sample_ids = [
+            sample_id
+            for sample_id in data_object.sample_id_list
+            if sample_id not in self.sample_id_list
+        ]
+
         for sample_id in data_object.sample_id_list:
             if sample_id not in new_sample_ids:
-                self.logger.warning(f"WARNING: Sample ID '{sample_id}' already exists in the current instance. Skipping merge.")
+                self.logger.warning(
+                    f"WARNING: Sample ID '{sample_id}' already exists in the current instance. Skipping merge."
+                )
                 continue
             self._merge_sample(sample_id, data_object)
             self._merge_metadata(sample_id, data_object)
             self.sample_id_list.append(sample_id)
         self._merge_spc_info(data_object)
 
-    def _merge_sample(self, sample_id: str, data_object: 'SampleData') -> None:
+    def _merge_sample(self, sample_id: str, data_object: "SampleData") -> None:
         self.sample_data[sample_id] = data_object.sample_data[sample_id]
-    
-    def _merge_metadata(self, sample_id: str, data_object: 'SampleData') -> None:
+
+    def _merge_metadata(
+        self, sample_id: str, data_object: "SampleData"
+    ) -> None:
         if not hasattr(data_object, "sample_metadata"):
             return
-        self.sample_metadata[sample_id] = data_object.sample_metadata[sample_id]
+        self.sample_metadata[sample_id] = data_object.sample_metadata[
+            sample_id
+        ]
 
-    def _merge_spc_info(self, data_object: 'SampleData') -> None:
+    def _merge_spc_info(self, data_object: "SampleData") -> None:
         if not hasattr(data_object, "spc_info"):
             return
         self.spc_info.update(data_object.spc_info)

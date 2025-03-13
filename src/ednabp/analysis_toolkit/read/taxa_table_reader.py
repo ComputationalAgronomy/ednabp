@@ -1,19 +1,29 @@
-from .base_reader import Reader
 from ..runner_build import base_logger
+from .base_reader import Reader
 
 
 class TaxaTableReader(Reader):
-    DESIRED_LEVEL = ["species", "genus", "family", "order", "class", "phylum", "kingdom"]
+    DESIRED_LEVEL = [
+        "species",
+        "genus",
+        "family",
+        "order",
+        "class",
+        "phylum",
+        "kingdom",
+    ]
 
     TAX_REPLACMENT = {"Mugil": "Mugilidae"}
-                      #"KEY2": "REPLACE2"} # Allow multiple replacements later
+    # "KEY2": "REPLACE2"} # Allow multiple replacements later
 
     def __init__(self):
         super().__init__()
         self.error_table = TaxaTableReader.generate_error_table()
         self.hap2level = {}
 
-    def generate_error_table(error_code: str = ':/\\*?"<>|', replace_symbol: str = '_') -> dict[str, str]:
+    def generate_error_table(
+        error_code: str = ':/\\*?"<>|', replace_symbol: str = "_"
+    ) -> dict[str, str]:
         """
         Generate an error table to translate illegal characters in species names to a standard symbol.
 
@@ -34,7 +44,7 @@ class TaxaTableReader(Reader):
 
         :param blast_table_path: Path to the BLAST CSV table.
         """
-        with open(blast_table, 'r') as file:
+        with open(blast_table) as file:
             for line in file.readlines():
                 self.process_line(line)
 
@@ -50,7 +60,7 @@ class TaxaTableReader(Reader):
         :param line: The line to process.
         :return: A tuple containing the haplotype_id (e.g. "Zotu1") and a dictionary of taxonomic levels (e.g. {"species": "spcA", ...}).
         """
-        line_list = line.split(',')
+        line_list = line.split(",")
 
         level_list = [str(line_list[i]) for i in range(2, 9)]
         # identity = line_list[9]
@@ -61,7 +71,9 @@ class TaxaTableReader(Reader):
         level_list[0] = level_list[0].translate(self.error_table)
         if level_list[2] in self.TAX_REPLACMENT:
             level_list[2] = self.TAX_REPLACMENT[level_list[2]]
-        hap2level_entry = dict(zip(self.DESIRED_LEVEL, level_list))
+        hap2level_entry = dict(
+            zip(self.DESIRED_LEVEL, level_list, strict=False)
+        )
         haplotype = line_list[0]
         self.update_hap2level(haplotype, hap2level_entry)
 

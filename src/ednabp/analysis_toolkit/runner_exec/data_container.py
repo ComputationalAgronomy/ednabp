@@ -301,13 +301,11 @@ class SampleData:
                 "CR": "Critically Endangered",
             }
 
-            all_species = set(
-                [
-                    level["species"]
-                    for sample_id in self.import_sample_id_list
-                    for level in self.sample_data[sample_id].hap2level.values()
-                ]
-            )
+            all_species = {
+                level["species"]
+                for sample_id in self.import_sample_id_list
+                for level in self.sample_data[sample_id].hap2level.values()
+            }
 
             for species_name in all_species:
                 (genus_name, *species_subnames) = species_name.split("_")

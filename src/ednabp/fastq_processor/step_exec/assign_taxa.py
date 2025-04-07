@@ -23,7 +23,7 @@ class AssignTaxaStage(stage_builder.StageBuilder):
         qcov_hsp_perc: int = 90,
         perc_identity: int = 90,
         outfmt: str = "10",
-        specifiers: str = "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
+        specifiers: str = "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore sscinames scomnames sskingdoms",
     ):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
@@ -162,6 +162,6 @@ def assign_taxa_demo(
         lineage_path=lineage_path,
         specifiers=specifiers,
     )
-    outfile = stage.setup(prefix)
+    stage.setup(prefix)
     is_complete = stage.run()
     return is_complete

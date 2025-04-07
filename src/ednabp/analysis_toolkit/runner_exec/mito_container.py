@@ -1,6 +1,5 @@
 import os
 import warnings
-from typing import override
 
 import pandas as pd
 
@@ -150,7 +149,6 @@ class MitoData(SampleData):
     def __init__(self, no_verbose=False):
         super().__init__(no_verbose)
 
-    @override
     def import_data(
         self,
         mito_xlsx_dir: str,
@@ -169,7 +167,6 @@ class MitoData(SampleData):
 
         self.sample_id_list.extend(self.import_sample_id_list)
 
-    @override
     @base_logger.prog_log(prog_name="Import data from MitoFish outputs")
     def _read_sample_data(self, sample_id_list: list[str] | None):
         base_logger.print_space(self.logger)
@@ -188,7 +185,6 @@ class MitoData(SampleData):
             delattr(one_mito_data, "spc_info")
             self.sample_data[sample_id] = one_mito_data
 
-    @override
     def _add_unspecified_sample_id_list(self):
         self.logger.info(
             f"Searching sample IDs: prefix with the suffix '{self.in_suffix}' in the directory: {self.in_dir}."
@@ -209,7 +205,6 @@ class MitoData(SampleData):
             self.import_sample_id_list.append(sample_id)
         base_logger.print_space(self.logger)
 
-    @override
     def _add_specified_sample_id_list(self, sample_id_list: list[str]):
         for sample_id in sample_id_list:
             if not self._is_valid_sample_file(sample_id):

@@ -1,6 +1,5 @@
 import gzip
 import os
-from typing import override
 
 from ..step_build import stage_builder
 

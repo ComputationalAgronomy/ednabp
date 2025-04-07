@@ -1,5 +1,3 @@
-from typing import override
-
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -29,7 +27,6 @@ class HdbClusterer(Clusterer):
     def __init__(self):
         super().__init__()
 
-    @override
     def run(
         self,
         index_path: str | None = None,
@@ -64,7 +61,6 @@ class HdbClusterer(Clusterer):
             index_path=index_path, points=points, true_labels=true_labels
         )
 
-    @override
     def _add_default_settings(self, settings):
         DEFAULT_SETTINGS = HDBSCAN_DEFAULT_SETTINGS
         for key, value in DEFAULT_SETTINGS.items():
@@ -73,7 +69,6 @@ class HdbClusterer(Clusterer):
         self.settings = settings
         super()._add_default_settings()
 
-    @override
     def _run_clustering(self) -> None:
         self.init_clusterer()
         self.fit_hdbscan()

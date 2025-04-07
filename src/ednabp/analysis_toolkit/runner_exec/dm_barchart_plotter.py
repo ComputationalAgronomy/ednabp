@@ -132,7 +132,7 @@ class BarchartPlotter(DMPlotter):
                 "y": self.fig_sets["legend_y_position"],
                 "traceorder": "normal",
                 "orientation": "h",
-                "font": dict(size=self.fig_sets["legend_font"]),
+                "font": {"size": self.fig_sets["legend_font"]},
             },
         )
 

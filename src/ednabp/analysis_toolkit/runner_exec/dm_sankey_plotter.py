@@ -94,17 +94,17 @@ class SankeyPlotter(DMPlotter):
         self.fig = go.Figure(
             data=[
                 go.Sankey(
-                    node=dict(
-                        pad=15,
-                        thickness=20,
-                        line=dict(color="black", width=0.5),
-                        label=self.label_list,
-                    ),
-                    link=dict(
-                        source=self.source,
-                        target=self.target,
-                        value=self.count,
-                    ),
+                    node={
+                        "pad": 15,
+                        "thickness": 20,
+                        "line": {"color": "black", "width": 0.5},
+                        "label": self.label_list,
+                    },
+                    link={
+                        "source": self.source,
+                        "target": self.target,
+                        "value": self.count,
+                    },
                 )
             ]
         )
@@ -117,7 +117,7 @@ class SankeyPlotter(DMPlotter):
                 yref="paper",
                 text=column_name,
                 showarrow=False,
-                font=dict(size=20, color="black"),
+                font={"size": 20, "color": "black"},
                 align="left",
             )
         self.fig.update_xaxes(showticklabels=False)
@@ -126,8 +126,8 @@ class SankeyPlotter(DMPlotter):
             autosize=True,
             paper_bgcolor="rgba(255,255,255,255)",
             plot_bgcolor="rgba(255,255,255,255)",
-            xaxis=dict(showgrid=False),
-            yaxis=dict(showgrid=False),
+            xaxis={"showgrid": False},
+            yaxis={"showgrid": False},
             font_color="black",
             font_size=16,
         )

@@ -1,5 +1,4 @@
 import os
-from typing import override
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -46,7 +45,6 @@ class ContourPlotter(DMPlotter):
         ContourPlotter._display_and_save(self, save_dir, overwrite)
         return self.data
 
-    @override
     @base_logger.prog_log("Load and validate data")
     def _load_and_validate_data(self, csv_path: str, required_columns: str):
         super()._load_and_validate_data(csv_path, required_columns)

@@ -430,7 +430,7 @@ class UmapRunner(SeqWriter):
         height=800,
         show_legend=True,
         alpha=None,
-        symbol_map=["o", "D", "*", "s", "h", "8", "X", "p"],
+        symbol_map=("o", "D", "*", "s", "h", "8", "X", "p"),
     ):
         point_size = 300.0 / np.sqrt(points.shape[0])
 

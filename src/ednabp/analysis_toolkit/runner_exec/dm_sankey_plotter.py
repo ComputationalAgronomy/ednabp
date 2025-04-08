@@ -21,7 +21,7 @@ class SankeyPlotter(DMPlotter):
         aggfunc: Literal["mean", "sum"] = "sum",
         save_dir: str = None,
         overwrite: bool = False,
-    ):
+    ) -> pd.DataFrame:
         """
         Create a rank correlation plot from a CSV file.
 

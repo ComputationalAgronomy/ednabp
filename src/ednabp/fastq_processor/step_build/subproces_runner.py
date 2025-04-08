@@ -41,12 +41,10 @@ class SubprocessRunner(runner.Runner):
             try:
                 self.capture_output = subprocess.run(
                     args,
-                    capture_output=False,
+                    capture_output=True,
                     shell=self.shell,
                     check=True,
                     text=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
                 )
                 self.logger.info(f"COMPLETE: {self.prog_name}.")
                 return True

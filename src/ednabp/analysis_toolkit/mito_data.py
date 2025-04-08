@@ -3,8 +3,8 @@ import warnings
 
 import pandas as pd
 
-from ..runner_build import base_logger
-from .data_container import SampleData
+from .runner_build import base_logger
+from .sample_data import SampleData
 
 
 class OneMitoData:
@@ -146,8 +146,8 @@ class MitoData(SampleData):
     processing MitoFish outputs stored in Excel format.
     """
 
-    def __init__(self, no_verbose=False):
-        super().__init__(no_verbose)
+    def __init__(self, verbose: bool = True):
+        super().__init__(verbose)
 
     def import_data(
         self,
@@ -169,7 +169,6 @@ class MitoData(SampleData):
 
     @base_logger.prog_log(prog_name="Import data from MitoFish outputs")
     def _read_sample_data(self, sample_id_list: list[str] | None):
-        base_logger.print_space(self.logger)
         if sample_id_list is None:
             self.logger.info("No sample id list provided.")
             self._add_unspecified_sample_id_list()
@@ -179,7 +178,6 @@ class MitoData(SampleData):
 
         for sample_id in self.import_sample_id_list:
             self.logger.info(f"Sample ID: {sample_id}")
-            base_logger.print_space(self.logger)
             one_mito_data = OneMitoData(self._get_file_path(sample_id))
             self.spc_info.update(one_mito_data.spc_info)
             delattr(one_mito_data, "spc_info")
@@ -203,7 +201,6 @@ class MitoData(SampleData):
                 )
                 continue
             self.import_sample_id_list.append(sample_id)
-        base_logger.print_space(self.logger)
 
     def _add_specified_sample_id_list(self, sample_id_list: list[str]):
         for sample_id in sample_id_list:
@@ -222,7 +219,6 @@ class MitoData(SampleData):
                 continue
 
             self.import_sample_id_list.append(sample_id)
-        base_logger.print_space(self.logger)
 
     def _get_file_path(self, sample_id: str) -> str:
         return os.path.join(self.in_dir, f"{sample_id}{self.in_suffix}")

@@ -7,8 +7,11 @@ import matplotlib.colors
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import umap
 from Bio import SeqIO
 from matplotlib.patches import Patch
+from scipy import sparse
+from umap.plot import _datashade_points
 
 from ..runner_build import SeqWriter, base_logger, utils, utils_sequence
 from . import seq_hdbscan_clusterer
@@ -19,8 +22,8 @@ class UmapRunner(SeqWriter):
     Class for managing UMAP analysis.
     """
 
-    def __init__(self, sampledata, no_verbose=False):
-        super().__init__(sampledata, no_verbose)
+    def __init__(self, sampledata, verbose=True):
+        super().__init__(sampledata, verbose)
         self.units2taxa = {}
         self.index_list = []
 
@@ -251,8 +254,6 @@ class UmapRunner(SeqWriter):
         :param dist_path: Path to the input distance matrix file.
         :return: Sparse distance matrix as a NumPy array.
         """
-        from scipy import sparse
-
         self.matrix = pd.read_csv(dist_path, header=None, sep="\t")
         self.logger.info(
             f"Loading sparse {max(self.matrix[0]) + 1} x {max(self.matrix[0]) + 1} distance matrix from: {dist_path}"
@@ -316,8 +317,6 @@ class UmapRunner(SeqWriter):
         :param random_state: Random state for umap.
         :param precomputed: Whether the elements of the matrix are distances or not.
         """
-        import umap
-
         self.reducer = umap.UMAP(
             n_neighbors=neighbors,
             min_dist=min_dist,
@@ -566,8 +565,6 @@ class UmapRunner(SeqWriter):
                 show_legend,
             )
         else:
-            from umap.plot import _datashade_points
-
             ax = _datashade_points(
                 points,
                 ax,

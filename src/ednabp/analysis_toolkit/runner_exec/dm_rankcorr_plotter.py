@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from scipy.stats import kendalltau, spearmanr
 
 from ..runner_build import DMPlotter, base_logger
 
@@ -24,7 +25,7 @@ class RankCorrPlotter(DMPlotter):
         colorscale: str = "tempo",
         save_dir: str = None,
         overwrite: bool = False,
-    ):
+    ) -> pd.DataFrame:
         """
         Create a rank correlation plot from a CSV file.
 
@@ -46,15 +47,11 @@ class RankCorrPlotter(DMPlotter):
 
     @staticmethod
     def _calc_kendalltau(data1, data2):
-        from scipy.stats import kendalltau
-
         coef, p = kendalltau(data1, data2)
         return coef, p
 
     @staticmethod
     def _calc_spearmanr(data1, data2):
-        from scipy.stats import spearmanr
-
         coef, p = spearmanr(data1, data2)
         return coef, p
 

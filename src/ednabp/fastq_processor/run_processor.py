@@ -2,15 +2,6 @@ import os
 
 from ..analysis_toolkit.runner_build import base_logger
 from .step_build import stage_config
-from .step_exec import (
-    assign_taxa,
-    cut_primer,
-    decompress,
-    denoise,
-    dereplicate,
-    fq_to_fa,
-    merge,
-)
 
 
 class FastqProcessor:
@@ -95,6 +86,16 @@ class FastqProcessor:
             self.run_stages_one_file(input_path)
 
     def add_default_settings(self, settings):
+        from .step_exec import (
+            assign_taxa,
+            cut_primer,
+            decompress,
+            denoise,
+            dereplicate,
+            fq_to_fa,
+            merge,
+        )
+
         self.stage_class = {
             "decompress": decompress.DecompressStage,
             "merge": merge.MergeStage,
@@ -157,7 +158,7 @@ class FastqProcessor:
                 "specifiers": "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
             },
             "config": {
-                "verbose": True,
+                "verbose": False,
                 "dry": False,
                 "logger": base_logger.logger,
                 "n_cpu": 1,
@@ -232,14 +233,15 @@ class FastqProcessor:
             curr_suffix = self.stage_suffix[stage]
 
     def run_one_file(self, prefix):
-        print(f"Sample ID: {prefix}")
+        base_logger.logger.info(f"Sample ID: {prefix}")
         for k, s in self.stages.items():
             s.setup(prefix)
             is_complete = s.run()
             if not is_complete:
                 print(f"Error: process errors at stage: {k}\n")
                 break
-            print()
+            if self.config.verbose:
+                print()
 
     def run_stages_files(self):
         suffix = self.stage_suffix["raw"]

@@ -1,10 +1,13 @@
 import os
-from typing import Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
 
 import numpy as np
 import plotly.graph_objs as go
 
 from ..runner_build import DMPlotter, base_logger
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 class BarchartPlotter(DMPlotter):
@@ -19,7 +22,7 @@ class BarchartPlotter(DMPlotter):
         save_dir: str | None = None,
         overwrite: bool = False,
         **kwargs,
-    ):
+    ) -> "pd.DataFrame":
         """
         Plot a barchart to visualize the abundance of a level across samples.
 

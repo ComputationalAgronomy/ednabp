@@ -1,10 +1,15 @@
 import os
-from typing import Annotated, Literal
+import warnings
+from typing import TYPE_CHECKING, Annotated, Literal
 
 import numpy as np
 import plotly.graph_objects as go
+import umap
 
 from ..runner_build import DMPlotter, base_logger
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 class HeatmapPlotter(DMPlotter):
@@ -19,7 +24,7 @@ class HeatmapPlotter(DMPlotter):
         colorscale: str = "tempo",
         save_dir: str = None,
         overwrite: bool = False,
-    ):
+    ) -> "pd.DataFrame":
         """
         Plot a heatmap of the data.
 
@@ -46,10 +51,6 @@ class HeatmapPlotter(DMPlotter):
         self._sort_index()
 
     def _sort_index(self):
-        import warnings
-
-        import umap
-
         warnings.filterwarnings("ignore", category=UserWarning, module="umap")
         self.s_index = (
             umap.UMAP(n_components=1, n_neighbors=15, random_state=42)

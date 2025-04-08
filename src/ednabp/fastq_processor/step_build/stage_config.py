@@ -19,6 +19,10 @@ class StageConfig:
         self.logger = settings["logger"]
         self.n_cpu = settings["n_cpu"]
         self.memory = settings["memory"]
+        if self.verbose:
+            self.logger.setLevel("INFO")
+        else:
+            self.logger.setLevel("WARNING")
 
     def get_machine_info(self) -> dict[str, int]:
         """

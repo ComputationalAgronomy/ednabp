@@ -5,8 +5,8 @@ from datetime import date
 
 import pandas as pd
 
-from ..read import denoise_report_reader, fasta_reader, taxa_table_reader
-from ..runner_build import base_logger
+from .read import denoise_report_reader, fasta_reader, taxa_table_reader
+from .runner_build import base_logger
 
 
 class OneSampleData:
@@ -64,23 +64,23 @@ class SampleData:
     :attribute sample_data: A dictionary to store sample data, the key is sample ID, and the value is a OneSampleData instance.
     :attribute sample_metadata A dictionary to store sample information, the key is sample ID, and the value is a dictionary containing sample metadata.
     :attribute sample_id_list: A list to store sample IDs.
-    :attribute no_verbose: A boolean flag to control logging verbosity. Default is True.
+    :attribute verbose: A boolean flag to control logging verbosity. Default is True.
     """
 
     SAMPLE_ID_COLUMN = "sample_id"
 
-    def __init__(self, no_verbose=False):
+    def __init__(self, verbose=True):
         self.sample_data = {}
         self.sample_metadata = {}
         self.spc_info = {}
         self.sample_id_list = []
-        self.no_verbose = no_verbose
+        self.verbose = verbose
         self.logger = base_logger.logger
 
-        if self.no_verbose:
-            self.logger.setLevel("WARNING")
-        else:
+        if self.verbose:
             self.logger.setLevel("INFO")
+        else:
+            self.logger.setLevel("WARNING")
 
     def import_data(
         self,
@@ -162,7 +162,7 @@ class SampleData:
         DEFAULT_SUFFIXES = {
             "dereplicate_suffix": "_uniqs.fasta",
             "denoise_suffix": "_zotus.fasta",
-            "denoise_report_suffix": "_denoise_report.txt",
+            "denoise_report_suffix": "_zotus_report.txt",
             "assigntaxa_suffix": "_taxa.csv",
         }
         for key, value in DEFAULT_SUFFIXES.items():
@@ -176,7 +176,6 @@ class SampleData:
 
     @base_logger.prog_log(prog_name="Import sample sequence data")
     def _read_sample_data(self, sample_id_list: list[str] | None):
-        base_logger.print_space(self.logger)
         if sample_id_list is None:
             self.logger.info("No sample id list provided.")
             self._add_unspecified_sample_id_list()
@@ -186,7 +185,6 @@ class SampleData:
 
         for sample_id in self.import_sample_id_list:
             self.logger.info(f"Sample ID: {sample_id}")
-            base_logger.print_space(self.logger)
             self._get_files_path(sample_id)
             self._check_files_path()
             self.sample_data[sample_id] = OneSampleData(*self.files_path)
@@ -211,7 +209,6 @@ class SampleData:
                 )
                 continue
             self.import_sample_id_list.append(sample_id)
-        base_logger.print_space(self.logger)
 
     def _add_specified_sample_id_list(self, sample_id_list: list[str]):
         for sample_id in sample_id_list:
@@ -222,7 +219,6 @@ class SampleData:
                 )
                 continue
             self.import_sample_id_list.append(sample_id)
-        base_logger.print_space(self.logger)
 
     def _get_files_path(self, sample_id: str):
         self.files_path = [

@@ -8,9 +8,6 @@ from sklearn.metrics import adjusted_rand_score, silhouette_score
 
 
 class Clusterer(ABC):
-    def __init__(self):
-        pass
-
     def run(
         self,
         index_path: str | None = None,

@@ -9,8 +9,8 @@ class SeqWriter(base_writer.Writer, ABC):
     An abstract class for running sequence related analysis
     """
 
-    def __init__(self, sampledata, no_verbose):
-        super().__init__(sampledata, no_verbose)
+    def __init__(self, sampledata, verbose):
+        super().__init__(sampledata, verbose)
         self.units2fasta = defaultdict(str)
 
     def _filter_sequence(self, n_unit_threshold):

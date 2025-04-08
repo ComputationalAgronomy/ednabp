@@ -1,18 +1,19 @@
 from abc import ABC
+from typing import TYPE_CHECKING
 
-from ..runner_exec import data_container
 from . import base_logger
+
+if TYPE_CHECKING:
+    from ..sample_data import SampleData
 
 
 class Writer(ABC):
-    def __init__(
-        self, sampledata: data_container.SampleData, no_verbose: bool
-    ):
+    def __init__(self, sampledata: "SampleData", verbose: bool):
         self.logger = base_logger.logger
-        if no_verbose:
-            self.logger.setLevel("WARNING")
-        else:
+        if verbose:
             self.logger.setLevel("INFO")
+        else:
+            self.logger.setLevel("WARNING")
         self.sample_id_used = None
         self._import_data(sampledata)
 

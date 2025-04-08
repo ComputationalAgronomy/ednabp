@@ -1,7 +1,10 @@
 import os
 
+import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
+from geokrige.methods import OrdinaryKriging
+from geokrige.tools import TransformerGDF
 
 from ..runner_build import DMPlotter, base_logger
 
@@ -18,7 +21,7 @@ class ContourPlotter(DMPlotter):
         cmap: str = "viridis",
         save_dir: str = None,
         overwrite: bool = False,
-    ):
+    ) -> np.array:
         """
         Create a contour plot from geographic data with shapefile overlay.
 
@@ -32,13 +35,13 @@ class ContourPlotter(DMPlotter):
         :param overwrite: Whether to overwrite existing files. Default: False.
         """
         ContourPlotter._load_and_validate_data(
-            self, csv_path, {"Longitude", "Latitude", metric_column}
+            self, csv_path, ["Longitude", "Latitude", metric_column]
         )
         ContourPlotter._process_data(
             self,
             shp_path,
             grid_density,
-            {"Longitude", "Latitude", metric_column},
+            ["Longitude", "Latitude", metric_column],
         )
         ContourPlotter._prepare_plot_data(self)
         ContourPlotter._create_plot(self, value_step, cmap)
@@ -46,8 +49,8 @@ class ContourPlotter(DMPlotter):
         return self.data
 
     @base_logger.prog_log("Load and validate data")
-    def _load_and_validate_data(self, csv_path: str, required_columns: str):
-        super()._load_and_validate_data(csv_path, required_columns)
+    def _load_and_validate_data(self, csv_path: str, required_columns: list):
+        super()._load_and_validate_data(csv_path, set(required_columns))
         if not self.df["Longitude"].between(-180, 180).all():
             raise ValueError("Longitude values must be between -180 and 180")
         if not self.df["Latitude"].between(-90, 90).all():
@@ -77,8 +80,6 @@ class ContourPlotter(DMPlotter):
 
     @base_logger.prog_log("Model interpolation")
     def _model_interpolation(self):
-        from geokrige.methods import OrdinaryKriging
-
         self.kgn = OrdinaryKriging()
         self.kgn.load(self.lon_lat, self.counts)
 
@@ -88,14 +89,10 @@ class ContourPlotter(DMPlotter):
 
     @base_logger.prog_log("Load geographical map")
     def _load_shp(self, shp_path: str):
-        import geopandas as gpd
-
         self.prediction_gdf = gpd.read_file(shp_path).to_crs(crs="EPSG:4326")
 
     @base_logger.prog_log("Transform geographical map to meshgrid")
     def _transform_grid_and_mask(self, grid_density: float):
-        from geokrige.tools import TransformerGDF
-
         transformer = TransformerGDF()
         transformer.load(self.prediction_gdf)
 
@@ -140,7 +137,7 @@ class ContourPlotter(DMPlotter):
 
     @base_logger.prog_log("Display and save plot (if 'save_dir' provided)")
     def _display_and_save(self, save_dir: str | None, overwrite: bool):
-        self.fig.show()
+        plt.show()
         if save_dir:
             ContourPlotter._save_plot(self, save_dir, overwrite)
             ContourPlotter._save_csv(self, save_dir, overwrite)

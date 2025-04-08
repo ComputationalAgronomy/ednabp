@@ -25,8 +25,8 @@ class DMWriter(base_writer.Writer, ABC):
     UNIT_COLUMN = "unit"
     SAMPLE_ID_COLUMN = "sample_id"
 
-    def __init__(self, sampledata, no_verbose):
-        super().__init__(sampledata, no_verbose)
+    def __init__(self, sampledata, verbose):
+        super().__init__(sampledata, verbose)
 
     @base_logger.prog_log("Write richness table")
     def write_richness_table(
@@ -107,7 +107,10 @@ class DMWriter(base_writer.Writer, ABC):
         self._load_sample_id_list(sample_id_list)
         self._create_dp_df(taxa_level, detectprob_column)
         self._export_df(
-            save_dir, f"{taxa_level}_detectprob.csv", self.dp_df, overwrite
+            save_dir,
+            f"{taxa_level}_detectprob_{'_'.join(detectprob_column)}.csv",
+            self.dp_df,
+            overwrite,
         )
         return self.dp_df
 

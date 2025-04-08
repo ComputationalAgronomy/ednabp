@@ -41,7 +41,6 @@ def prog_log(prog_name: str, log_file: str | None = None):
                 logger.info(f"Program: {prog_name}")
                 result = func(*args, **kwargs)
                 logger.info(f"COMPLETE: {prog_name}")
-                print_space(logger)
                 return result
             except Exception as e:
                 logger.error(f"FAIL: {prog_name}. {type(e).__name__}: {e}")
@@ -53,8 +52,3 @@ def prog_log(prog_name: str, log_file: str | None = None):
         return wrapper
 
     return decorator
-
-
-def print_space(logger):
-    if logger.level <= logging.INFO:
-        print()

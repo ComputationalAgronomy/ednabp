@@ -12,8 +12,8 @@ from .seq_hdbscan_clusterer import HDBSCAN_DEFAULT_SETTINGS
 
 
 class NexusWriter(SeqWriter):
-    def __init__(self, sampledata, no_verbose: bool = False):
-        super().__init__(sampledata, no_verbose)
+    def __init__(self, sampledata, verbose: bool = True):
+        super().__init__(sampledata, verbose)
 
     @base_logger.prog_log("Write NEXUS file")
     def write_nexus(

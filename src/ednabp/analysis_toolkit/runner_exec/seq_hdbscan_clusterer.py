@@ -1,3 +1,4 @@
+import hdbscan
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -79,8 +80,6 @@ class HdbClusterer(Clusterer):
             self.output_hdbscan()
 
     def init_clusterer(self):
-        import hdbscan
-
         self.clusterer = hdbscan.HDBSCAN(
             min_cluster_size=self.settings["min_cluster_size"],
             min_samples=self.settings["min_samples"],

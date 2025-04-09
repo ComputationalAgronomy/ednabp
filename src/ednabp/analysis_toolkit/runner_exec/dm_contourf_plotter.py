@@ -34,18 +34,18 @@ class ContourPlotter(DMPlotter):
         :param save_dir: If provided, the contour will be saved as a .PNG file. Default: None.
         :param overwrite: Whether to overwrite existing files. Default: False.
         """
-        ContourPlotter._load_and_validate_data(
-            self, csv_path, ["Longitude", "Latitude", metric_column]
+        self._load_and_validate_data(
+            csv_path, ["Longitude", "Latitude", metric_column]
         )
-        ContourPlotter._process_data(
+        self._process_data(
             self,
             shp_path,
             grid_density,
             ["Longitude", "Latitude", metric_column],
         )
-        ContourPlotter._prepare_plot_data(self)
-        ContourPlotter._create_plot(self, value_step, cmap)
-        ContourPlotter._display_and_save(self, save_dir, overwrite)
+        self._prepare_plot_data()
+        self._create_plot(value_step, cmap)
+        self._display_and_save(save_dir, overwrite)
         return self.data
 
     @base_logger.prog_log("Load and validate data")

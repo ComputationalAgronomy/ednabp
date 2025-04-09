@@ -36,13 +36,11 @@ class HeatmapPlotter(DMPlotter):
         :param save_dir: If provided, the heatmap will be saved as a .HTML file. Default: None.
         :param overwrite: Whether to overwrite existing files. Default: False.
         """
-        HeatmapPlotter._load_and_validate_data(
-            self, csv_path, set(columns + [values, index])
-        )
-        HeatmapPlotter._process_data(self, values, index, columns, aggfunc)
-        HeatmapPlotter._prepare_plot_data(self)
-        HeatmapPlotter._create_plot(self, colorscale)
-        HeatmapPlotter._display_and_save(self, save_dir, overwrite)
+        self._load_and_validate_data(csv_path, set(columns + [values, index]))
+        self._process_data(values, index, columns, aggfunc)
+        self._prepare_plot_data()
+        self._create_plot(colorscale)
+        self._display_and_save(save_dir, overwrite)
         return self.pivot_table
 
     @base_logger.prog_log("Create pivot table")

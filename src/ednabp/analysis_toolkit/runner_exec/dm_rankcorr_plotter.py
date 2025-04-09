@@ -34,15 +34,11 @@ class RankCorrPlotter(DMPlotter):
         :param save_dir: If provided, the rank correlation plot will be saved as a .PNG file. Default: None.
         :param overwrite: Whether to overwrite existing files. Default: False.
         """
-        RankCorrPlotter._load_and_validate_data(
-            self, csv_path, set(columns + [values, index])
-        )
-        RankCorrPlotter._process_data(
-            self, values, index, columns, aggfunc, rcorr, alpha
-        )
-        RankCorrPlotter._prepare_plot_data(self)
-        RankCorrPlotter._create_plot(self, colorscale)
-        RankCorrPlotter._display_and_save(self, save_dir, overwrite)
+        self._load_and_validate_data(csv_path, set(columns + [values, index]))
+        self._process_data(values, index, columns, aggfunc, rcorr, alpha)
+        self._prepare_plot_data()
+        self._create_plot(colorscale)
+        self._display_and_save(save_dir, overwrite)
         return self.corr_df
 
     @staticmethod

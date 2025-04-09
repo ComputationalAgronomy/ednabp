@@ -30,13 +30,11 @@ class SankeyPlotter(DMPlotter):
         :param save_dir: If provided, the rank correlation plot will be saved as a .PNG file. Default: None.
         :param overwrite: Whether to overwrite existing files. Default: False.
         """
-        SankeyPlotter._load_and_validate_data(
-            self, csv_path, set(categories + [values])
-        )
-        SankeyPlotter._process_data(self, values, categories, aggfunc)
-        SankeyPlotter._prepare_plot_data(self, values, categories)
-        SankeyPlotter._create_plot(self, categories)
-        SankeyPlotter._display_and_save(self, save_dir, overwrite)
+        self._load_and_validate_data(csv_path, set(categories + [values]))
+        self._process_data(values, categories, aggfunc)
+        self._prepare_plot_data(values, categories)
+        self._create_plot(categories)
+        self._display_and_save(save_dir, overwrite)
         return self.sankey_df
 
     def _process_data(self, values, categories, aggfunc):

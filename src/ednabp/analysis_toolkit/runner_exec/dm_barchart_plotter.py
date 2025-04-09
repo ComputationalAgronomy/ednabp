@@ -32,13 +32,11 @@ class BarchartPlotter(DMPlotter):
         :param save_dir: If provided, the barchart will be saved as a .HTML file. Default is None.
         :param overwrite: Whether to overwrite existing files. Default: False.
         """
-        BarchartPlotter._load_and_validate_data(
-            self, csv_path, set(columns + [values, index])
-        )
-        BarchartPlotter._process_data(self, values, index, columns, aggfunc)
-        BarchartPlotter._prepare_plot_data(self)
-        BarchartPlotter._create_plot(self, kwargs)
-        BarchartPlotter._display_and_save(self, save_dir, overwrite)
+        self._load_and_validate_data(csv_path, set(columns + [values, index]))
+        self._process_data(values, index, columns, aggfunc)
+        self._prepare_plot_data()
+        self._create_plot(kwargs)
+        self._display_and_save(save_dir, overwrite)
         return self.pivot_table
 
     @base_logger.prog_log("Create pivot table")

@@ -1,5 +1,4 @@
 import os
-import warnings
 
 import pandas as pd
 
@@ -7,16 +6,25 @@ from .runner_build import base_logger
 from .sample_data import SampleData
 
 
-class OneMitoData:
+class OneSampleMitoData:
+    """
+    Attributes:
+        hap_seq (dict): Dictionary mapping haploid IDs to their corresponding sequences.
+        hap_size (dict): Dictionary mapping haploid IDs to their sequence sizes.
+        hap2level (dict): Dictionary mapping haploid IDs to their taxonomic information (species, genus, class, order, family).
+    """
+
+    pass
+
+
+class MitoFileReader:
     """A class to handle MitoFish outputs from Excel sheets.
 
     Attributes:
         xls (pd.ExcelFile): Excel file object containing mitochondrial data.
         spc_smpdata_df (pd.DataFrame): DataFrame containing sample details from 'List of Sample Details' sheet.
+        spc_smpdata_df_dict (Dictionary): Dictionary containing sample name specific details from spc_smpdata_df.
         spc_metadata_df (pd.DataFrame): DataFrame containing species comparison data from 'Comparison of Samples' sheet.
-        hap_seq (dict): Dictionary mapping haploid IDs to their corresponding sequences.
-        hap_size (dict): Dictionary mapping haploid IDs to their sequence sizes.
-        hap2level (dict): Dictionary mapping haploid IDs to their taxonomic information (species, genus, class, order, family).
         spc_info (dict): Dictionary containing species-specific information including water area, habitat, depth ranges,
                         IUCN status, and fisheries importance.
     """
@@ -41,6 +49,7 @@ class OneMitoData:
             self._validate_sheets()
         except FileNotFoundError:
             raise FileNotFoundError(f"Excel file not found: {mito_xlsx}")
+        self.mito_data = {}
 
         self.read_sheets()
         self.load_data()
@@ -60,9 +69,21 @@ class OneMitoData:
                 self.xls, self.SAMPLE_DETAILS_SHEET
             )
             self._validate_sample_data_columns()
+            self.spc_smpdata_df = self.spc_smpdata_df[
+                ~self.spc_smpdata_df["Species"].isin(["Species", "Skip"])
+            ]
+            self.spc_smpdata_df["Sample name"] = self.spc_smpdata_df[
+                "Sample name"
+            ].ffill()
             self.spc_smpdata_df["Species"] = self.spc_smpdata_df[
                 "Species"
             ].ffill()
+            self.spc_smpdata_df_dict = {
+                sample_name: self.spc_smpdata_df[
+                    self.spc_smpdata_df["Sample name"] == sample_name
+                ]
+                for sample_name in self.spc_smpdata_df["Sample name"].unique()
+            }
 
             self.spc_metadata_df = pd.read_excel(
                 self.xls, self.SPECIES_COMPARISON_SHEET
@@ -96,25 +117,29 @@ class OneMitoData:
     def load_data(self):
         if self.spc_smpdata_df is None or self.spc_metadata_df is None:
             raise ValueError("Must call read_sheets() before load_data()")
-        self._create_haploid_mappings()
-        self._create_taxonomic_mappings()
+        for sample_name, df in self.spc_smpdata_df_dict.items():
+            one_sample_data = OneSampleMitoData()
+            one_sample_data.hap_seq = self._haploid2sequnce_mappings(df)
+            one_sample_data.hap_size = self._haploid2size_mappings(df)
+            one_sample_data.hap2level = self._taxonomic_mappings(df)
+            self.mito_data[sample_name] = one_sample_data
+
         self._create_species_info_mapping()
 
-    def _create_haploid_mappings(self):
-        hap_id = self.spc_smpdata_df["Haploid ID"]
-        self.hap_seq = dict(
-            zip(hap_id, self.spc_smpdata_df["Sequence"], strict=False)
-        )
-        self.hap_size = dict(
-            zip(hap_id, self.spc_smpdata_df["Size"], strict=False)
-        )
+    def _haploid2sequnce_mappings(self, df):
+        hap_seq = dict(zip(df["Haploid ID"], df["Sequence"], strict=False))
+        return hap_seq
 
-    def _create_taxonomic_mappings(self):
-        hap_id = self.spc_smpdata_df["Haploid ID"]
-        species = self.spc_smpdata_df["Species"]
+    def _haploid2size_mappings(self, df):
+        hap_size = dict(zip(df["Haploid ID"], df["Size"], strict=False))
+        return hap_size
+
+    def _taxonomic_mappings(self, df):
+        hap_id = df["Haploid ID"]
+        species = df["Species"]
 
         # Create initial hap2level with species and genus
-        self.hap2level = {
+        hap2level = {
             hap: {"species": spc, "genus": spc.split()[0]}
             for hap, spc in zip(hap_id, species, strict=False)
         }
@@ -126,11 +151,11 @@ class OneMitoData:
             .T.to_dict("dict")
         )
 
-        for hap, level in self.hap2level.items():
-            self.hap2level[hap].update(spc2level[level["species"]])
-            self.hap2level[hap] = {
-                k.lower(): v for k, v in self.hap2level[hap].items()
-            }
+        for hap, level in hap2level.items():
+            hap2level[hap].update(spc2level[level["species"]])
+            hap2level[hap] = {k.lower(): v for k, v in hap2level[hap].items()}
+
+        return hap2level
 
     def _create_species_info_mapping(self):
         self.spc_info = (
@@ -153,75 +178,78 @@ class MitoData(SampleData):
         self,
         mito_xlsx_dir: str,
         mito_xlsx_suffix: str = ".xlsx",
-        sample_id_list: list[str] | None = None,
+        file_list: list[str] | None = None,
         sample_metadata_path: str | None = None,
+        date_column: str = "date",
+        date_format: str = "%Y-%m",
     ):
+        self.import_file_list = []
         self.import_sample_id_list = []
         self.in_dir = mito_xlsx_dir
         self.in_suffix = mito_xlsx_suffix
 
-        self._read_sample_data(sample_id_list)
+        self._read_sample_data(file_list)
 
         if sample_metadata_path is not None:
-            self._read_sample_metadata(sample_metadata_path)
+            self._read_sample_metadata(
+                sample_metadata_path, date_column, date_format
+            )
 
         self.sample_id_list.extend(self.import_sample_id_list)
 
     @base_logger.prog_log(prog_name="Import data from MitoFish outputs")
-    def _read_sample_data(self, sample_id_list: list[str] | None):
-        if sample_id_list is None:
+    def _read_sample_data(self, file_list: list[str] | None):
+        if file_list is None:
             self.logger.info("No sample id list provided.")
-            self._add_unspecified_sample_id_list()
+            self._add_unspecified_file_list()
         else:
             self.logger.info("Specified sample id list.")
-            self._add_specified_sample_id_list(sample_id_list)
+            self._add_specified_file_list(file_list)
 
-        for sample_id in self.import_sample_id_list:
-            self.logger.info(f"Sample ID: {sample_id}")
-            one_mito_data = OneMitoData(self._get_file_path(sample_id))
-            self.spc_info.update(one_mito_data.spc_info)
-            delattr(one_mito_data, "spc_info")
-            self.sample_data[sample_id] = one_mito_data
+        for file_name in self.import_file_list:
+            self.logger.info(f"Sample ID: {file_name}")
+            read_results = MitoFileReader(self._get_file_path(file_name))
+            self.logger.info(f"Read {len(read_results.mito_data)} sample(s)")
+            for sample_id in read_results.mito_data.keys():
+                if (
+                    sample_id in self.sample_id_list
+                    or sample_id in self.import_sample_id_list
+                ):
+                    self.logger.warning(
+                        f"WARNING: Sample ID '{sample_id}' in the file {file_name} already exists in the current instance. "
+                        "Skipping import."
+                    )
+                    read_results.pop(sample_id, None)
+                else:
+                    self.import_sample_id_list.append(sample_id)
 
-    def _add_unspecified_sample_id_list(self):
+            self.spc_info.update(read_results.spc_info)
+            self.sample_data.update(read_results.mito_data)
+
+    def _add_unspecified_file_list(self):
         self.logger.info(
             f"Searching sample IDs: prefix with the suffix '{self.in_suffix}' in the directory: {self.in_dir}."
         )
-        sample_id_list = [
+        self.import_file_list = [
             os.path.splitext(file)[0]
             for file in os.listdir(self.in_dir)
             if file.endswith(self.in_suffix)
         ]
-        self.logger.info(f"Found {len(sample_id_list)} samples.")
-        for sample_id in sample_id_list:
-            if sample_id in self.sample_id_list:
-                self.logger.warning(
-                    f"WARNING: Sample ID '{sample_id}' already exists in the current instance. "
-                    "Skipping import."
-                )
-                continue
-            self.import_sample_id_list.append(sample_id)
+        self.logger.info(f"Found {len(self.import_file_list)} file(s).")
 
-    def _add_specified_sample_id_list(self, sample_id_list: list[str]):
-        for sample_id in sample_id_list:
-            if not self._is_valid_sample_file(sample_id):
+    def _add_specified_file_list(self, file_list: list[str]):
+        for file_name in file_list:
+            if not self._is_valid_file(file_name):
                 self.logger.warning(
-                    f"WARNING: Sample ID '{sample_id}' (file: '{sample_id + self.in_suffix}') "
+                    f"WARNING: File name '{file_name}' (file: '{file_name + self.in_suffix}') "
                     f"not found in the directory. Skipping import."
                 )
                 continue
 
-            if sample_id in self.sample_id_list:
-                self.logger.warning(
-                    f"WARNING: Sample ID '{sample_id}' already exists in the current instance. "
-                    "Skipping import."
-                )
-                continue
-
-            self.import_sample_id_list.append(sample_id)
+            self.import_file_list.append(file_name)
 
     def _get_file_path(self, sample_id: str) -> str:
         return os.path.join(self.in_dir, f"{sample_id}{self.in_suffix}")
 
-    def _is_valid_sample_file(self, sample_id: str):
-        return os.path.exists(self._get_file_path(sample_id))
+    def _is_valid_file(self, file_name: str):
+        return os.path.exists(self._get_file_path(file_name))

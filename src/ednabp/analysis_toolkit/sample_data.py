@@ -3,6 +3,7 @@ import pickle
 import re
 from datetime import date
 
+import chardet
 import pandas as pd
 
 from .read import denoise_report_reader, fasta_reader, taxa_table_reader
@@ -91,7 +92,7 @@ class SampleData:
         sample_metadata_path: str | None = None,
         fishbase_db_path: str | None = None,
         stock_db_path: str | None = None,
-        date_column: str = "Date",
+        date_column: str = "date",
         date_format: str = "%Y-%m",
         **suffixes,
     ):
@@ -235,7 +236,13 @@ class SampleData:
     def _read_sample_metadata(
         self, sample_metadata_path: str, date_column, date_format
     ) -> None:
-        df = pd.read_csv(sample_metadata_path, index_col=self.SAMPLE_ID_COLUMN)
+        with open(sample_metadata_path, "rb") as f:
+            result = chardet.detect(f.read())
+        df = pd.read_csv(
+            sample_metadata_path,
+            index_col=self.SAMPLE_ID_COLUMN,
+            encoding=result["encoding"],
+        )
 
         df = self._convert_str_to_date(df, date_column, date_format)
 

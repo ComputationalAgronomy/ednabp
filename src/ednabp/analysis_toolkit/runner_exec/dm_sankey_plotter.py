@@ -21,6 +21,7 @@ class SankeyPlotter(DMPlotter):
         aggfunc: Literal["mean", "sum"] = "sum",
         save_dir: str = None,
         overwrite: bool = False,
+        **kwargs,
     ) -> pd.DataFrame:
         """
         Create a rank correlation plot from a CSV file.
@@ -33,6 +34,7 @@ class SankeyPlotter(DMPlotter):
         self._load_and_validate_data(csv_path, set(categories + [values]))
         self._process_data(values, categories, aggfunc)
         self._prepare_plot_data(values, categories)
+        self.kwargs = kwargs
         self._create_plot(categories)
         self._display_and_save(save_dir, overwrite)
         return self.sankey_df
@@ -85,7 +87,7 @@ class SankeyPlotter(DMPlotter):
             magnitude += 1
             num /= 1000.0
         # add more suffixes if you need them
-        return "%.2f%s" % (num, ["", "K", "M", "G", "T", "P"][magnitude])
+        return "{:.2f}{}".format(num, ["", "K", "M", "G", "T", "P"][magnitude])
 
     @base_logger.prog_log("Create plot")
     def _create_plot(self, categories):
@@ -93,9 +95,6 @@ class SankeyPlotter(DMPlotter):
             data=[
                 go.Sankey(
                     node={
-                        "pad": 15,
-                        "thickness": 20,
-                        "line": {"color": "black", "width": 0.5},
                         "label": self.label_list,
                     },
                     link={
@@ -106,26 +105,113 @@ class SankeyPlotter(DMPlotter):
                 )
             ]
         )
-        # Adds 1st,2nd month on top,x_coordinate is 0 - 5 integers,column #name is specified by the list we passed
+
+        self._update_fig_default_settings()
+        self._add_fig_setting(categories)
+
+    def _update_fig_default_settings(self):
+        FIG_DEFAULT_SETTINGS = {
+            "title": None,
+            "title_font_size": 24,
+            "x_axis_title": None,
+            "y_axis_title": None,
+            "axes_title_font": 20,
+            "show_xticks": False,
+            "show_yticks": False,
+            "axes_tick_font": 18,
+            "showlegend": False,
+            "legend_font": 15,
+            "legend_x_position": 1.05,
+            "legend_y_position": 1.0,
+            "legend_orientation": "h",
+            "legend_traceorder": "normal",
+            "autosize": True,
+            "width": None,
+            "height": None,
+            # Sankey specific settings
+            "node_pad": 15,
+            "node_thickness": 20,
+            "node_line_color": "black",
+            "node_line_width": 0.5,
+            "paper_bgcolor": "rgba(255,255,255,255)",
+            "plot_bgcolor": "rgba(255,255,255,255)",
+            "annotation_font_size": 20,
+            "annotation_font_color": "black",
+            "annotation_y_position": 1.2,
+        }
+        for key, value in self.kwargs.items():
+            FIG_DEFAULT_SETTINGS[key] = value
+
+        self.fig_sets = FIG_DEFAULT_SETTINGS
+
+    def _add_fig_setting(self, categories):
+        self.fig.update_traces(
+            node={
+                "pad": self.fig_sets["node_pad"],
+                "thickness": self.fig_sets["node_thickness"],
+                "line": {
+                    "color": self.fig_sets["node_line_color"],
+                    "width": self.fig_sets["node_line_width"],
+                },
+            },
+            selector={"type": "sankey"},
+        )
+
         for x_coordinate, column_name in enumerate(categories):
             self.fig.add_annotation(
                 x=x_coordinate,  # Plotly recognizes 0-5 to be the x range.
-                y=1.2,  # y value above 1 means above all nodes
+                y=self.fig_sets[
+                    "annotation_y_position"
+                ],  # y value above 1 means above all nodes
                 xref="x",
                 yref="paper",
                 text=column_name,
                 showarrow=False,
-                font={"size": 20, "color": "black"},
+                font={
+                    "size": self.fig_sets["annotation_font_size"],
+                    "color": self.fig_sets["annotation_font_color"],
+                },
                 align="left",
             )
-        self.fig.update_xaxes(showticklabels=False)
-        self.fig.update_yaxes(showticklabels=False)
+
+        self.fig.update_xaxes(
+            showticklabels=self.fig_sets["show_xticks"],
+            title={
+                "text": self.fig_sets["x_axis_title"],
+                "font": {"size": self.fig_sets["axes_title_font"]},
+            },
+            tickfont={"size": self.fig_sets["axes_tick_font"]},
+            showgrid=False,
+        )
+        self.fig.update_yaxes(
+            showticklabels=self.fig_sets["show_yticks"],
+            title={
+                "text": self.fig_sets["y_axis_title"],
+                "font": {"size": self.fig_sets["axes_title_font"]},
+            },
+            tickfont={"size": self.fig_sets["axes_tick_font"]},
+            showgrid=False,
+        )
         self.fig.update_layout(
-            autosize=True,
-            paper_bgcolor="rgba(255,255,255,255)",
-            plot_bgcolor="rgba(255,255,255,255)",
-            xaxis={"showgrid": False},
-            yaxis={"showgrid": False},
+            title={
+                "text": self.fig_sets["title"],
+                "font": {"size": self.fig_sets["title_font_size"]},
+            }
+            if self.fig_sets["title"]
+            else None,
+            autosize=self.fig_sets["autosize"],
+            width=self.fig_sets["width"],
+            height=self.fig_sets["height"],
+            showlegend=self.fig_sets["showlegend"],
+            legend={
+                "x": self.fig_sets["legend_x_position"],
+                "y": self.fig_sets["legend_y_position"],
+                "traceorder": self.fig_sets["legend_traceorder"],
+                "orientation": self.fig_sets["legend_orientation"],
+                "font": {"size": self.fig_sets["legend_font"]},
+            },
+            paper_bgcolor=self.fig_sets["paper_bgcolor"],
+            plot_bgcolor=self.fig_sets["plot_bgcolor"],
             font_color="black",
             font_size=16,
         )

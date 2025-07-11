@@ -119,9 +119,10 @@ class DMAnalyser:
         index: str,
         columns: str | Annotated[list[str], 2],
         aggfunc: Literal["mean", "sum"] = "mean",
-        colorscale: str = "tempo",
+        random_state: int = None,
         save_dir: str = None,
         overwrite: bool = False,
+        **kwargs,
     ) -> "pd.DataFrame":
         if not hasattr(self, "heatmap_plotter"):
             self._import_heatmapplotter()
@@ -132,9 +133,10 @@ class DMAnalyser:
             index,
             columns,
             aggfunc,
-            colorscale,
+            random_state,
             save_dir,
             overwrite,
+            **kwargs,
         )
 
     def _import_rankcorrplotter(self):
@@ -151,9 +153,9 @@ class DMAnalyser:
         aggfunc: Literal["mean", "sum"] = "mean",
         rcorr: Literal["kendall", "spearman"] = "kendall",
         alpha: float = 0.05,
-        colorscale: str = "tempo",
         save_dir: str = None,
         overwrite: bool = False,
+        **kwargs,
     ) -> "pd.DataFrame":
         if not hasattr(self, "rankcorr_plotter"):
             self._import_rankcorrplotter()
@@ -165,9 +167,9 @@ class DMAnalyser:
             aggfunc,
             rcorr,
             alpha,
-            colorscale,
             save_dir,
             overwrite,
+            **kwargs,
         )
 
     def _import_sankeyplotter(self):
@@ -183,11 +185,18 @@ class DMAnalyser:
         aggfunc: Literal["mean", "sum"] = "sum",
         save_dir: str = None,
         overwrite: bool = False,
+        **kwargs,
     ) -> "pd.DataFrame":
         if not hasattr(self, "sankey_plotter"):
             self._import_sankeyplotter()
         return self.sankey_plotter.plot_sankey(
-            csv_path, values, categories, aggfunc, save_dir, overwrite
+            csv_path,
+            values,
+            categories,
+            aggfunc,
+            save_dir,
+            overwrite,
+            **kwargs,
         )
 
     def _import_contourplotter(self):

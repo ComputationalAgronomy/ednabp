@@ -210,7 +210,7 @@ class MitoData(SampleData):
             self.logger.info(f"Sample ID: {file_name}")
             read_results = MitoFileReader(self._get_file_path(file_name))
             self.logger.info(f"Read {len(read_results.mito_data)} sample(s)")
-            for sample_id in read_results.mito_data.keys():
+            for sample_id in read_results.mito_data.keys().copy():
                 if (
                     sample_id in self.sample_id_list
                     or sample_id in self.import_sample_id_list
@@ -219,7 +219,7 @@ class MitoData(SampleData):
                         f"WARNING: Sample ID '{sample_id}' in the file {file_name} already exists in the current instance. "
                         "Skipping import."
                     )
-                    read_results.pop(sample_id, None)
+                    read_results.mito_data.pop(sample_id, None)
                 else:
                     self.import_sample_id_list.append(sample_id)
 

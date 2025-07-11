@@ -135,6 +135,6 @@ class SeqAnalyser:
     ) -> "pd.DataFrame":
         if not hasattr(self, "umap_runner"):
             self._import_umaprunner()
-        self.umap_runner.plot_umap(
+        return self.umap_runner.hdbscan_umap(
             index_path, n_unit_threshold, category, save_dir, **settings
         )

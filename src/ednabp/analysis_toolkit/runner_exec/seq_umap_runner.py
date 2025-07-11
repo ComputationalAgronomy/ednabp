@@ -11,6 +11,7 @@ import umap
 from Bio import SeqIO
 from matplotlib.patches import Patch
 from scipy import sparse
+from scipy.spatial.distance import pdist, squareform
 from umap.plot import _datashade_points
 
 from ..runner_build import SeqWriter, base_logger, utils, utils_sequence
@@ -173,8 +174,6 @@ class UmapRunner(SeqWriter):
         """
         Read a units2fasta dict and output an aligned index FASTA file replacing the sequence IDs with indexes.
 
-        :param fasta_path: Path to the output FASTA file.
-        :param index_fasta_path: Path to the output index FASTA file.
         :param aln_index_fasta_path: Path to the output index FASTA file after alignment.
         :param dereplicate_sequence: Whether to dereplicate the sequences.
         """
@@ -212,59 +211,84 @@ class UmapRunner(SeqWriter):
         finally:
             temp_dir.cleanup()
 
-    @base_logger.prog_log("Calculate distance matrix")
-    def _calc_distmx(
+    @base_logger.prog_log("Load p-distance matrix")
+    def _load_pdist_mx(
         self,
         fasta_path: str,
-        dist_path: str,
-        maxdist: float = 1.0,
-        termdist: float = 1.0,
-        threads: int = 12,
     ):
         """
-        Calculate distance matrix using USEARCH.
-        (USEARCH command reference: https://drive5.com/usearch/manual/cmd_calc_distmx.html)
+        Calculate distance matrix using the hamming metric. (the different number of base-pair among aligned sequences)
 
-        :param seq_path: Path to the input aligned FASTA file.
-        :param dist_path: Path to the output distance matrix file.
-        :param maxdist: The maximum distance to be written. Default is 1.0.
-        :param termdist: The distance threshold for terminating the calculation. Default is 1.0.
-        :param threads: Number of threads to use for the calculation. Default is 12.
+        :param fasta_path: Path to the input aligned FASTA file.
         """
-        cmd = [
-            "usearch",
-            "-calc_distmx",
-            fasta_path,
-            "-tabbedout",
-            dist_path,
-            "-maxdist",
-            str(maxdist),
-            "-termdist",
-            str(termdist),
-        ]
-        if threads:
-            cmd.extend(["-threads", str(threads)])
-        utils.run_subprocess("USEARCH", cmd, dist_path)
+        base_to_num = {"A": 1, "C": 2, "G": 3, "T": 4}
+        seqs = []
+        descriptions = []
+        with open(fasta_path) as handle:
+            for record in SeqIO.parse(handle, "fasta"):
+                numeric_seq = [base_to_num.get(base, 0) for base in record.seq]
+                seqs.append(numeric_seq)
+                descriptions.append(record.description)
 
-    @base_logger.prog_log("Load distance matrix")
-    def _load_sparse_dist_matrix(self, dist_path: str):
-        """
-        Load a sparse distance matrix from a distance matrix file created by the 'calc_distmx' function.
+        # distances = [levenshtein(i, j) for (i, j) in combinations(seqs, 2)]
+        seqs = np.array(seqs)
+        distances = pdist(seqs, "hamming")
 
-        :param dist_path: Path to the input distance matrix file.
-        :return: Sparse distance matrix as a NumPy array.
-        """
-        self.matrix = pd.read_csv(dist_path, header=None, sep="\t")
-        self.logger.info(
-            f"Loading sparse {max(self.matrix[0]) + 1} x {max(self.matrix[0]) + 1} distance matrix from: {dist_path}"
-        )
+        self.matrix = squareform(distances)
 
-        diagonal = self.matrix[0] == self.matrix[1]
-        row = np.concatenate([self.matrix[0], self.matrix[1][~diagonal]])
-        col = np.concatenate([self.matrix[1], self.matrix[0][~diagonal]])
-        data = 1 - np.concatenate([self.matrix[2], self.matrix[2][~diagonal]])
+    # @base_logger.prog_log("Calculate distance matrix")
+    # def _calc_distmx(
+    #     self,
+    #     fasta_path: str,
+    #     dist_path: str,
+    #     maxdist: float = 1.0,
+    #     termdist: float = 1.0,
+    #     threads: int = 12,
+    # ):
+    #     """
+    #     Calculate distance matrix using USEARCH.
+    #     (USEARCH command reference: https://drive5.com/usearch/manual/cmd_calc_distmx.html)
 
-        self.matrix = sparse.csr_matrix((data, (row, col)), dtype=np.float32)
+    #     :param seq_path: Path to the input aligned FASTA file.
+    #     :param dist_path: Path to the output distance matrix file.
+    #     :param maxdist: The maximum distance to be written. Default is 1.0.
+    #     :param termdist: The distance threshold for terminating the calculation. Default is 1.0.
+    #     :param threads: Number of threads to use for the calculation. Default is 12.
+    #     """
+    #     cmd = [
+    #         "usearch",
+    #         "-calc_distmx",
+    #         fasta_path,
+    #         "-tabbedout",
+    #         dist_path,
+    #         "-maxdist",
+    #         str(maxdist),
+    #         "-termdist",
+    #         str(termdist),
+    #     ]
+    #     if threads:
+    #         cmd.extend(["-threads", str(threads)])
+    #     utils.run_subprocess("USEARCH", cmd, dist_path)
+
+    # @base_logger.prog_log("Load distance matrix")
+    # def _load_sparse_dist_matrix(self, dist_path: str):
+    #     """
+    #     Load a sparse distance matrix from a distance matrix file created by the 'calc_distmx' function.
+
+    #     :param dist_path: Path to the input distance matrix file.
+    #     :return: Sparse distance matrix as a NumPy array.
+    #     """
+    #     self.matrix = pd.read_csv(dist_path, header=None, sep="\t")
+    #     self.logger.info(
+    #         f"Loading sparse {max(self.matrix[0]) + 1} x {max(self.matrix[0]) + 1} distance matrix from: {dist_path}"
+    #     )
+
+    #     diagonal = self.matrix[0] == self.matrix[1]
+    #     row = np.concatenate([self.matrix[0], self.matrix[1][~diagonal]])
+    #     col = np.concatenate([self.matrix[1], self.matrix[0][~diagonal]])
+    #     data = 1 - np.concatenate([self.matrix[2], self.matrix[2][~diagonal]])
+
+    #     self.matrix = sparse.csr_matrix((data, (row, col)), dtype=np.float32)
 
     def _sequence_to_one_hot(sequence: str):
         """
@@ -335,9 +359,10 @@ class UmapRunner(SeqWriter):
         calc_dist: bool,
     ):
         if calc_dist:
-            dist_path = os.path.join(save_dir, "distance.txt")
-            self._calc_distmx(fasta_path, dist_path)
-            self._load_sparse_dist_matrix(dist_path)
+            # dist_path = os.path.join(save_dir, "distance.txt")
+            # self._calc_distmx(fasta_path, dist_path)
+            # self._load_sparse_dist_matrix(dist_path)
+            self._load_pdist_mx(fasta_path)
         else:
             self._load_one_hot_matrix(fasta_path)
 
@@ -666,7 +691,7 @@ class UmapRunner(SeqWriter):
                 seq_hdbscan_clusterer.HdbClusterer().run(
                     points=points,
                     true_labels=true_labels,
-                    plot_path=plot_path,
+                    plot_path=plot_path if save_dir else None,
                     **settings,
                 )
             )

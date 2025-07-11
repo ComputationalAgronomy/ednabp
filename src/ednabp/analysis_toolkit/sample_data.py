@@ -247,13 +247,13 @@ class SampleData:
         df = self._convert_str_to_date(df, date_column, date_format)
 
         for sample_id in self.import_sample_id_list:
-            if sample_id not in df.index:
+            if str(sample_id) not in df.index.astype(str):
                 self.logger.warning(
                     f"WARNING: Sample ID '{sample_id}' not found in the sample metadata table."
                 )
             else:
                 self.sample_metadata[sample_id] = df.loc[
-                    df.index == sample_id
+                    df.index.astype(str) == str(sample_id)
                 ].to_dict("records")[0]
 
     def _convert_str_to_date(

@@ -22,9 +22,9 @@ class RankCorrPlotter(DMPlotter):
         aggfunc: Literal["mean", "sum"] = "mean",
         rcorr: Literal["kendall", "spearman"] = "kendall",
         alpha: float = 0.05,
-        colorscale: str = "tempo",
         save_dir: str = None,
         overwrite: bool = False,
+        **kwargs,
     ) -> pd.DataFrame:
         """
         Create a rank correlation plot from a CSV file.
@@ -37,7 +37,8 @@ class RankCorrPlotter(DMPlotter):
         self._load_and_validate_data(csv_path, set(columns + [values, index]))
         self._process_data(values, index, columns, aggfunc, rcorr, alpha)
         self._prepare_plot_data()
-        self._create_plot(colorscale)
+        self.kwargs = kwargs
+        self._create_plot()
         self._display_and_save(save_dir, overwrite)
         return self.corr_df
 
@@ -147,56 +148,271 @@ class RankCorrPlotter(DMPlotter):
         self.union_inter_z = np.array(self.union_inter_list).reshape(shp, shp)
 
     @base_logger.prog_log("Create plot")
-    def _create_plot(self, colorscale):
+    def _create_plot(self):
         self.fig = make_subplots(
             rows=1,
             cols=3,
-            subplot_titles=[
-                "Coefficient Matrix",
-                "Significant Matrix",
-                "Union(tril)-Intersection(triu) Matrix",
-            ],
-            shared_xaxes=False,
-            shared_yaxes=True,
             horizontal_spacing=0.1,
         )
         self.fig.add_trace(
-            go.Heatmap(
-                z=self.coef_z,
-                y=self.x,
-                x=self.x,
-                colorbar={"title": "Coef", "x": 0.29},
-                colorscale=colorscale,
-            ),
+            go.Heatmap(z=self.coef_z, y=self.x, x=self.x),
             row=1,
             col=1,
         )
         self.fig.add_trace(
-            go.Heatmap(
-                z=self.sign_z,
-                y=self.x,
-                x=self.x,
-                colorbar={"title": "Sign", "x": 0.655},
-                colorscale=colorscale,
-            ),
+            go.Heatmap(z=self.sign_z, y=self.x, x=self.x),
             row=1,
             col=2,
         )
         self.fig.add_trace(
-            go.Heatmap(
-                z=self.union_inter_z,
-                y=self.x,
-                x=self.x,
-                colorbar={"title": "Union-Inter"},
-                colorscale=colorscale,
-            ),
+            go.Heatmap(z=self.union_inter_z, y=self.x, x=self.x),
             row=1,
             col=3,
         )
+
+        self._update_fig_default_settings()
+        self._add_fig_setting()
+
+    def _update_fig_default_settings(self):
+        FIG_DEFAULT_SETTINGS = {
+            "title": "Comparison of Matrices",
+            "title_font_size": 24,
+            "title_x": 0.5,
+            "title_y": 0.95,
+            "title_xanchor": "center",
+            "title_yanchor": "top",
+            "x_axis_title": None,
+            "y_axis_title": None,
+            "axes_title_font": 20,
+            "show_xticks": True,
+            "show_yticks": True,
+            "show_yticks_shared": False,
+            "axes_tick_font": 18,
+            "showlegend": False,
+            "legend_font": 15,
+            "legend_x_position": 1.05,
+            "legend_y_position": 1.0,
+            "legend_orientation": "h",
+            "legend_traceorder": "normal",
+            "autosize": True,
+            "width": 1500,
+            "height": 500,
+            # Margin settings
+            "margin_left": 80,
+            "margin_right": 80,
+            "margin_top": 100,
+            "margin_bottom": 80,
+            # Background settings
+            "paper_bgcolor": "white",
+            "plot_bgcolor": "white",
+            "font_family": "Arial",
+            # Grid settings
+            "xgap": 0.1,
+            "ygap": 0.1,
+            # Subplot title font size
+            "subplot_title_font_size": 18,
+            # Subplot specific settings
+            "shared_xaxes": False,
+            "shared_yaxes": True,
+            "subplot_title_1": "Coefficient Matrix",
+            "subplot_title_2": "Significant Matrix",
+            "subplot_title_3": "Union(tril)-Intersection(triu) Matrix",
+            # Tick modes for axes
+            "tickmode_x_1": "auto",
+            "tickmode_x_2": "auto",
+            "tickmode_x_3": "auto",
+            "tickmode_y_1": "auto",
+            "tickmode_y_2": "auto",
+            "tickmode_y_3": "auto",
+            # Axis titles for subplots
+            "x_axis_title_1": None,
+            "x_axis_title_2": None,
+            "x_axis_title_3": None,
+            "y_axis_title_1": None,
+            "y_axis_title_2": None,
+            "y_axis_title_3": None,
+            # Colorbar settings
+            "colorbar_title_1": "Coef",
+            "colorbar_x_1": 0.29,
+            "colorbar_title_2": "Sign",
+            "colorbar_x_2": 0.655,
+            "colorbar_title_3": "Union-Inter",
+            "colorbar_x_3": 0.99,
+            "colorbar_thickness_1": 20,
+            "colorbar_thickness_2": 20,
+            "colorbar_thickness_3": 20,
+            "colorbar_len_1": 0.8,
+            "colorbar_len_2": 0.8,
+            "colorbar_len_3": 0.8,
+            # Z range settings
+            "zmin_1": None,
+            "zmax_1": None,
+            "zmin_2": None,
+            "zmax_2": None,
+            "zmin_3": None,
+            "zmax_3": None,
+            # Colorscale options
+            "colorscale_1": "RdBu",
+            "colorscale_2": "RdBu",
+            "colorscale_3": "RdBu",
+        }
+
+        # Update with user-provided settings
+        if hasattr(self, "kwargs"):
+            for key, value in self.kwargs.items():
+                FIG_DEFAULT_SETTINGS[key] = value
+
+        self.fig_sets = FIG_DEFAULT_SETTINGS
+
+    def _add_fig_setting(self):
         self.fig.update_layout(
-            title_text="Comparison of Matrices",
-            width=1500,
-            height=500,
+            grid={
+                "rows": 1,
+                "columns": 3,
+                "pattern": "independent",
+                "xgap": self.fig_sets["xgap"],
+                "ygap": self.fig_sets["ygap"],
+            }
+        )
+
+        self.fig.update_layout(
+            annotations=[
+                {
+                    "text": self.fig_sets["subplot_title_1"],
+                    "font": {"size": self.fig_sets["subplot_title_font_size"]},
+                    "xref": "x domain",
+                    "yref": "y domain",
+                    "x": 0.5,
+                    "y": 1.05,
+                    "xanchor": "center",
+                    "yanchor": "bottom",
+                    "showarrow": False,
+                },
+                {
+                    "text": self.fig_sets["subplot_title_2"],
+                    "font": {"size": self.fig_sets["subplot_title_font_size"]},
+                    "xref": "x2 domain",
+                    "yref": "y2 domain",
+                    "x": 0.5,
+                    "y": 1.05,
+                    "xanchor": "center",
+                    "yanchor": "bottom",
+                    "showarrow": False,
+                },
+                {
+                    "text": self.fig_sets["subplot_title_3"],
+                    "font": {"size": self.fig_sets["subplot_title_font_size"]},
+                    "xref": "x3 domain",
+                    "yref": "y3 domain",
+                    "x": 0.5,
+                    "y": 1.05,
+                    "xanchor": "center",
+                    "yanchor": "bottom",
+                    "showarrow": False,
+                },
+            ]
+        )
+
+        # Configure shared axes
+        if self.fig_sets["shared_xaxes"]:
+            self.fig.update_layout(
+                xaxis2={"matches": "x"}, xaxis3={"matches": "x"}
+            )
+        if self.fig_sets["shared_yaxes"]:
+            self.fig.update_layout(
+                yaxis2={"matches": "y"}, yaxis3={"matches": "y"}
+            )
+
+        for i, trace_idx in enumerate([0, 1, 2], 1):
+            colorbar_settings = {
+                "title": self.fig_sets[f"colorbar_title_{i}"],
+                "thickness": self.fig_sets[f"colorbar_thickness_{i}"],
+                "len": self.fig_sets[f"colorbar_len_{i}"],
+                "x": self.fig_sets[f"colorbar_x_{i}"],
+            }
+
+            self.fig.data[trace_idx].update(
+                colorbar=colorbar_settings,
+                colorscale=self.fig_sets[f"colorscale_{i}"],
+                zmin=self.fig_sets[f"zmin_{i}"],
+                zmax=self.fig_sets[f"zmax_{i}"],
+            )
+
+        # Update x-axes for all subplots
+        for i in range(1, 4):
+            x_axis_name = "xaxis" if i == 1 else f"xaxis{i}"
+            self.fig.update_layout(
+                **{
+                    x_axis_name: {
+                        "title": {
+                            "text": self.fig_sets[f"x_axis_title_{i}"]
+                            if self.fig_sets[f"x_axis_title_{i}"] is not None
+                            else self.fig_sets["x_axis_title"],
+                            "font": {"size": self.fig_sets["axes_title_font"]},
+                        },
+                        "tickfont": {"size": self.fig_sets["axes_tick_font"]},
+                        "showticklabels": self.fig_sets["show_xticks"],
+                        "tickmode": self.fig_sets[f"tickmode_x_{i}"],
+                    }
+                }
+            )
+
+        # Update y-axes for all subplots
+        for i in range(1, 4):
+            y_axis_name = "yaxis" if i == 1 else f"yaxis{i}"
+            show_yticks = (
+                self.fig_sets["show_yticks"]
+                if i == 1
+                else self.fig_sets["show_yticks_shared"]
+            )
+
+            self.fig.update_layout(
+                **{
+                    y_axis_name: {
+                        "title": {
+                            "text": self.fig_sets[f"y_axis_title_{i}"]
+                            if self.fig_sets[f"y_axis_title_{i}"] is not None
+                            else self.fig_sets["y_axis_title"],
+                            "font": {"size": self.fig_sets["axes_title_font"]},
+                        },
+                        "tickfont": {"size": self.fig_sets["axes_tick_font"]},
+                        "showticklabels": show_yticks,
+                        "tickmode": self.fig_sets[f"tickmode_y_{i}"],
+                    }
+                }
+            )
+
+        self.fig.update_layout(
+            title={
+                "text": self.fig_sets["title"],
+                "font": {"size": self.fig_sets["title_font_size"]},
+                "x": self.fig_sets["title_x"],
+                "y": self.fig_sets["title_y"],
+                "xanchor": self.fig_sets["title_xanchor"],
+                "yanchor": self.fig_sets["title_yanchor"],
+            }
+            if self.fig_sets["title"]
+            else None,
+            autosize=self.fig_sets["autosize"],
+            width=self.fig_sets["width"],
+            height=self.fig_sets["height"],
+            showlegend=self.fig_sets["showlegend"],
+            legend={
+                "x": self.fig_sets["legend_x_position"],
+                "y": self.fig_sets["legend_y_position"],
+                "traceorder": self.fig_sets["legend_traceorder"],
+                "orientation": self.fig_sets["legend_orientation"],
+                "font": {"size": self.fig_sets["legend_font"]},
+            },
+            margin={
+                "l": self.fig_sets["margin_left"],
+                "r": self.fig_sets["margin_right"],
+                "t": self.fig_sets["margin_top"],
+                "b": self.fig_sets["margin_bottom"],
+            },
+            paper_bgcolor=self.fig_sets["paper_bgcolor"],
+            plot_bgcolor=self.fig_sets["plot_bgcolor"],
+            font_family=self.fig_sets["font_family"],
         )
 
     @base_logger.prog_log("Display and save (if 'save_dir' provided)")

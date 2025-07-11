@@ -35,7 +35,8 @@ class BarchartPlotter(DMPlotter):
         self._load_and_validate_data(csv_path, set(columns + [values, index]))
         self._process_data(values, index, columns, aggfunc)
         self._prepare_plot_data()
-        self._create_plot(kwargs)
+        self.kwargs = kwargs
+        self._create_plot()
         self._display_and_save(save_dir, overwrite)
         return self.pivot_table
 
@@ -84,55 +85,80 @@ class BarchartPlotter(DMPlotter):
         self.color = self.pivot_table.index
 
     @base_logger.prog_log("Create plot")
-    def _create_plot(self, kwargs):
+    def _create_plot(self):
         self.fig = go.Figure()
         for y, c in zip(self.y, self.color, strict=False):
             self.fig.add_bar(x=self.x, y=y, name=c)
-        self._update_fig_default_settings(kwargs)
+        self._update_fig_default_settings()
         self._add_fig_setting()
 
-    def _update_fig_default_settings(self, kwargs):
+    def _update_fig_default_settings(self):
         FIG_DEFAULT_SETTINGS = {
-            "x_axis_title": "Sample ID",
-            "y_axis_title": "Percentage (%)",
+            "title": None,
+            "title_font_size": 24,
+            "x_axis_title": None,
+            "y_axis_title": None,
             "axes_title_font": 20,
+            "show_xticks": True,
+            "show_yticks": True,
             "axes_tick_font": 18,
+            "showlegend": True,
             "legend_font": 15,
             "legend_x_position": 1.05,
             "legend_y_position": 1.0,
+            "legend_orientation": "h",
+            "legend_traceorder": "normal",
+            "autosize": True,
+            "width": None,
+            "height": None,
+            "barmode": "stack",
+            "bargap": 0,
+            "bargroupgap": 0,
         }
-        for key, value in kwargs.items():
-            if key in FIG_DEFAULT_SETTINGS:
-                FIG_DEFAULT_SETTINGS[key] = value
+        for key, value in self.kwargs.items():
+            FIG_DEFAULT_SETTINGS[key] = value
 
         self.fig_sets = FIG_DEFAULT_SETTINGS
 
     def _add_fig_setting(
         self,
     ):
-        # self.fig.update_xaxes(
-        #     tickmode='linear',
-        #     title=dict(
-        #         text=self.fig_sets["x_axis_title"],
-        #         font=dict(size=self.fig_sets["axes_title_font"])
-        #         ),
-        #     tickfont=dict(size=self.fig_sets["axes_tick_font"])
-        # )
-        # self.fig.update_yaxes(
-        #     title=dict(
-        #         text=self.fig_sets["y_axis_title"],
-        #         font=dict(size=self.fig_sets["axes_title_font"])
-        #     ),
-        #     tickfont=dict(size=self.fig_sets["axes_tick_font"])
-        # )
+        self.fig.update_xaxes(
+            tickmode="linear",
+            title={
+                "text": self.fig_sets["x_axis_title"],
+                "font": {"size": self.fig_sets["axes_title_font"]},
+            },
+            tickfont={"size": self.fig_sets["axes_tick_font"]},
+            showticklabels=self.fig_sets["show_xticks"],
+        )
+        self.fig.update_yaxes(
+            title={
+                "text": self.fig_sets["y_axis_title"],
+                "font": {"size": self.fig_sets["axes_title_font"]},
+            },
+            tickfont={"size": self.fig_sets["axes_tick_font"]},
+            showticklabels=self.fig_sets["show_yticks"],
+        )
         self.fig.update_layout(
-            autosize=True,
-            barmode="stack",
+            title={
+                "text": self.fig_sets["title"],
+                "font": {"size": self.fig_sets["title_font_size"]},
+            }
+            if self.fig_sets["title"]
+            else None,
+            autosize=self.fig_sets["autosize"],
+            width=self.fig_sets["width"],
+            height=self.fig_sets["height"],
+            barmode=self.fig_sets["barmode"],
+            bargap=self.fig_sets["bargap"],
+            bargroupgap=self.fig_sets["bargroupgap"],
+            showlegend=self.fig_sets["showlegend"],
             legend={
                 "x": self.fig_sets["legend_x_position"],
                 "y": self.fig_sets["legend_y_position"],
-                "traceorder": "normal",
-                "orientation": "h",
+                "traceorder": self.fig_sets["legend_traceorder"],
+                "orientation": self.fig_sets["legend_orientation"],
                 "font": {"size": self.fig_sets["legend_font"]},
             },
         )

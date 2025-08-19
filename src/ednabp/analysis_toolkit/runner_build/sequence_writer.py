@@ -26,7 +26,7 @@ class SeqWriter(base_writer.Writer, ABC):
             ].hap2level.items():
                 if kargs["taxon_name"] != level_dict[kargs["taxa_level"]]:
                     continue
-                unit_name = level_dict[kargs["unit_level"]]
+                unit_name = f"{level_dict['class']}_{level_dict['family']}_{level_dict[kargs['unit_level']]}"
                 title = f"{unit_name}-{sample_id}_{hap}"
                 seq = self.sample_data[sample_id].hap_seq[hap]
                 self.units2fasta[unit_name] += f">{title}\n{seq}\n"

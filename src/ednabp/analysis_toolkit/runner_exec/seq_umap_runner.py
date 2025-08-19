@@ -6,6 +6,7 @@ import matplotlib.cm
 import matplotlib.colors
 import matplotlib.pyplot as plt
 import numpy as np
+import pacmap
 import pandas as pd
 import umap
 from Bio import SeqIO
@@ -26,7 +27,6 @@ class UmapRunner(SeqWriter):
     def __init__(self, sampledata, verbose=True):
         super().__init__(sampledata, verbose)
         self.units2taxa = {}
-        self.index_list = []
 
     @base_logger.prog_log("Write UMAP index file")
     def write_umap_index(
@@ -65,6 +65,7 @@ class UmapRunner(SeqWriter):
         :param dereplicate_sequence: If True, use unique sequences as input data for UMAP. Default is False.
         :param sample_id_list: A list of sample IDs to use for UMAP. Default is None (use all samples).
         """
+        self.index_list = []
         os.makedirs(save_dir, exist_ok=True)
         index_path = os.path.join(save_dir, "umap_index.tsv")
         aln_index_fasta_path = os.path.join(save_dir, "input.aln")
@@ -194,7 +195,7 @@ class UmapRunner(SeqWriter):
             ):
                 for i, record in enumerate(SeqIO.parse(in_handle, "fasta")):
                     index = str(i)
-                    unit = record.description.split("-")[0]
+                    unit = record.description.rsplit("-", maxsplit=1)[0]
                     seq_id = record.description
 
                     self.index_list.append([index, seq_id, unit])
@@ -670,9 +671,14 @@ class UmapRunner(SeqWriter):
             self.logger.info("HDBSCAN UMAP embeddings for all units...")
             points = self.filtered_index[["umap1", "umap2"]].to_numpy()
             true_labels = self.filtered_index["unit"]
+            if save_dir:
+                plot_path = os.path.join(save_dir, "hdbscan_all.png")
             df.loc[len(df)] = ["all"] + list(
                 seq_hdbscan_clusterer.HdbClusterer().run(
-                    points=points, true_labels=true_labels, **settings
+                    points=points,
+                    true_labels=true_labels,
+                    plot_path=plot_path if save_dir else None,
+                    **settings,
                 )
             )
             return df

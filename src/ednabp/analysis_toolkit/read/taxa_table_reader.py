@@ -2,6 +2,22 @@ from ..runner_build import base_logger
 from .base_reader import Reader
 
 
+def generate_error_table(
+    error_code: str = ':/\\*?"<>|', replace_symbol: str = "_"
+) -> dict[str, str]:
+    """
+    Generate an error table to translate illegal characters in species names to a standard symbol.
+
+    :param error_code: The error code used in the BLAST table.
+    :param replace_symbol: The symbol to replace the error code with.
+    :return: A dictionary containing the error code as the key and the replace symbol as the value.
+    """
+    key2 = list(error_code)
+    error_translation = dict.fromkeys(key2, replace_symbol)
+    error_symbol = str.maketrans(error_translation)
+    return error_symbol
+
+
 class TaxaTableReader(Reader):
     DESIRED_LEVEL = [
         "species",
@@ -18,23 +34,8 @@ class TaxaTableReader(Reader):
 
     def __init__(self):
         super().__init__()
-        self.error_table = TaxaTableReader.generate_error_table()
+        self.error_table = generate_error_table()
         self.hap2level = {}
-
-    def generate_error_table(
-        error_code: str = ':/\\*?"<>|', replace_symbol: str = "_"
-    ) -> dict[str, str]:
-        """
-        Generate an error table to translate illegal characters in species names to a standard symbol.
-
-        :param error_code: The error code used in the BLAST table.
-        :param replace_symbol: The symbol to replace the error code with.
-        :return: A dictionary containing the error code as the key and the replace symbol as the value.
-        """
-        key2 = list(error_code)
-        error_translation = dict.fromkeys(key2, replace_symbol)
-        error_symbol = str.maketrans(error_translation)
-        return error_symbol
 
     @base_logger.prog_log(prog_name="Read Taxa CSV Table")
     def read_taxa_table(self, blast_table: str):

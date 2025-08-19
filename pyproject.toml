@@ -22,7 +22,7 @@ dynamic = ["dependencies"]
 dependencies = {file = ["requirements.txt"]}
 
 [project.scripts]
-eDNAbp = "fastq_processor_cli.cli:main"
+eDNAbp = "ednabp.cli.pipeline:main"
 
 [project.urls]
 "Homepage" = "https://github.com/ComputationalAgronomy/ednabp.git"

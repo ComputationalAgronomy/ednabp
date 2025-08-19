@@ -2,7 +2,7 @@
 
 import argparse
 
-from ..fastq_processor.run_processor import DEFAULT_SETTINGS
+from ..bp.run_bp import DEFAULT_SETTINGS
 
 
 def main():
@@ -311,9 +311,9 @@ def main():
 
     options = vars(parser.parse_args())
 
-    from ednabp import FastqProcessor
+    from ..bp.run_bp import BioPipeline
 
-    FastqProcessor(**options)
+    BioPipeline(**options)
 
 
 class MyFormatter(argparse.HelpFormatter):

@@ -2,6 +2,15 @@ import os
 
 from ..analysis_toolkit.runner_build import base_logger
 from .step_build import stage_config
+from .step_exec import (
+    assigntaxa,
+    cutprimer,
+    decompress,
+    denoise,
+    dereplicate,
+    fqtofa,
+    merge,
+)
 
 DEFAULT_SETTINGS = {
     "enabled_stages": [
@@ -64,7 +73,7 @@ DEFAULT_SETTINGS = {
 }
 
 
-class FastqProcessor:
+class BioPipeline:
     def __init__(self, input_path: str, output_path: str, **settings):
         """
         A pipeline for processing eDNA bioinformatics workflows.
@@ -146,24 +155,14 @@ class FastqProcessor:
             self.run_stages_one_file(input_path)
 
     def add_default_settings(self, settings):
-        from .step_exec import (
-            assign_taxa,
-            cut_primer,
-            decompress,
-            denoise,
-            dereplicate,
-            fq_to_fa,
-            merge,
-        )
-
         self.stage_class = {
             "decompress": decompress.DecompressStage,
             "merge": merge.MergeStage,
-            "cutprimer": cut_primer.CutPrimerStage,
-            "fqtofa": fq_to_fa.FqToFaStage,
+            "cutprimer": cutprimer.CutPrimerStage,
+            "fqtofa": fqtofa.FqToFaStage,
             "dereplicate": dereplicate.DereplicateStage,
             "denoise": denoise.DenoiseStage,
-            "assigntaxa": assign_taxa.AssignTaxaStage,
+            "assigntaxa": assigntaxa.AssignTaxaStage,
         }
 
         self.enabled_stages = settings.get(

@@ -2,6 +2,8 @@
 
 import argparse
 
+from ..fastq_processor.run_processor import DEFAULT_SETTINGS
+
 
 def main():
     argument_groups = {
@@ -26,7 +28,9 @@ def main():
                 "args": ["-e", "--enabled-stages"],
                 "kwargs": {
                     "nargs": "+",
-                    "help": "Process stages to be executed in order (default [run all stages]: decompress merge cutprimer fqtofa dereplicate denoise assigntaxa).",
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["enabled_stages"],
+                    "help": "Process stages to be executed in order (default [run all stages]: %(default)s).",
                 },
             }
         ],
@@ -34,43 +38,57 @@ def main():
             {
                 "args": ["--decompress-dir-name"],
                 "kwargs": {
-                    "help": "Name of the subdirectory for the decompression stage (default: decompress)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["dir_name"]["decompress"],
+                    "help": "Name of the subdirectory for the decompression stage (default: %(default)s).",
                 },
             },
             {
                 "args": ["--merge-dir-name"],
                 "kwargs": {
-                    "help": "Name of the subdirectory for the merge stage (default: merge)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["dir_name"]["merge"],
+                    "help": "Name of the subdirectory for the merge stage (default: %(default)s).",
                 },
             },
             {
                 "args": ["--cutprimer-dir-name"],
                 "kwargs": {
-                    "help": "Name of the subdirectory for the cut-primer stage (default: cutprimer)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["dir_name"]["cutprimer"],
+                    "help": "Name of the subdirectory for the cut-primer stage (default: %(default)s).",
                 },
             },
             {
                 "args": ["--fqtofa-dir-name"],
                 "kwargs": {
-                    "help": "Name of the subdirectory for FastQ to FastA conversion (default: fqtofa)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["dir_name"]["fqtofa"],
+                    "help": "Name of the subdirectory for FastQ to FastA conversion (default: %(default)s).",
                 },
             },
             {
                 "args": ["--dereplicate-dir-name"],
                 "kwargs": {
-                    "help": "Name of the subdirectory for the dereplication stage (default: dereplicate)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["dir_name"]["dereplicate"],
+                    "help": "Name of the subdirectory for the dereplication stage (default: %(default)s).",
                 },
             },
             {
                 "args": ["--denoise-dir-name"],
                 "kwargs": {
-                    "help": "Name of the subdirectory for the denoising stage (default: denoise)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["dir_name"]["denoise"],
+                    "help": "Name of the subdirectory for the denoising stage (default: %(default)s).",
                 },
             },
             {
                 "args": ["--assigntaxa-dir-name"],
                 "kwargs": {
-                    "help": "Name of the subdirectory for taxonomic assignment (default: assigntaxa)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["dir_name"]["assigntaxa"],
+                    "help": "Name of the subdirectory for taxonomic assignment (default: %(default)s).",
                 },
             },
         ],
@@ -78,43 +96,57 @@ def main():
             {
                 "args": ["--raw-suffix"],
                 "kwargs": {
-                    "help": "File suffix for raw input sequences (default: _R1.fastq.gz)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["suffix"]["raw"],
+                    "help": "File suffix for raw input sequences (default: %(default)s).",
                 },
             },
             {
                 "args": ["--decompress-suffix"],
                 "kwargs": {
-                    "help": "File suffix for decompressed sequences (default: _R1.fastq)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["suffix"]["decompress"],
+                    "help": "File suffix for decompressed sequences (default: %(default)s).",
                 },
             },
             {
                 "args": ["--merge-suffix"],
                 "kwargs": {
-                    "help": "File suffix for merged sequences (default: _merged.fastq)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["suffix"]["merge"],
+                    "help": "File suffix for merged sequences (default: %(default)s).",
                 },
             },
             {
                 "args": ["--cutprimer-suffix"],
                 "kwargs": {
-                    "help": "File suffix for trimmed sequences (default: _trimmed.fastq)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["suffix"]["cutprimer"],
+                    "help": "File suffix for trimmed sequences (default: %(default)s).",
                 },
             },
             {
                 "args": ["--dereplicate-suffix"],
                 "kwargs": {
-                    "help": "File suffix for dereplicated sequences (default: _uniqs.fasta)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["suffix"]["dereplicate"],
+                    "help": "File suffix for dereplicated sequences (default: %(default)s).",
                 },
             },
             {
                 "args": ["--denoise-suffix"],
                 "kwargs": {
-                    "help": "File suffix for denoised sequences (default: _zotus.fasta)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["suffix"]["denoise"],
+                    "help": "File suffix for denoised sequences (default: %(default)s).",
                 },
             },
             {
                 "args": ["--assigntaxa-suffix"],
                 "kwargs": {
-                    "help": "File suffix for taxonomic assignment results (default: _taxa.csv)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["suffix"]["assigntaxa"],
+                    "help": "File suffix for taxonomic assignment results (default: %(default)s).",
                 },
             },
         ],
@@ -123,14 +155,16 @@ def main():
                 "args": ["--maxdiff"],
                 "kwargs": {
                     "type": int,
-                    "help": "Maximum number of mismatches in alignment during merging (default: 5).",
+                    "default": DEFAULT_SETTINGS["merge"]["maxdiff"],
+                    "help": "Maximum number of mismatches in alignment during merging (default: %(default)s).",
                 },
             },
             {
                 "args": ["--pctid"],
                 "kwargs": {
                     "type": int,
-                    "help": "Minimum percentage identity required for merging reads (default: 90).",
+                    "default": DEFAULT_SETTINGS["merge"]["pctid"],
+                    "help": "Minimum percentage identity required for merging reads (default: %(default)s).",
                 },
             },
         ],
@@ -138,34 +172,41 @@ def main():
             {
                 "args": ["--rm-p-5"],
                 "kwargs": {
-                    "help": "Non-internal 5’ primer (default [MiFish-UF]: GTCGGTAAAACTCGTGCCAGC)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["cutprimer"]["rm_p_5"],
+                    "help": "Non-internal 5’ primer (default [MiFish-UF]: %(default)s).",
                 },
             },
             {
                 "args": ["--rm-p-3"],
                 "kwargs": {
-                    "help": "Non-internal 3’ primer (default [rev-com MiFish-UR]: CAAACTGGGATTAGATACCCCACTATG)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["cutprimer"]["rm_p_3"],
+                    "help": "Non-internal 3’ primer (default [rev-com MiFish-UR]: %(default)s).",
                 },
             },
             {
                 "args": ["--error-rate"],
                 "kwargs": {
                     "type": float,
-                    "help": "Maximum allowable error rate for primer matching (default: 0.15).",
+                    "default": DEFAULT_SETTINGS["cutprimer"]["error_rate"],
+                    "help": "Maximum allowable error rate for primer matching (default: %(default)s).",
                 },
             },
             {
                 "args": ["--min-read-len"],
                 "kwargs": {
                     "type": int,
-                    "help": "Minimum length of processed reads (default: 204).",
+                    "default": DEFAULT_SETTINGS["cutprimer"]["min_read_len"],
+                    "help": "Minimum length of processed reads (default: %(default)s).",
                 },
             },
             {
                 "args": ["--max-read-len"],
                 "kwargs": {
                     "type": int,
-                    "help": "Maximum length of processed reads (default: 254).",
+                    "default": DEFAULT_SETTINGS["cutprimer"]["max_read_len"],
+                    "help": "Maximum length of processed reads (default: %(default)s).",
                 },
             },
         ],
@@ -174,14 +215,16 @@ def main():
                 "args": ["--minsize"],
                 "kwargs": {
                     "type": int,
-                    "help": "Minimum abundance of sequences to retain during denoising (default: 8).",
+                    "default": DEFAULT_SETTINGS["denoise"]["minsize"],
+                    "help": "Minimum abundance of sequences to retain during denoising (default: %(default)s).",
                 },
             },
             {
                 "args": ["--alpha"],
                 "kwargs": {
                     "type": int,
-                    "help": "Denoising sensitivity parameter (default: 2).",
+                    "default": DEFAULT_SETTINGS["denoise"]["alpha"],
+                    "help": "Denoising sensitivity parameter (default: %(default)s).",
                 },
             },
         ],
@@ -189,40 +232,49 @@ def main():
             {
                 "args": ["-db", "--db-path"],
                 "kwargs": {
-                    "help": "Path to the taxonomic database (default: None)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["assigntaxa"]["db_path"],
+                    "help": "Path to the taxonomic database (default: %(default)s).",
                 },
             },
             {
                 "args": ["-ln", "--lineage-path"],
                 "kwargs": {
-                    "help": "Path to the taxonomic lineage file (default: None)."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["assigntaxa"]["lineage_path"],
+                    "help": "Path to the taxonomic database (default: %(default)s).",
                 },
             },
             {
                 "args": ["--evalue"],
                 "kwargs": {
                     "type": float,
-                    "help": "Expectation value (E) threshold for saving hits (default: 0.00001).",
+                    "default": DEFAULT_SETTINGS["assigntaxa"]["evalue"],
+                    "help": "Expectation value (E) threshold for saving hits (default: %(default)s).",
                 },
             },
             {
                 "args": ["--qcov-hsp-perc"],
                 "kwargs": {
                     "type": int,
-                    "help": "Percentage of query coverage for high-scoring segment pairs (default: 90).",
+                    "default": DEFAULT_SETTINGS["assigntaxa"]["qcov_hsp_perc"],
+                    "help": "Percentage of query coverage for high-scoring segment pairs (default: %(default)s).",
                 },
             },
             {
                 "args": ["--perc-identity"],
                 "kwargs": {
                     "type": int,
-                    "help": "Minimum Percentage identity for taxonomic assignment (default: 90).",
+                    "default": DEFAULT_SETTINGS["assigntaxa"]["perc_identity"],
+                    "help": "Minimum Percentage identity for taxonomic assignment (default: %(default)s).",
                 },
             },
             {
                 "args": ["--specifiers"],
                 "kwargs": {
-                    "help": "Custom format specifiers for BLAST results. (default: 'qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore')."
+                    "type": str,
+                    "default": DEFAULT_SETTINGS["assigntaxa"]["specifiers"],
+                    "help": "Custom format specifiers for BLAST results. (default: %(default)s).",
                 },
             },
         ],
@@ -231,14 +283,16 @@ def main():
                 "args": ["--verbose"],
                 "kwargs": {
                     "action": "store_true",
-                    "help": "Enable detailed logging output (default: False).",
+                    "default": DEFAULT_SETTINGS["config"]["verbose"],
+                    "help": "Enable detailed logging output (default: %(default)s).",
                 },
             },
             {
                 "args": ["--n-cpu"],
                 "kwargs": {
                     "type": int,
-                    "help": "Number of CPU cores to use for processing (default: 1).",
+                    "default": DEFAULT_SETTINGS["config"]["n_cpu"],
+                    "help": "Number of CPU cores to use for processing (default: %(default)s).",
                 },
             },
         ],
@@ -285,7 +339,7 @@ class MyFormatter(argparse.HelpFormatter):
                 args_string = self._format_args(action, "")
                 for option_string in action.option_strings:
                     parts.append(option_string)
-                return "%s %s" % (", ".join(parts), args_string)
+                return "{} {}".format(", ".join(parts), args_string)
             return ", ".join(parts)
 
 

@@ -4,6 +4,37 @@ from ..runner_build import base_logger
 from .base_reader import Reader
 
 
+def read_denoise_line(line: str) -> list[str]:
+    """
+    Read a line containing 'denoise' string and return a list of the values.
+
+    :param line: one line from the denoise report
+    :return: [Amplicon_id, Size, Top]. e.g. ['Uniq1', '88422', 'amp1'], ['Uniq6', '8126', 'Uniq2']
+    """
+    line_list = [
+        "".join(t)
+        for t in DenoiseReportReader.RE_DENOISE_PATTERN.findall(line)
+    ]
+    # If Top is "ampXX", it is a true amplicon, otherwise, it is a noise.
+    if "amp" in line_list[2]:
+        line_list[2] = line_list[0]
+    return line_list
+
+
+def read_chifilter_line(line: str) -> list[str]:
+    """
+    Read a line containing 'chifilter' string and return a list of the values.
+
+    :param line: one line from the denoise report
+    :return: [Amplicon_id, Size, Assigned_type]. e.g. ['Uniq1', '88422', 'zotu'], ['Uniq102', '124', 'chimera']
+    """
+    line_list = [
+        "".join(t)
+        for t in DenoiseReportReader.RE_CHFILTER_PATTERN.findall(line)
+    ]
+    return line_list
+
+
 class DenoiseReportReader(Reader):
     RE_DENOISE_PATTERN = re.compile(
         r"(Uniq\d*)|size=(\d*)|(amp\d*)|top=(Uniq\d*)"
@@ -32,35 +63,6 @@ class DenoiseReportReader(Reader):
                 elif "chfilter" in line:
                     self.process_chifilter_line(line)
 
-    def read_denoise_line(line: str) -> list[str]:
-        """
-        Read a line containing 'denoise' string and return a list of the values.
-
-        :param line: one line from the denoise report
-        :return: [Amplicon_id, Size, Top]. e.g. ['Uniq1', '88422', 'amp1'], ['Uniq6', '8126', 'Uniq2']
-        """
-        line_list = [
-            "".join(t)
-            for t in DenoiseReportReader.RE_DENOISE_PATTERN.findall(line)
-        ]
-        # If Top is "ampXX", it is a true amplicon, otherwise, it is a noise.
-        if "amp" in line_list[2]:
-            line_list[2] = line_list[0]
-        return line_list
-
-    def read_chifilter_line(line: str) -> list[str]:
-        """
-        Read a line containing 'chifilter' string and return a list of the values.
-
-        :param line: one line from the denoise report
-        :return: [Amplicon_id, Size, Assigned_type]. e.g. ['Uniq1', '88422', 'zotu'], ['Uniq102', '124', 'chimera']
-        """
-        line_list = [
-            "".join(t)
-            for t in DenoiseReportReader.RE_CHFILTER_PATTERN.findall(line)
-        ]
-        return line_list
-
     def process_denoise_line(self, line: str):
         """
         Process a line containing 'denoise' string and update amp_size and hap2amp dictionaries.
@@ -68,7 +70,7 @@ class DenoiseReportReader(Reader):
 
         :param line: One line from the denoise report
         """
-        amplicon, size, top = DenoiseReportReader.read_denoise_line(line)
+        amplicon, size, top = read_denoise_line(line)
 
         self.amp_size[amplicon] = size
 
@@ -83,9 +85,7 @@ class DenoiseReportReader(Reader):
 
         :param line: One line from the denoise report
         """
-        old_top, size, assigned_type = DenoiseReportReader.read_chifilter_line(
-            line
-        )
+        old_top, size, assigned_type = read_chifilter_line(line)
 
         if assigned_type == "zotu":
             new_top = f"Zotu{self.zotu_count}"

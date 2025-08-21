@@ -2,10 +2,10 @@ import shlex
 import subprocess
 import sys
 
-from . import runner
+from . import base_runner
 
 
-class SubprocessRunner(runner.Runner):
+class SubprocessRunner(base_runner.Runner):
     """
     Runner class for executing a command as a subprocess.
 
@@ -65,7 +65,7 @@ class SubprocessRunner(runner.Runner):
                 return False
 
 
-class RedirectOutputRunner(runner.Runner):
+class RedirectOutputRunner(base_runner.Runner):
     """
     Runner class for redirecting the output of a subprocess to a file.
 

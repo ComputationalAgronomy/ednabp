@@ -11,7 +11,8 @@ class AssignTaxaStage(stage_builder.StageBuilder):
     def __init__(
         self,
         config,
-        heading="stage_blastn_assign_taxa.py",
+        heading=os.path.basename(__file__),
+        blast_prog="blastn",
         in_dir="",
         out_dir="",
         in_suffix="_denoise.fasta",
@@ -28,7 +29,7 @@ class AssignTaxaStage(stage_builder.StageBuilder):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
         )
-        self.BLAST_PROG = "blastn"
+        self.BLAST_PROG = blast_prog
         self.in_suffix = in_suffix
         self.out_suffix = out_suffix
         self.blast_outfile = None

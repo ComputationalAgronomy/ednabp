@@ -9,7 +9,7 @@ class FqToFaStage(stage_builder.StageBuilder):
     def __init__(
         self,
         config,
-        heading="stage_fq_to_fa.py",
+        heading=os.path.basename(__file__),
         in_dir="",
         out_dir="",
         in_suffix="_cut.fastq",

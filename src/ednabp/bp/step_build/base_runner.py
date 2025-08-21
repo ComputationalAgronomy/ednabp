@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from . import stage_config
+from ...common import config
 
 
 class Runner(ABC):
@@ -19,7 +19,7 @@ class Runner(ABC):
     MSG_LOG = "==LOG=="
     MSG_DEBUG = "===DEBUG==="
 
-    def __init__(self, prog_name: str, config: stage_config.StageConfig):
+    def __init__(self, prog_name: str, config: config.Config):
         self.prog_name = prog_name  # for debug/naming only
         self.message = f"Program: {self.prog_name}."
         self.capture_output = None

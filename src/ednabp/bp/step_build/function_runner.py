@@ -1,7 +1,7 @@
-from . import runner
+from . import base_runner
 
 
-class FunctionRunner(runner.Runner):
+class FunctionRunner(base_runner.Runner):
     def __init__(self, prog_name, function, config):
         super().__init__(prog_name, config)
         self.function = function

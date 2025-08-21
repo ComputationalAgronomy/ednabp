@@ -1,7 +1,8 @@
 import os
+import re
 
-from ..analysis_toolkit.runner_build import base_logger
-from .step_build import stage_config
+from ..common import base_logger, config
+from ..common.default_settings import SETTINGS
 from .step_exec import (
     assigntaxa,
     cutprimer,
@@ -11,66 +12,6 @@ from .step_exec import (
     fqtofa,
     merge,
 )
-
-DEFAULT_SETTINGS = {
-    "enabled_stages": [
-        "decompress",
-        "merge",
-        "cutprimer",
-        "fqtofa",
-        "dereplicate",
-        "denoise",
-        "assigntaxa",
-    ],
-    "dir_name": {
-        "decompress": "decompress",
-        "merge": "merge",
-        "cutprimer": "cutprimer",
-        "fqtofa": "fqtofa",
-        "dereplicate": "dereplicate",
-        "denoise": "denoise",
-        "assigntaxa": "assigntaxa",
-    },
-    "suffix": {
-        "raw": "_R1.fastq.gz",
-        "decompress": "_R1.fastq",
-        "merge": "_merged.fastq",
-        "cutprimer": "_trimmed.fastq",
-        "dereplicate": "_uniqs.fasta",
-        "denoise": "_zotus.fasta",
-        "assigntaxa": "_taxa.csv",
-    },
-    "merge": {
-        "maxdiff": 5,
-        "pctid": 90,
-    },
-    "cutprimer": {
-        "rm_p_5": "GTCGGTAAAACTCGTGCCAGC",
-        "rm_p_3": "CAAACTGGGATTAGATACCCCACTATG",
-        "error_rate": 0.15,
-        "min_read_len": 204,
-        "max_read_len": 254,
-    },
-    "denoise": {
-        "minsize": 8,
-        "alpha": 2,
-    },
-    "assigntaxa": {
-        "db_path": None,
-        "lineage_path": None,
-        "evalue": 0.00001,
-        "qcov_hsp_perc": 90,
-        "perc_identity": 90,
-        "specifiers": "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
-    },
-    "config": {
-        "verbose": False,
-        "dry": False,
-        "logger": base_logger.logger,
-        "n_cpu": 1,
-        "memory": 8,
-    },
-}
 
 
 class BioPipeline:
@@ -125,6 +66,11 @@ class BioPipeline:
             - specifiers (str): Output format specifiers for BLAST results. Default:
               "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore".
 
+          External Program Setting:
+            - usearch_prog (str): Command to execute USEARCH for merge, dereplicate, and denoise stages. Default: "usearch".
+            - cutadapt_prog (str): Command to execute Cutadapt for primer trimming stage. Default: "cutadapt".
+            - blast_prog (str): Command to execute BLAST for taxonomic assignment stage. Default: "blastn".
+
           Configuration Settings:
             - verbose (bool): Whether to enable verbose logging. Default: True.
             - dry (bool): If True, perform a dry run without executing commands. Default: False.
@@ -166,11 +112,11 @@ class BioPipeline:
         }
 
         self.enabled_stages = settings.get(
-            "enabled_stages", DEFAULT_SETTINGS["enabled_stages"]
+            "enabled_stages", SETTINGS["enabled_stages"]
         )
         self.stage_dir_name = {
             k: settings.get(f"{k}_dir_name", v)
-            for k, v in DEFAULT_SETTINGS["stage_dir_name"].items()
+            for k, v in SETTINGS["stage_dir_name"].items()
         }
         self.stage_dir = {
             k: os.path.join(self.outdir_path, v)
@@ -178,26 +124,26 @@ class BioPipeline:
         }
         self.stage_suffix = {
             k: settings.get(f"{k}_suffix", v)
-            for k, v in DEFAULT_SETTINGS["suffix"].items()
+            for k, v in SETTINGS["suffix"].items()
         }
         self.merge_settings = {
-            k: settings.get(k, v) for k, v in DEFAULT_SETTINGS["merge"].items()
+            k: settings.get(k, v) for k, v in SETTINGS["merge"].items()
         }
         self.cutprimer_settings = {
-            k: settings.get(k, v)
-            for k, v in DEFAULT_SETTINGS["cutprimer"].items()
+            k: settings.get(k, v) for k, v in SETTINGS["cutprimer"].items()
         }
         self.denoise_settings = {
-            k: settings.get(k, v)
-            for k, v in DEFAULT_SETTINGS["denoise"].items()
+            k: settings.get(k, v) for k, v in SETTINGS["denoise"].items()
         }
         self.assigntaxa_settings = {
-            k: settings.get(k, v)
-            for k, v in DEFAULT_SETTINGS["assigntaxa"].items()
+            k: settings.get(k, v) for k, v in SETTINGS["assigntaxa"].items()
+        }
+        self.prog_settings = {
+            k: settings.get(f"{k}_prog", v)
+            for k, v in SETTINGS["prog"].items()
         }
         self.config_settings = {
-            k: settings.get(k, v)
-            for k, v in DEFAULT_SETTINGS["config"].items()
+            k: settings.get(k, v) for k, v in SETTINGS["config"].items()
         }
 
     def add_config(self):
@@ -205,7 +151,7 @@ class BioPipeline:
             os.path.join(self.outdir_path, "stages.log")
         )
         self.config_settings["logger"].addHandler(fp_fh)
-        self.config = stage_config.StageConfig(settings=self.config_settings)
+        self.config = config.Config(settings=self.config_settings)
 
     def setup_stages(self):
         self.stages = {}
@@ -213,9 +159,18 @@ class BioPipeline:
         curr_suffix = self.stage_suffix["raw"]
         for stage in self.enabled_stages:
             if stage == "fqtofa":
-                self.stage_suffix["fqtofa"] = curr_suffix.replace(
-                    "fastq", "fasta"
-                )
+                m = re.match(r".*\.(fastq|fq)$", curr_suffix)
+                if m is not None:
+                    self.stage_suffix["fqtofa"] = curr_suffix.replace(
+                        m.group(1), "fasta"
+                    )
+                else:
+                    self.config.logger.warning(
+                        f"WARNING: The in_suffix '{curr_suffix}' does not match the expected format (.fq/.fastq) for the 'fqtofa' stage."
+                        "Skipping the stage"
+                    )
+                    continue
+
             stage_args = {
                 "config": self.config,
                 "in_dir": curr_dir,
@@ -223,6 +178,14 @@ class BioPipeline:
                 "in_suffix": curr_suffix,
                 "out_suffix": self.stage_suffix[stage],
             }
+
+            if stage in ["merge", "dereplicate", "denoise"]:
+                stage_args["usearch_prog"] = self.prog_settings["usearch"]
+            elif stage == "cutprimer":
+                stage_args["cutadapt_prog"] = self.prog_settings["cutadapt"]
+            elif stage == "assigntaxa":
+                stage_args["blast_prog"] = self.prog_settings["blast"]
+
             if stage in ["merge", "cutprimer", "denoise", "assigntaxa"]:
                 stage_args.update(eval(f"self.{stage}_settings"))
 
@@ -237,7 +200,9 @@ class BioPipeline:
             s.setup(prefix)
             is_complete = s.run()
             if not is_complete:
-                print(f"Error: process errors at stage: {k}\n")
+                self.config.logger.error(
+                    f"Error: process errors at stage: {k}\n"
+                )
                 break
             if self.config.verbose:
                 print()

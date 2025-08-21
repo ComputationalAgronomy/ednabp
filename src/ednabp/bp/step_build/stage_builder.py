@@ -1,7 +1,8 @@
 import os
 from abc import ABC, abstractmethod
 
-from . import function_runner, stage_config, subproces_runner
+from ...common import config
+from . import function_runner, subproces_runner
 
 
 class StageBuilder(ABC):
@@ -18,7 +19,7 @@ class StageBuilder(ABC):
     def __init__(
         self,
         heading: str,
-        config: stage_config.StageConfig,
+        config: config.Config,
         in_dir: str,
         out_dir: str,
     ):
@@ -102,13 +103,12 @@ class StageBuilder(ABC):
         """
         self.config.logger.info(f"Running: {self.heading}")
         self.output = []
-        for i, runner in enumerate(self.runners):
+        for runner in self.runners:
             out = runner.run()
             self.output.append(out)
-        # self.config.logger.flush()
         self.runners = []
         return all(self.output)
 
     @abstractmethod
-    def setup(self):
-        pass
+    def setup(self, prefix):
+        self.infile = os.path.join(self.in_dir, f"{prefix}{self.in_suffix}")

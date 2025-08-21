@@ -1,5 +1,6 @@
 import os
 
+from ...common.default_settings import SETTINGS
 from ..step_build import stage_builder
 
 
@@ -7,7 +8,8 @@ class MergeStage(stage_builder.StageBuilder):
     def __init__(
         self,
         config,
-        heading="stage_usearch_merge.py",
+        heading=os.path.basename(__file__),
+        usearch_prog="usearch",
         in_dir="",
         out_dir="",
         in_suffix="_R1.fastq",
@@ -18,10 +20,10 @@ class MergeStage(stage_builder.StageBuilder):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
         )
-        self.USEARCH_PROG = "usearch"  # TODO(SW): Don't use `.exe`, doesn't make sense in docker/ubuntu
+        self.USEARCH_PROG = usearch_prog
         self.in_suffix = in_suffix
         self.out_suffix = out_suffix
-        self.report_suffix = "_report.txt"
+        self.report_suffix = SETTINGS["suffix"]["report"]
         self.parse_params(maxdiff, pctid)
 
     def parse_params(self, maxdiff, pctid):

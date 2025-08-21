@@ -1,5 +1,6 @@
 import os
 
+from ...common.default_settings import SETTINGS
 from ..step_build import stage_builder
 
 
@@ -7,21 +8,24 @@ class DereplicateStage(stage_builder.StageBuilder):
     def __init__(
         self,
         config,
-        heading="stage_usearch_dereplicate.py",
+        heading=os.path.basename(__file__),
+        usearch_prog="usearch",
         in_dir="",
         out_dir="",
         in_suffix="_cut.fasta",
         out_suffix="_uniq.fasta",
         annot_size: bool = True,
         seq_label: str = "Uniq",
+        write_report: bool = True,
     ):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
         )
-        self.USEARCH_PROG = "usearch"  # TODO(SW): Don't use `.exe`, doesn't make sense in docker/ubuntu
+        self.USEARCH_PROG = usearch_prog
         self.in_suffix = in_suffix
         self.out_suffix = out_suffix
-        self.report_suffix = "_report.txt"
+        self.report_suffix = SETTINGS["suffix"]["report"]
+        self.write_report = write_report
         self.parse_params(annot_size, seq_label)
 
     def parse_params(self, annot_size, seq_label):
@@ -42,9 +46,10 @@ class DereplicateStage(stage_builder.StageBuilder):
             f" -fastaout {dereplicate_outfile}"
         )
         super().add_stage("Dereplicate trimmed sequences", cmd)
-        super().add_stage_output_to_file(
-            "Write usearch report", 0, report, report
-        )
+        if self.write_report:
+            super().add_stage_output_to_file(
+                "Write usearch report", 0, report, report
+            )
 
     def run(self):
         super().run()

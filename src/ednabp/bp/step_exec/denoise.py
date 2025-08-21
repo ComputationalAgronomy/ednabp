@@ -1,6 +1,7 @@
 import os
 import re
 
+from ...common.default_settings import SETTINGS
 from ..step_build import stage_builder
 
 
@@ -8,7 +9,8 @@ class DenoiseStage(stage_builder.StageBuilder):
     def __init__(
         self,
         config,
-        heading="stage_usearch_denoise.py",
+        heading=os.path.basename(__file__),
+        usearch_prog="usearch",
         in_dir="",
         out_dir="",
         in_suffix="_uniq.fasta",
@@ -19,13 +21,13 @@ class DenoiseStage(stage_builder.StageBuilder):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
         )
-        self.USEARCH_PROG = "usearch"
+        self.USEARCH_PROG = usearch_prog
         self.in_suffix = in_suffix
         self.out_suffix = out_suffix
         self.denoise_report_suffix = re.sub(
-            r"\.\w+", "_report.txt", out_suffix
+            r"\.\w+", SETTINGS["suffix"]["report"], out_suffix
         )
-        self.report_suffix = "_report.txt"
+        self.report_suffix = SETTINGS["suffix"]["report"]
         self.parse_params(minsize, alpha)
 
     def parse_params(self, minsize, alpha):

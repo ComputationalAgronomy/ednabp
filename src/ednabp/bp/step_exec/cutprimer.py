@@ -1,5 +1,6 @@
 import os
 
+from ...common.default_settings import SETTINGS
 from ..step_build import stage_builder
 
 
@@ -7,7 +8,8 @@ class CutPrimerStage(stage_builder.StageBuilder):
     def __init__(
         self,
         config,
-        heading="stage_cutadapt_cut_primer.py",
+        heading=os.path.basename(__file__),
+        cutadapt_prog="cutadapt",
         in_dir="",
         out_dir="",
         in_suffix="_merge.fastq",
@@ -21,10 +23,10 @@ class CutPrimerStage(stage_builder.StageBuilder):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
         )
-        self.CUTADAPT_PROG = "cutadapt"
+        self.CUTADAPT_PROG = cutadapt_prog
         self.in_suffix = in_suffix
         self.out_suffix = out_suffix
-        self.report_suffix = "_report.txt"
+        self.report_suffix = SETTINGS["suffix"]["report"]
         self.parse_params(
             rm_p_5, rm_p_3, min_read_len, max_read_len, error_rate
         )

@@ -7,8 +7,10 @@ import numpy as np
 import pandas as pd
 from Bio import AlignIO, SeqIO
 
-from ..runner_build import SeqWriter, base_logger, utils_sequence
+from ...common import base_logger
+from .base_writer import SeqWriter
 from .seq_hdbscan_clusterer import HDBSCAN_DEFAULT_SETTINGS
+from .util import utils, utils_sequence
 
 
 class NexusWriter(SeqWriter):
@@ -159,9 +161,9 @@ class NexusWriter(SeqWriter):
             uniq_fa_records = list(SeqIO.parse(uniq_fa_handle, "fasta"))
             fa_records = list(SeqIO.parse(fa_handle, "fasta"))
             for ufr in uniq_fa_records:
-                self.uniq_seqs2label_freq[ufr.name] = {
-                    labels: 0 for labels in self.uniq_labels
-                }
+                self.uniq_seqs2label_freq[ufr.name] = dict.fromkeys(
+                    self.uniq_labels, 0
+                )
 
                 for i, fr in enumerate(fa_records):
                     if str(fr.seq) == str(ufr.seq):

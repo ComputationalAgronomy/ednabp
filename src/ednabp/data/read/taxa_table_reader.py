@@ -1,4 +1,4 @@
-from ..runner_build import base_logger
+from ...common import base_logger
 from .base_reader import Reader
 
 

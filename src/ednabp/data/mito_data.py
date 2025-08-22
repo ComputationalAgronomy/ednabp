@@ -2,11 +2,25 @@ import os
 
 import pandas as pd
 
-from .runner_build import base_logger
-from .sample_data import SampleData
+from ..common import base_logger
+from .bp_data import BPData
+
+SAMPLE_DETAILS_SHEET = "List of Sample Details"
+SPECIES_COMPARISON_SHEET = "Comparison of Samples"
+
+TAXONOMIC_COLUMNS = ["Class", "Order", "Family", "Scientific Name"]
+SPECIES_INFO_COLUMNS = [
+    "Scientific Name",
+    "Water area",
+    "Habitat",
+    "DepthS",
+    "DepthD",
+    "IUCN Red List Status",
+    "Importance in Fisheries",
+]
 
 
-class OneSampleMitoData:
+class SingleMitoData:
     """
     Attributes:
         hap_seq (dict): Dictionary mapping haploid IDs to their corresponding sequences.
@@ -29,20 +43,6 @@ class MitoFileReader:
                         IUCN status, and fisheries importance.
     """
 
-    SAMPLE_DETAILS_SHEET = "List of Sample Details"
-    SPECIES_COMPARISON_SHEET = "Comparison of Samples"
-
-    TAXONOMIC_COLUMNS = ["Class", "Order", "Family", "Scientific Name"]
-    SPECIES_INFO_COLUMNS = [
-        "Scientific Name",
-        "Water area",
-        "Habitat",
-        "DepthS",
-        "DepthD",
-        "IUCN Red List Status",
-        "Importance in Fisheries",
-    ]
-
     def __init__(self, mito_xlsx):
         try:
             self.xls = pd.ExcelFile(mito_xlsx)
@@ -56,8 +56,8 @@ class MitoFileReader:
 
     def _validate_sheets(self):
         required_sheets = {
-            self.SAMPLE_DETAILS_SHEET,
-            self.SPECIES_COMPARISON_SHEET,
+            SAMPLE_DETAILS_SHEET,
+            SPECIES_COMPARISON_SHEET,
         }
         missing_sheets = required_sheets - set(self.xls.sheet_names)
         if missing_sheets:
@@ -65,10 +65,8 @@ class MitoFileReader:
 
     def read_sheets(self):
         try:
-            self.spc_smpdata_df = pd.read_excel(
-                self.xls, self.SAMPLE_DETAILS_SHEET
-            )
-            self._validate_sample_data_columns()
+            self.spc_smpdata_df = pd.read_excel(self.xls, SAMPLE_DETAILS_SHEET)
+            self.validate_sample_data_columns()
             self.spc_smpdata_df = self.spc_smpdata_df[
                 ~self.spc_smpdata_df["Species"].isin(["Species", "Skip"])
             ]
@@ -86,9 +84,9 @@ class MitoFileReader:
             }
 
             self.spc_metadata_df = pd.read_excel(
-                self.xls, self.SPECIES_COMPARISON_SHEET
+                self.xls, SPECIES_COMPARISON_SHEET
             )
-            self._validate_metadata_columns()
+            self.validate_metadata_columns()
             self.spc_metadata_df = self.spc_metadata_df.dropna(how="all")
             self.spc_metadata_df = self.spc_metadata_df[
                 self.spc_metadata_df["Class"]
@@ -98,18 +96,16 @@ class MitoFileReader:
         except Exception as e:
             raise ValueError(f"Error reading Excel sheets: {str(e)}")
 
-    def _validate_sample_data_columns(self):
+    def validate_sample_data_columns(self):
         required_columns = {"Haploid ID", "Sequence", "Size", "Species"}
-        self._check_missing_columns(self.spc_smpdata_df, required_columns)
+        self.check_missing_columns(self.spc_smpdata_df, required_columns)
 
-    def _validate_metadata_columns(self):
-        required_columns = set(
-            self.TAXONOMIC_COLUMNS + self.SPECIES_INFO_COLUMNS
-        )
-        self._check_missing_columns(self.spc_metadata_df, required_columns)
+    def validate_metadata_columns(self):
+        required_columns = set(TAXONOMIC_COLUMNS + SPECIES_INFO_COLUMNS)
+        self.check_missing_columns(self.spc_metadata_df, required_columns)
 
     @staticmethod
-    def _check_missing_columns(df: pd.DataFrame, required_columns: set):
+    def check_missing_columns(df: pd.DataFrame, required_columns: set):
         missing_columns = required_columns - set(df.columns)
         if missing_columns:
             raise ValueError(f"Missing required columns: {missing_columns}")
@@ -118,23 +114,23 @@ class MitoFileReader:
         if self.spc_smpdata_df is None or self.spc_metadata_df is None:
             raise ValueError("Must call read_sheets() before load_data()")
         for sample_name, df in self.spc_smpdata_df_dict.items():
-            one_sample_data = OneSampleMitoData()
-            one_sample_data.hap_seq = self._haploid2sequnce_mappings(df)
-            one_sample_data.hap_size = self._haploid2size_mappings(df)
-            one_sample_data.hap2level = self._taxonomic_mappings(df)
+            one_sample_data = SingleMitoData()
+            one_sample_data.hap_seq = self.haploid2sequnce_mappings(df)
+            one_sample_data.hap_size = self.haploid2size_mappings(df)
+            one_sample_data.hap2level = self.taxonomic_mappings(df)
             self.mito_data[sample_name] = one_sample_data
 
-        self._create_species_info_mapping()
+        self.create_species_info_mapping()
 
-    def _haploid2sequnce_mappings(self, df):
+    def haploid2sequnce_mappings(self, df):
         hap_seq = dict(zip(df["Haploid ID"], df["Sequence"], strict=False))
         return hap_seq
 
-    def _haploid2size_mappings(self, df):
+    def haploid2size_mappings(self, df):
         hap_size = dict(zip(df["Haploid ID"], df["Size"], strict=False))
         return hap_size
 
-    def _taxonomic_mappings(self, df):
+    def taxonomic_mappings(self, df):
         hap_id = df["Haploid ID"]
         species = df["Species"]
 
@@ -146,7 +142,7 @@ class MitoFileReader:
 
         # Add additional taxonomic information
         spc2level = (
-            self.spc_metadata_df.filter(items=self.TAXONOMIC_COLUMNS)
+            self.spc_metadata_df.filter(items=TAXONOMIC_COLUMNS)
             .set_index("Scientific Name")
             .T.to_dict("dict")
         )
@@ -157,15 +153,15 @@ class MitoFileReader:
 
         return hap2level
 
-    def _create_species_info_mapping(self):
+    def create_species_info_mapping(self):
         self.spc_info = (
-            self.spc_metadata_df.filter(items=self.SPECIES_INFO_COLUMNS)
+            self.spc_metadata_df.filter(items=SPECIES_INFO_COLUMNS)
             .set_index("Scientific Name")
             .T.to_dict("dict")
         )
 
 
-class MitoData(SampleData):
+class MitoData(BPData):
     """
     A class extends SampleData to provide specific functionality for
     processing MitoFish outputs stored in Excel format.
@@ -188,27 +184,27 @@ class MitoData(SampleData):
         self.in_dir = mito_xlsx_dir
         self.in_suffix = mito_xlsx_suffix
 
-        self._read_sample_data(file_list)
+        self.read_sample_data(file_list)
 
         if sample_metadata_path is not None:
-            self._read_sample_metadata(
+            self.import_metadata(
                 sample_metadata_path, date_column, date_format
             )
 
         self.sample_id_list.extend(self.import_sample_id_list)
 
     @base_logger.prog_log(prog_name="Import data from MitoFish outputs")
-    def _read_sample_data(self, file_list: list[str] | None):
+    def read_sample_data(self, file_list: list[str] | None):
         if file_list is None:
             self.logger.info("No sample id list provided.")
-            self._add_unspecified_file_list()
+            self.add_unspecified_file_list()
         else:
             self.logger.info("Specified sample id list.")
-            self._add_specified_file_list(file_list)
+            self.add_specified_file_list(file_list)
 
         for file_name in self.import_file_list:
             self.logger.info(f"Sample ID: {file_name}")
-            read_results = MitoFileReader(self._get_file_path(file_name))
+            read_results = MitoFileReader(self.get_file_path(file_name))
             self.logger.info(f"Read {len(read_results.mito_data)} sample(s)")
             for sample_id in read_results.mito_data.keys().copy():
                 if (
@@ -226,7 +222,7 @@ class MitoData(SampleData):
             self.spc_info.update(read_results.spc_info)
             self.sample_data.update(read_results.mito_data)
 
-    def _add_unspecified_file_list(self):
+    def add_unspecified_file_list(self):
         self.logger.info(
             f"Searching sample IDs: prefix with the suffix '{self.in_suffix}' in the directory: {self.in_dir}."
         )
@@ -237,19 +233,15 @@ class MitoData(SampleData):
         ]
         self.logger.info(f"Found {len(self.import_file_list)} file(s).")
 
-    def _add_specified_file_list(self, file_list: list[str]):
+    def add_specified_file_list(self, file_list: list[str]):
         for file_name in file_list:
-            if not self._is_valid_file(file_name):
+            if not self.is_valid_file(self.get_file_path(file_name)):
                 self.logger.warning(
                     f"WARNING: File name '{file_name}' (file: '{file_name + self.in_suffix}') "
                     f"not found in the directory. Skipping import."
                 )
                 continue
-
             self.import_file_list.append(file_name)
 
-    def _get_file_path(self, sample_id: str) -> str:
+    def get_file_path(self, sample_id: str) -> str:
         return os.path.join(self.in_dir, f"{sample_id}{self.in_suffix}")
-
-    def _is_valid_file(self, file_name: str):
-        return os.path.exists(self._get_file_path(file_name))

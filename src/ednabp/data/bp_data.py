@@ -4,13 +4,24 @@ import re
 from datetime import date
 
 import chardet
+import duckdb
 import pandas as pd
 
+from ..bp.run_bp import SETTINGS
+from ..common import base_logger
 from .read import denoise_report_reader, fasta_reader, taxa_table_reader
-from .runner_build import base_logger
+
+DEFAULT_SUFFIXES = {
+    "dereplicate_suffix": SETTINGS["suffix"]["dereplicate"],
+    "denoise_suffix": SETTINGS["suffix"]["denoise"],
+    "denoise_report_suffix": re.sub(
+        r"\.\w+", SETTINGS["suffix"]["report"], SETTINGS["suffix"]["denoise"]
+    ),
+    "assigntaxa_suffix": SETTINGS["suffix"],
+}
 
 
-class OneSampleData:
+class SingleBPData:
     """
     Container for handling and processing data from various bioinformatics files.
     This class initializes by reading data from given FASTA, denoise report, and BLAST table files,
@@ -56,7 +67,7 @@ class OneSampleData:
         self.hap2level = br.hap2level
 
 
-class SampleData:
+class BPData:
     """
     A class for managing sample data storage.
     It provides methods for importing, pickling, unpickling, merging.
@@ -74,6 +85,7 @@ class SampleData:
         self.sample_data = {}
         self.sample_metadata = {}
         self.spc_info = {}
+        self.import_info = []
         self.sample_id_list = []
         self.verbose = verbose
         self.logger = base_logger.logger
@@ -89,11 +101,8 @@ class SampleData:
         denoise_dir: str,
         assigntaxa_dir: str,
         sample_id_list: list[str] | None = None,
-        sample_metadata_path: str | None = None,
         fishbase_db_path: str | None = None,
         stock_db_path: str | None = None,
-        date_column: str = "date",
-        date_format: str = "%Y-%m",
         **suffixes,
     ):
         r"""
@@ -111,38 +120,19 @@ class SampleData:
             - assigntaxa_suffix: Suffix for taxa CSV table files. Default: "_taxa.csv".
         """
         self.import_sample_id_list = []
-        self._parse_import_info(
+        self.files_path = {}
+        self.parse_import_info(
             dereplicate_dir, denoise_dir, assigntaxa_dir, suffixes
         )
 
-        self._read_sample_data(sample_id_list)
-
-        if sample_metadata_path is not None:
-            if not os.path.isfile(sample_metadata_path):
-                self.logger.warning(
-                    f"Sample metadata file does not exist: {sample_metadata_path}"
-                )
-                return
-            self._read_sample_metadata(
-                sample_metadata_path, date_column, date_format
-            )
+        self.read_sample_data(sample_id_list)
 
         if fishbase_db_path is not None and stock_db_path is not None:
-            if not os.path.isfile(fishbase_db_path):
-                self.logger.warning(
-                    f"Fishbase or stock database file does not exist: {fishbase_db_path}"
-                )
-                return
-            if not os.path.isfile(stock_db_path):
-                self.logger.warning(
-                    f"Fishbase or stock database file does not exist: {stock_db_path}"
-                )
-                return
-            self._read_spc_info(fishbase_db_path, stock_db_path)
+            self.read_spc_info(fishbase_db_path, stock_db_path)
 
         self.sample_id_list.extend(self.import_sample_id_list)
 
-    def _parse_import_info(
+    def parse_import_info(
         self,
         dereplicate_dir: str,
         denoise_dir: str,
@@ -150,47 +140,35 @@ class SampleData:
         suffixes: dict,
     ):
         self.suffixes = suffixes
-        self._add_default_suffixes()
+        self.add_default_suffixes()
         self.import_info = [
             (dereplicate_dir, self.suffixes["dereplicate_suffix"]),
             (denoise_dir, self.suffixes["denoise_suffix"]),
             (denoise_dir, self.suffixes["denoise_report_suffix"]),
             (assigntaxa_dir, self.suffixes["assigntaxa_suffix"]),
         ]
-        self._check_import_dir()
 
-    def _add_default_suffixes(self):
-        DEFAULT_SUFFIXES = {
-            "dereplicate_suffix": "_uniqs.fasta",
-            "denoise_suffix": "_zotus.fasta",
-            "denoise_report_suffix": "_zotus_report.txt",
-            "assigntaxa_suffix": "_taxa.csv",
-        }
+    def add_default_suffixes(self):
         for key, value in DEFAULT_SUFFIXES.items():
             if key not in self.suffixes:
                 self.suffixes[key] = value
 
-    def _check_import_dir(self):
-        for in_dir, _ in self.import_info:
-            if not os.path.isdir(in_dir):
-                raise FileNotFoundError(f"Directory does not exist: {in_dir}.")
-
     @base_logger.prog_log(prog_name="Import sample sequence data")
-    def _read_sample_data(self, sample_id_list: list[str] | None):
+    def read_sample_data(self, sample_id_list: list[str] | None):
         if sample_id_list is None:
             self.logger.info("No sample id list provided.")
-            self._add_unspecified_sample_id_list()
+            self.add_unspecified_sample_id_list()
         else:
             self.logger.info("Specified sample id list.")
-            self._add_specified_sample_id_list(sample_id_list)
+            self.add_specified_sample_id_list(sample_id_list)
 
         for sample_id in self.import_sample_id_list:
             self.logger.info(f"Sample ID: {sample_id}")
-            self._get_files_path(sample_id)
-            self._check_files_path()
-            self.sample_data[sample_id] = OneSampleData(*self.files_path)
+            self.sample_data[sample_id] = SingleBPData(
+                *self.files_path[sample_id]
+            )
 
-    def _add_unspecified_sample_id_list(self):
+    def add_unspecified_sample_id_list(self):
         uniq_dir, suffix = self.import_info[0]
         self.logger.info(
             f"Searching sample IDs: prefix with the suffix '{suffix}' in the directory: {uniq_dir}."
@@ -209,9 +187,13 @@ class SampleData:
                     "Skipping import."
                 )
                 continue
+            success, files_path = self.get_files_path(sample_id)
+            if not success:
+                continue
+            self.files_path[sample_id] = files_path
             self.import_sample_id_list.append(sample_id)
 
-    def _add_specified_sample_id_list(self, sample_id_list: list[str]):
+    def add_specified_sample_id_list(self, sample_id_list: list[str]):
         for sample_id in sample_id_list:
             if sample_id in self.sample_id_list:
                 self.logger.warning(
@@ -219,70 +201,30 @@ class SampleData:
                     "Skipping import."
                 )
                 continue
+            success, files_path = self.get_files_path(sample_id)
+            if not success:
+                continue
+            self.files_path[sample_id] = files_path
             self.import_sample_id_list.append(sample_id)
 
-    def _get_files_path(self, sample_id: str):
-        self.files_path = [
+    def get_files_path(self, sample_id: str):
+        files_path = [
             os.path.join(in_dir, f"{sample_id}{suffix}")
             for in_dir, suffix in self.import_info
         ]
-
-    def _check_files_path(self) -> None:
-        for file_path in self.files_path:
-            if not os.path.isfile(file_path):
-                raise FileNotFoundError(f"File does not exist: {file_path}.")
-
-    @base_logger.prog_log(prog_name="Import sample metadata")
-    def _read_sample_metadata(
-        self, sample_metadata_path: str, date_column, date_format
-    ) -> None:
-        with open(sample_metadata_path, "rb") as f:
-            result = chardet.detect(f.read())
-        df = pd.read_csv(
-            sample_metadata_path,
-            index_col=self.SAMPLE_ID_COLUMN,
-            encoding=result["encoding"],
-        )
-
-        df = self._convert_str_to_date(df, date_column, date_format)
-
-        for sample_id in self.import_sample_id_list:
-            if str(sample_id) not in df.index.astype(str):
+        for file_path in files_path:
+            if not self.is_valid_file(file_path):
                 self.logger.warning(
-                    f"WARNING: Sample ID '{sample_id}' not found in the sample metadata table."
+                    f"WARNING: File: {file_path} doesn't exist. Skipping import."
                 )
-            else:
-                self.sample_metadata[sample_id] = df.loc[
-                    df.index.astype(str) == str(sample_id)
-                ].to_dict("records")[0]
+                return False, None
+        return True, files_path
 
-    def _convert_str_to_date(
-        self, df, date_column: str, date_format: str
-    ) -> pd.DataFrame:
-        if date_column is None:
-            return df
-
-        if date_column not in df.columns:
-            self.logger.warning(
-                f"Date column '{date_column}' not found in the sample metadata table. "
-                "Double check your metadata CSV or set `date_column` to `None` to prevent this warning"
-            )
-            return df
-
-        try:
-            df[date_column] = pd.to_datetime(
-                df[date_column], format=date_format
-            ).dt.to_period("M")
-        except ValueError as e:
-            self.logger.error(
-                f"Failed to convert date column '{date_column}': {str(e)}"
-            )
-        return df
+    def is_valid_file(self, file_path: str):
+        return os.path.exists(file_path)
 
     @base_logger.prog_log(prog_name="Import species information")
-    def _read_spc_info(self, fishbase_db_path, stock_db_path):
-        import duckdb
-
+    def read_spc_info(self, fishbase_db_path, stock_db_path):
         spc_info = {}
         conn = duckdb.connect()
         try:
@@ -378,6 +320,56 @@ class SampleData:
 
         self.spc_info.update(spc_info)
 
+    @base_logger.prog_log(prog_name="Import sample metadata")
+    def import_metadata(
+        self,
+        sample_metadata_path: str | None = None,
+        date_column: str = "date",
+        date_format: str = "%Y-%m",
+    ) -> None:
+        with open(sample_metadata_path, "rb") as f:
+            result = chardet.detect(f.read())
+        df = pd.read_csv(
+            sample_metadata_path,
+            index_col=self.SAMPLE_ID_COLUMN,
+            encoding=result["encoding"],
+        )
+
+        df = self.convert_str_to_date(df, date_column, date_format)
+
+        for sample_id in self.import_sample_id_list:
+            if str(sample_id) not in df.index.astype(str):
+                self.logger.warning(
+                    f"WARNING: Sample ID '{sample_id}' not found in the sample metadata table."
+                )
+            else:
+                self.sample_metadata[sample_id] = df.loc[
+                    df.index.astype(str) == str(sample_id)
+                ].to_dict("records")[0]
+
+    def convert_str_to_date(
+        self, df, date_column: str, date_format: str
+    ) -> pd.DataFrame:
+        if date_column is None:
+            return df
+
+        if date_column is not None and date_column not in df.columns:
+            self.logger.warning(
+                f"Date column '{date_column}' not found in the sample metadata table. "
+                "Double check your metadata CSV or set `date_column` to `None` to prevent this warning"
+            )
+            return df
+
+        try:
+            df[date_column] = pd.to_datetime(
+                df[date_column], format=date_format
+            ).dt.to_period("M")
+        except ValueError as e:
+            self.logger.error(
+                f"Failed to convert date column '{date_column}': {str(e)}"
+            )
+        return df
+
     @base_logger.prog_log(prog_name="Pickle sample data")
     def pickle_data(
         self,
@@ -399,9 +391,9 @@ class SampleData:
                 f"WARNING: File already exists: {pickle_path}. Data didn't saved."
             )
             return
-        self._pickle_instance(pickle_path)
+        self.pickle_instance(pickle_path)
 
-    def _pickle_instance(self, pickle_path) -> None:
+    def pickle_instance(self, pickle_path) -> None:
         with open(pickle_path, "wb") as f:
             pickle.dump(self, f)
 
@@ -425,16 +417,16 @@ class SampleData:
         :param sample_data: Variable number of SampleData instances to merge from.
         """
         for data_object in sample_data:
-            self._validate_input_object(data_object)
-            self._merge_single_data_object(data_object)
+            self.validate_input_object(data_object)
+            self.merge_single_data_object(data_object)
 
-    def _validate_input_object(self, data_object: object) -> None:
-        if not isinstance(data_object, SampleData):
+    def validate_input_object(self, data_object: object) -> None:
+        if not isinstance(data_object, BPData):
             raise TypeError(
-                "FAIL: Input object must be an instance of SamplesData."
+                "FAIL: Input object must be an instance of BPData or MitoData."
             )
 
-    def _merge_single_data_object(self, data_object: "SampleData") -> None:
+    def merge_single_data_object(self, data_object: "BPData") -> None:
         new_sample_ids = [
             sample_id
             for sample_id in data_object.sample_id_list
@@ -447,24 +439,22 @@ class SampleData:
                     f"WARNING: Sample ID '{sample_id}' already exists in the current instance. Skipping merge."
                 )
                 continue
-            self._merge_sample(sample_id, data_object)
-            self._merge_metadata(sample_id, data_object)
+            self.merge_sample(sample_id, data_object)
+            self.merge_metadata(sample_id, data_object)
             self.sample_id_list.append(sample_id)
-        self._merge_spc_info(data_object)
+        self.merge_spc_info(data_object)
 
-    def _merge_sample(self, sample_id: str, data_object: "SampleData") -> None:
+    def merge_sample(self, sample_id: str, data_object: "BPData") -> None:
         self.sample_data[sample_id] = data_object.sample_data[sample_id]
 
-    def _merge_metadata(
-        self, sample_id: str, data_object: "SampleData"
-    ) -> None:
+    def merge_metadata(self, sample_id: str, data_object: "BPData") -> None:
         if not hasattr(data_object, "sample_metadata"):
             return
         self.sample_metadata[sample_id] = data_object.sample_metadata[
             sample_id
         ]
 
-    def _merge_spc_info(self, data_object: "SampleData") -> None:
+    def merge_spc_info(self, data_object: "BPData") -> None:
         if not hasattr(data_object, "spc_info"):
             return
         self.spc_info.update(data_object.spc_info)

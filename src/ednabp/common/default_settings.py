@@ -58,10 +58,12 @@ SETTINGS = {
         "cutadapt": "cutadapt",
         "blast": "blastn",
     },
-    "config": {
+    "config_basic": {
+        "logger": base_logger.logger,
         "verbose": False,
         "dry": False,
-        "logger": base_logger.logger,
+    },
+    "config_machine": {
         "n_cpu": 1,
         "memory": 8,
     },

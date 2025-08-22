@@ -12,14 +12,16 @@ class FunctionRunner(base_runner.Runner):
 
         :returns: True if the execution is successful, False otherwise.
         """
-        if self.verbose:
-            self.logger.info(self.message)
+        if self.config.verbose:
+            self.config.logger.info(self.message)
 
-        if not self.dry:
+        if not self.config.dry:
             try:
                 self.function()
-                self.logger.info(f"COMPLETE: {self.prog_name}.")
+                self.config.logger.info(f"COMPLETE: {self.prog_name}.")
                 return True
             except Exception as e:
-                self.logger.error(f"FAIL: {self.prog_name}. Exception: {e}")
+                self.config.logger.error(
+                    f"FAIL: {self.prog_name}. Exception: {e}"
+                )
                 return False

@@ -28,8 +28,8 @@ class SubprocessRunner(base_runner.Runner):
 
         :returns: True if the execution is successful, False otherwise.
         """
-        if self.verbose:
-            self.logger.info(self.message)
+        if self.config.verbose:
+            self.config.logger.info(self.message)
 
         if self.shell:
             args = self.command
@@ -37,7 +37,7 @@ class SubprocessRunner(base_runner.Runner):
             args = shlex.split(self.command, posix="win" not in sys.platform)
             args = [arg.replace('"', "") for arg in args]
 
-        if not self.dry:
+        if not self.config.dry:
             try:
                 self.capture_output = subprocess.run(
                     args,
@@ -46,20 +46,20 @@ class SubprocessRunner(base_runner.Runner):
                     check=True,
                     text=True,
                 )
-                self.logger.info(f"COMPLETE: {self.prog_name}.")
+                self.config.logger.info(f"COMPLETE: {self.prog_name}.")
                 return True
             except subprocess.CalledProcessError as e:
-                self.logger.error(
+                self.config.logger.error(
                     f"FAIL: {self.prog_name}. SubprocessError: {e.stderr}."
                 )
                 return False
             except FileNotFoundError as e:
-                self.logger.error(
+                self.config.logger.error(
                     f"FAIL: {self.prog_name}. FileNotFoundError: {e.strerror}."
                 )
                 return False
             except Exception as e:
-                self.logger.error(
+                self.config.logger.error(
                     f"FAIL: {self.prog_name}. Other Exception: {e}."
                 )
                 return False
@@ -99,10 +99,10 @@ class RedirectOutputRunner(base_runner.Runner):
 
         :returns: True if the output redirection is successful, False otherwise.
         """
-        if self.verbose:
-            self.logger.info(self.message)
+        if self.config.verbose:
+            self.config.logger.info(self.message)
 
-        if not self.dry:
+        if not self.config.dry:
             try:
                 with (
                     open(self.stdout_file, "w") as out_f,
@@ -115,8 +115,10 @@ class RedirectOutputRunner(base_runner.Runner):
                 if self.runner.capture_output.stderr:
                     with open(self.stderr_file, "a") as err_f:
                         err_f.write(self.runner.capture_output.stderr)
-                self.logger.info(f"COMPLETE: {self.prog_name}.")
+                self.config.logger.info(f"COMPLETE: {self.prog_name}.")
                 return True
             except AttributeError as e:
-                self.logger.error(f"FAIL: {self.prog_name}. Error: {e}.")
+                self.config.logger.error(
+                    f"FAIL: {self.prog_name}. Error: {e}."
+                )
                 return False

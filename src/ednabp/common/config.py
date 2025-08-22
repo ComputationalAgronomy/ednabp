@@ -1,3 +1,6 @@
+from .default_settings import SETTINGS
+
+
 class Config:
     """
     Configuration class for stage settings.
@@ -10,17 +13,16 @@ class Config:
         memory (int): Amount of memory (in GB) allocated for the stage.
     """
 
-    def __init__(self, settings):
-        self.config_categories = ["machine", "basic"]
-        self.verbose = settings["verbose"]
-        self.dry = settings["dry"]
-        self.logger = settings["logger"]
-        self.n_cpu = settings["n_cpu"]
-        self.memory = settings["memory"]
-        if self.verbose:
-            self.logger.setLevel("INFO")
-        else:
-            self.logger.setLevel("WARNING")
+    def __init__(
+        self,
+        logger=SETTINGS["config_basic"]["logger"],
+        verbose=SETTINGS["config_basic"]["verbose"],
+        dry=SETTINGS["config_basic"]["dry"],
+    ):
+        self.config_categories = ["basic"]
+        self.logger = logger
+        self.verbose = verbose
+        self.dry = dry
 
     def __setattr__(self, name, value):
         if name == "verbose":
@@ -30,43 +32,63 @@ class Config:
                 self.logger.setLevel("WARNING")
         super().__setattr__(name, value)
 
-    def get_machine_info(self) -> dict[str, int]:
-        """
-        Retrieves the machine information including CPU cores and memory.
-
-        :returns: dict: A dictionary containing the number of CPU cores and amount of memory.
-        """
-        return {"n_cpu": self.n_cpu, "memory": self.memory}
-
-    def get_basic_configuration(self) -> dict:
+    def get_basic_config(self) -> dict:
         """
         Retrieves the basic configuration settings.
 
         :returns: dict: A dictionary containing the verbose, dry run, and logger settings.
         """
         return {
+            "logger": self.logger,
             "verbose": self.verbose,
             "dry_run": self.dry,
-            "logger": self.logger,
         }
 
+    def add_machine_info(
+        self,
+        n_cpu=SETTINGS["config_machine"]["n_cpu"],
+        memory=SETTINGS["config_machine"]["memory"],
+    ):
+        """
+        Adds machine information to the configuration.
+
+        :param n_cpu: Number of CPU cores allocated for the stage.
+        :param memory: Amount of memory (in GB) allocated for the stage.
+        """
+        self.config_categories.append("machine")
+        self.n_cpu = n_cpu
+        self.memory = memory
+
+    def get_machine_config(self) -> dict[str, int]:
+        """
+        Retrieves the machine information including CPU cores and memory.
+
+        :returns: dict: A dictionary containing the number of CPU cores and amount of memory.
+        """
+        if "machine" not in self.config_categories:
+            self.logger.warning(
+                "WARNING: Machine configuration not added. Run add_machine_info() first."
+            )
+            return
+        return {"n_cpu": self.n_cpu, "memory": self.memory}
+
     # TODO(SW): Use these to help you organise all these parameters. dict[str:dict]
-    def get_usearch_configuration(self) -> dict:
+    def get_usearch_config(self) -> dict:
         return {}
 
-    def get_denoise_configuration(self) -> dict:
+    def get_denoise_config(self) -> dict:
         return {}
 
-    def add_iqtree_configuration(self, model, boostrap, overwrite):
+    def add_iqtree_config(self, model, boostrap, overwrite):
         self.config_categories.append("iqtree")
         self.iqtree_model = model
         self.iqtree_boostrap = boostrap
         self.iqtree_overwrite = overwrite
 
-    def get_iqtree_configuration(self) -> dict:
+    def get_iqtree_config(self) -> dict:
         if "iqtree" not in self.config_categories:
             self.logger.warning(
-                "WARNING: IQTree configuration not added. Run add_iqtree_configuration() first."
+                "WARNING: IQTree configuration not added. Run add_iqtree_config() first."
             )
             return
         return {
@@ -76,18 +98,16 @@ class Config:
             "overwrite": self.iqtree_overwrite,
         }
 
-    def add_seqcluster_configuration(
-        self, reducer_kwargs, clusterer_kwargs, encode
-    ):
+    def add_seqcluster_config(self, reducer_kwargs, clusterer_kwargs, encode):
         self.config_categories.append("seqcluster")
         self.seqclu_reducer_kwargs = reducer_kwargs
         self.seqclu_clusterer_kwargs = clusterer_kwargs
         self.seqclu_encode = encode
 
-    def get_seqcluster_configuration(self) -> dict:
+    def get_seqcluster_config(self) -> dict:
         if "seqcluster" not in self.config_categories:
             self.logger.warning(
-                "WARNING: SeqCluster configuration not added. Run add_seqcluster_configuration() first."
+                "WARNING: SeqCluster configuration not added. Run add_seqcluster_config() first."
             )
             return
         return {

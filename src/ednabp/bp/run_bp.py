@@ -142,16 +142,21 @@ class BioPipeline:
             k: settings.get(f"{k}_prog", v)
             for k, v in SETTINGS["prog"].items()
         }
-        self.config_settings = {
-            k: settings.get(k, v) for k, v in SETTINGS["config"].items()
+        self.config_basic_settings = {
+            k: settings.get(k, v) for k, v in SETTINGS["config_basic"].items()
+        }
+        self.config_machine_settings = {
+            k: settings.get(k, v)
+            for k, v in SETTINGS["config_machine"].items()
         }
 
     def add_config(self):
+        self.config = config.Config(**self.config_basic_settings)
+        self.config.add_machine_info(**self.config_machine_settings)
         fp_fh = base_logger.get_file_handler(
             os.path.join(self.outdir_path, "stages.log")
         )
-        self.config_settings["logger"].addHandler(fp_fh)
-        self.config = config.Config(settings=self.config_settings)
+        self.config.logger.addHandler(fp_fh)
 
     def setup_stages(self):
         self.stages = {}

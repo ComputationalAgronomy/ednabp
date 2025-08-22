@@ -23,12 +23,7 @@ class Runner(ABC):
         self.prog_name = prog_name  # for debug/naming only
         self.message = f"Program: {self.prog_name}."
         self.capture_output = None
-        try:
-            self.verbose = config.verbose
-            self.dry = config.dry
-            self.logger = config.logger
-        except AttributeError as e:
-            print(e)
+        self.config = config
 
     @abstractmethod
     def run(self):

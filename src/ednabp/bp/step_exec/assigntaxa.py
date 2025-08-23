@@ -29,7 +29,7 @@ class AssignTaxaStage(stage_builder.StageBuilder):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
         )
-        self.BLAST_PROG = blast_prog
+        self.blast_prog = blast_prog
         self.in_suffix = in_suffix
         self.out_suffix = out_suffix
         self.blast_outfile = None
@@ -91,7 +91,7 @@ class AssignTaxaStage(stage_builder.StageBuilder):
         )
         self.check_infile()
         cmd = (
-            f"{self.BLAST_PROG} -query {self.infile}"
+            f"{self.blast_prog} -query {self.infile}"
             f" {self.params}"
             f" -out {self.blast_outfile}"
         )

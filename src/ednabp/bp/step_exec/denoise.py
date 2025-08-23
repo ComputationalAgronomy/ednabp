@@ -21,7 +21,7 @@ class DenoiseStage(stage_builder.StageBuilder):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
         )
-        self.USEARCH_PROG = usearch_prog
+        self.usearch_prog = usearch_prog
         self.in_suffix = in_suffix
         self.out_suffix = out_suffix
         self.denoise_report_suffix = re.sub(
@@ -44,7 +44,7 @@ class DenoiseStage(stage_builder.StageBuilder):
         report = os.path.join(self.out_dir, f"{prefix}{self.report_suffix}")
         self.check_infile()
         cmd = (
-            f"{self.USEARCH_PROG} -unoise3 {self.infile}"
+            f"{self.usearch_prog} -unoise3 {self.infile}"
             f" {self.params}"
             f" -threads {self.config.n_cpu}"
             f" -zotus {denoise_outfile} -tabbedout {denoise_report}"

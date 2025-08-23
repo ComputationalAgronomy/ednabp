@@ -23,7 +23,7 @@ class CutPrimerStage(stage_builder.StageBuilder):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
         )
-        self.CUTADAPT_PROG = cutadapt_prog
+        self.cutadapt_prog = cutadapt_prog
         self.in_suffix = in_suffix
         self.out_suffix = out_suffix
         self.report_suffix = SETTINGS["suffix"]["report"]
@@ -34,11 +34,12 @@ class CutPrimerStage(stage_builder.StageBuilder):
     def parse_params(
         self, rm_p_5, rm_p_3, min_read_len, max_read_len, error_rate
     ):
-        adapter_length = len(rm_p_5) + len(rm_p_3)
+        min_adapter_length = min(len(rm_p_5), len(rm_p_3))
+        max_adapter_length = len(rm_p_5) + len(rm_p_3)
         self.params = (
             f"-g {rm_p_5};max_error_rate={error_rate}...{rm_p_3};max_error_rate={error_rate}"
-            f" --minimum-length {min_read_len - adapter_length}"
-            f" --maximum-length {max_read_len - adapter_length}"
+            f" --minimum-length {min_read_len - max_adapter_length}"
+            f" --maximum-length {max_read_len - min_adapter_length}"
         )
 
     def setup(self, prefix):
@@ -49,7 +50,7 @@ class CutPrimerStage(stage_builder.StageBuilder):
         report = os.path.join(self.out_dir, f"{prefix}{self.report_suffix}")
         self.check_infile()
         cmd = (
-            f"{self.CUTADAPT_PROG} {self.infile}"
+            f"{self.cutadapt_prog} {self.infile}"
             f" {self.params}"
             f" --discard-untrimmed -j {self.config.n_cpu}"
         )

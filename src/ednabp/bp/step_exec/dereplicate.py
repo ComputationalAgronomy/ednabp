@@ -21,7 +21,7 @@ class DereplicateStage(stage_builder.StageBuilder):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
         )
-        self.USEARCH_PROG = usearch_prog
+        self.usearch_prog = usearch_prog
         self.in_suffix = in_suffix
         self.out_suffix = out_suffix
         self.report_suffix = SETTINGS["suffix"]["report"]
@@ -40,7 +40,7 @@ class DereplicateStage(stage_builder.StageBuilder):
         report = os.path.join(self.out_dir, f"{prefix}{self.report_suffix}")
         self.check_infile()
         cmd = (
-            f"{self.USEARCH_PROG} -fastx_uniques {self.infile}"
+            f"{self.usearch_prog} -fastx_uniques {self.infile}"
             f" {self.params}"
             f" -threads {self.config.n_cpu}"
             f" -fastaout {dereplicate_outfile}"

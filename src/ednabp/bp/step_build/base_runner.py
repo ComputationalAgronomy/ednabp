@@ -16,9 +16,6 @@ class Runner(ABC):
         logger (Logger): Logger object for logging messages.
     """
 
-    MSG_LOG = "==LOG=="
-    MSG_DEBUG = "===DEBUG==="
-
     def __init__(self, prog_name: str, config: config.Config):
         self.prog_name = prog_name  # for debug/naming only
         self.message = f"Program: {self.prog_name}."

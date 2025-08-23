@@ -66,7 +66,7 @@ class HeatmapPlotter(base_plotter.Plotter):
             self.s_index = np.argsort(embedding[:, 0])
         else:
             self.config.logger.warning(
-                f"WARNING: Unknown sort method: {self.sort_method}. Skipping the sorting procedure"
+                f"Unknown sort method: {self.sort_method}. Skipping the sorting procedure"
             )
             self.s_index = np.arange(len(data))
 
@@ -84,7 +84,7 @@ class HeatmapPlotter(base_plotter.Plotter):
                 )
             if len(column_names) > 2:
                 self.config.logger.warning(
-                    "WARNING: More than two-level categorical x-axis is not yet available in Plotly yet. This is a substitute implementation that combines the first n-1 categories into the first level."
+                    "More than two-level categorical x-axis is not yet available in Plotly yet. This is a substitute implementation that combines the first n-1 categories into the first level."
                 )
                 self.x = [
                     [

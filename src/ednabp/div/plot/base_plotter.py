@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 import pandas as pd
 
-from ..common import config
+from ...common import config
 
 
 class Plotter(ABC):

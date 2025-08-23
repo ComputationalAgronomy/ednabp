@@ -105,9 +105,7 @@ class AssignTaxaStage(stage_builder.StageBuilder):
         try:
             blast_result = pd.read_csv(self.blast_outfile, header=None)
         except pd.errors.EmptyDataError:
-            self.logger.error(
-                f"EEEOR: BLAST result is empty: {self.blast_outfile}"
-            )
+            self.logger.error(f"BLAST result is empty: {self.blast_outfile}")
             return False
         taxa_matrix = []
         for sseqid in blast_result[1]:

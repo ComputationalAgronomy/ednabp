@@ -67,7 +67,7 @@ class Config:
         """
         if "machine" not in self.config_categories:
             self.logger.warning(
-                "WARNING: Machine configuration not added. Run add_machine_info() first."
+                "Machine configuration not added. Run add_machine_info() first."
             )
             return
         return {"n_cpu": self.n_cpu, "memory": self.memory}
@@ -88,7 +88,7 @@ class Config:
     def get_iqtree_config(self) -> dict:
         if "iqtree" not in self.config_categories:
             self.logger.warning(
-                "WARNING: IQTree configuration not added. Run add_iqtree_config() first."
+                "IQTree configuration not added. Run add_iqtree_config() first."
             )
             return
         return {
@@ -107,7 +107,7 @@ class Config:
     def get_seqcluster_config(self) -> dict:
         if "seqcluster" not in self.config_categories:
             self.logger.warning(
-                "WARNING: SeqCluster configuration not added. Run add_seqcluster_config() first."
+                "Cluster configuration not added. Run add_seqcluster_config() first."
             )
             return
         return {
@@ -125,7 +125,7 @@ class Config:
     def get_plot_config(self) -> dict:
         if "plot" not in self.config_categories:
             self.logger.warning(
-                "WARNING: Plot configuration not added. Run add_plot_config() first."
+                "Plot configuration not added. Run add_plot_config() first."
             )
             return
         return {

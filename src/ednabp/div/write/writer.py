@@ -28,9 +28,7 @@ def get_unit_name(level_dict: dict, unit_level: str, hap: str) -> str:
 def export_df(metric_df, save_dir, file_name, overwrite, logger):
     output_path = os.path.join(save_dir, file_name)
     if os.path.exists(output_path) and not overwrite:
-        logger.warning(
-            f"WARNING: File already exists: {output_path}. Stop saving."
-        )
+        logger.warning(f"File already exists: {output_path}. Stop saving.")
         return
     os.makedirs(save_dir, exist_ok=True)
     metric_df.to_csv(output_path, index=False)
@@ -245,7 +243,7 @@ class Writer(base_writer.BaseWriter):
     def add_sample_metadata(self, metric_df_name):
         if not hasattr(self.data, "sample_metadata"):
             self.config.logger.warning(
-                "WARNING: No attribute `sample_metadata` found. Skipping."
+                "No attribute `sample_metadata` found. Skipping."
             )
             return
         metric_df = getattr(self, metric_df_name)
@@ -262,7 +260,7 @@ class Writer(base_writer.BaseWriter):
         )
         if updated_metric_df.isna().any().any():
             self.config.logger.warning(
-                f"WARNING: Some samples are missing metadata. Filling them with '{FILL_NA}'."
+                f"Some samples are missing metadata. Filling them with '{FILL_NA}'."
             )
             updated_metric_df = updated_metric_df.fillna(FILL_NA)
         setattr(self, metric_df_name, updated_metric_df)
@@ -271,9 +269,7 @@ class Writer(base_writer.BaseWriter):
         if self.taxa_lv != "species":
             return
         if not hasattr(self.data, "spc_info"):
-            self.config.logger.warning(
-                "WARNING: No species info found. Skipping."
-            )
+            self.config.logger.warning("No species info found. Skipping.")
             return
         metric_df = getattr(self, metric_df_name)
         spc_info_df = (
@@ -286,7 +282,7 @@ class Writer(base_writer.BaseWriter):
         )
         if updated_metric_df.isna().any().any():
             self.config.logger.warning(
-                f"WARNING: Some samples are missing metadata. Filling them with '{FILL_NA}'."
+                f"Some samples are missing metadata. Filling them with '{FILL_NA}'."
             )
             updated_metric_df = updated_metric_df.fillna(FILL_NA)
         setattr(self, metric_df_name, updated_metric_df)

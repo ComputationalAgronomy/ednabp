@@ -1,6 +1,7 @@
 import os
 import pickle
 import re
+import sys
 from datetime import date
 
 import chardet
@@ -183,7 +184,7 @@ class BPData:
         for sample_id in sample_id_list:
             if sample_id in self.sample_id_list:
                 self.logger.warning(
-                    f"WARNING: Sample ID '{sample_id}' already exists in the current instance. "
+                    f"Sample ID '{sample_id}' already exists in the current instance. "
                     "Skipping import."
                 )
                 continue
@@ -197,7 +198,7 @@ class BPData:
         for sample_id in sample_id_list:
             if sample_id in self.sample_id_list:
                 self.logger.warning(
-                    f"WARNING: Sample ID '{sample_id}' already exists in the current instance. "
+                    f"Sample ID '{sample_id}' already exists in the current instance. "
                     "Skipping import."
                 )
                 continue
@@ -215,7 +216,7 @@ class BPData:
         for file_path in files_path:
             if not self.is_valid_file(file_path):
                 self.logger.warning(
-                    f"WARNING: File: {file_path} doesn't exist. Skipping import."
+                    f"File {file_path} doesn't exist. Skipping import."
                 )
                 return False, None
         return True, files_path
@@ -340,7 +341,7 @@ class BPData:
         for sample_id in self.import_sample_id_list:
             if str(sample_id) not in df.index.astype(str):
                 self.logger.warning(
-                    f"WARNING: Sample ID '{sample_id}' not found in the sample metadata table."
+                    f"Sample ID '{sample_id}' not found in the sample metadata table."
                 )
             else:
                 self.sample_metadata[sample_id] = df.loc[
@@ -388,7 +389,7 @@ class BPData:
         pickle_path = os.path.join(save_dir, f"{save_prefix}.pkl")
         if os.path.exists(pickle_path) and not overwrite:
             self.logger.warning(
-                f"WARNING: File already exists: {pickle_path}. Data didn't saved."
+                f"File already exists: {pickle_path}. Data didn't saved."
             )
             return
         self.pickle_instance(pickle_path)
@@ -422,9 +423,10 @@ class BPData:
 
     def validate_input_object(self, data_object: object) -> None:
         if not isinstance(data_object, BPData):
-            raise TypeError(
+            self.logger.error(
                 "FAIL: Input object must be an instance of BPData or MitoData."
             )
+            sys.exit(1)
 
     def merge_single_data_object(self, data_object: "BPData") -> None:
         new_sample_ids = [
@@ -436,7 +438,7 @@ class BPData:
         for sample_id in data_object.sample_id_list:
             if sample_id not in new_sample_ids:
                 self.logger.warning(
-                    f"WARNING: Sample ID '{sample_id}' already exists in the current instance. Skipping merge."
+                    f"Sample ID '{sample_id}' already exists in the current instance. Skipping merge."
                 )
                 continue
             self.merge_sample(sample_id, data_object)

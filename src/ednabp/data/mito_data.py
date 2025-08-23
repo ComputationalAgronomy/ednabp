@@ -212,7 +212,7 @@ class MitoData(BPData):
                     or sample_id in self.import_sample_id_list
                 ):
                     self.logger.warning(
-                        f"WARNING: Sample ID '{sample_id}' in the file {file_name} already exists in the current instance. "
+                        f"Sample ID '{sample_id}' in the file {file_name} already exists in the current instance. "
                         "Skipping import."
                     )
                     read_results.mito_data.pop(sample_id, None)
@@ -237,7 +237,7 @@ class MitoData(BPData):
         for file_name in file_list:
             if not self.is_valid_file(self.get_file_path(file_name)):
                 self.logger.warning(
-                    f"WARNING: File name '{file_name}' (file: '{file_name + self.in_suffix}') "
+                    f"File name '{file_name}' (file: '{file_name + self.in_suffix}') "
                     f"not found in the directory. Skipping import."
                 )
                 continue

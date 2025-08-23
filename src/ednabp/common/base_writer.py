@@ -12,7 +12,7 @@ class BaseWriter(ABC):
         self.import_data(data)
 
     def import_data(self, data):
-        if not isinstance(data, BPData, MitoData):
+        if not isinstance(data, BPData | MitoData):
             raise ValueError("data must be an instance of BPData or MitoData")
         if not hasattr(data, "sample_data"):
             raise ValueError(
@@ -24,11 +24,11 @@ class BaseWriter(ABC):
             )
         if not hasattr(data, "sample_metadata"):
             self.config.logger.warning(
-                "WARNING: No attribute `sample_metadata` found in the input data."
+                "No attribute `sample_metadata` found in the input data."
             )
         if not hasattr(data, "spc_info"):
             self.config.logger.warning(
-                "WARNING: No attribute `spc_info` found in the input data."
+                "No attribute `spc_info` found in the input data."
             )
         self.data = data
 

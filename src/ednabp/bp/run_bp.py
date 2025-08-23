@@ -171,7 +171,7 @@ class BioPipeline:
                     )
                 else:
                     self.config.logger.warning(
-                        f"WARNING: The in_suffix '{curr_suffix}' does not match the expected format (.fq/.fastq) for the 'fqtofa' stage."
+                        f"The in_suffix '{curr_suffix}' does not match the expected format (.fq/.fastq) for the 'fqtofa' stage."
                         "Skipping the stage"
                     )
                     continue

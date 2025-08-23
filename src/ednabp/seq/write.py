@@ -4,8 +4,7 @@ from collections import defaultdict
 
 from ..bp.step_build import stage_builder
 from ..bp.step_exec import dereplicate
-from ..common.default_settings import SETTINGS
-from . import base_writer
+from ..common import base_writer
 
 
 def filter_by_dict(target_dict, filter_dict):
@@ -26,7 +25,7 @@ def filter_by_dict(target_dict, filter_dict):
     return match
 
 
-class SeqWriter(base_writer.Writer, ABC):
+class Writer(base_writer.BaseWriter, ABC):
     """
     An abstract class for running sequence related analysis
     """
@@ -123,7 +122,6 @@ class MSAStage(stage_builder.StageBuilder):
         self.CLUSTALO_PROG = clustalo_prog
         self.in_suffix = in_suffix
         self.out_suffix = out_suffix
-        self.report_suffix = SETTINGS["suffix"]["report"]
         self.parse_params(overwrite)
 
     def parse_params(self, overwrite):

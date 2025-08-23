@@ -1,8 +1,10 @@
 import os
+from tempfile import TemporaryDirectory
 
 from ..bp.step_build import stage_builder
 from ..common import base_logger, config
 from ..data import BPData, MitoData
+from . import write
 
 
 class Phylo:
@@ -32,13 +34,7 @@ class Phylo:
 
     def reconstruct(self, data: str | BPData | MitoData):
         if isinstance(data, BPData | MitoData):
-            from tempfile import TemporaryDirectory
-
-            from ..write import seq_writer
-
-            writer = seq_writer.SeqWriter(
-                data, self.config.n_cpu, self.config.verbose
-            )
+            writer = write.Writer(data, self.config.n_cpu, self.config.verbose)
             with TemporaryDirectory() as tmp_dir:
                 tmp_fasta = os.path.join(tmp_dir, "tmp.fasta")
                 derep_fasta = os.path.join(tmp_dir, "mltree.fasta")

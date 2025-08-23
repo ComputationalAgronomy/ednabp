@@ -6,8 +6,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from ..common import base_logger
-from . import base_writer
+from ...common import base_logger, base_writer
 
 ABUNDANCE_COLUMN = "abundance"
 RICHNESS_COLUMN = "richness"
@@ -38,7 +37,7 @@ def export_df(metric_df, save_dir, file_name, overwrite, logger):
     logger.info(f"Dataframe exported to: {output_path}")
 
 
-class DivWriter(base_writer.Writer):
+class Writer(base_writer.BaseWriter):
     """
     An abstract class for running diversity metrics related analysis
     Metrics include:

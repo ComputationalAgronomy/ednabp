@@ -115,3 +115,21 @@ class Config:
             "clusterer_kwargs": self.seqclu_clusterer_kwargs,
             "encode": self.seqclu_encode,
         }
+
+    def add_plot_config(self, show_plot, save_dir, overwrite):
+        self.config_categories.append("plot")
+        self.plot_show_plot = show_plot
+        self.plot_save_dir = save_dir
+        self.plot_overwrite = overwrite
+
+    def get_plot_config(self) -> dict:
+        if "plot" not in self.config_categories:
+            self.logger.warning(
+                "WARNING: Plot configuration not added. Run add_plot_config() first."
+            )
+            return
+        return {
+            "show_plot": self.plot_show_plot,
+            "save_dir": self.plot_save_dir,
+            "overwrite": self.plot_overwrite,
+        }

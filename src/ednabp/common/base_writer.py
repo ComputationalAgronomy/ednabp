@@ -4,7 +4,7 @@ from ..common import base_logger, config
 from ..data import BPData, MitoData
 
 
-class Writer(ABC):
+class BaseWriter(ABC):
     def __init__(self, data: BPData | MitoData, verbose: bool):
         self.sample_id_used = None
         self.config = config.Config()

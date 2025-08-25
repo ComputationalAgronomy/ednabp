@@ -1,5 +1,5 @@
 import logging
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -8,8 +8,6 @@ from ednabp.common.default_settings import SETTINGS
 
 
 class TestConfig:
-    """Test suite for Config class functionality."""
-
     @pytest.fixture
     def mock_logger(self):
         return Mock(spec=logging.Logger)
@@ -45,7 +43,6 @@ class TestConfig:
         config.logger.setLevel.assert_called_with("WARNING")
 
     def test_get_basic_config(self, config):
-        """Test get_basic_config returns correct dictionary."""
         result = config.get_basic_config()
 
         expected = {
@@ -150,24 +147,24 @@ class TestConfig:
 
     def test_add_plot_config(self, config):
         config.add_plot_config(
-            show_plot=True, save_dir="/tmp", overwrite=False
+            show_plot=True, save_dir="test_dir", overwrite=False
         )
 
         assert "plot" in config.config_categories
         assert config.plot_show_plot is True
-        assert config.plot_save_dir == "/tmp"
+        assert config.plot_save_dir == "test_dir"
         assert config.plot_overwrite is False
 
     def test_get_plot_config_added(self, config):
         config.add_plot_config(
-            show_plot=True, save_dir="/tmp", overwrite=False
+            show_plot=True, save_dir="test_dir", overwrite=False
         )
 
         result = config.get_plot_config()
 
         expected = {
             "show_plot": True,
-            "save_dir": "/tmp",
+            "save_dir": "test_dir",
             "overwrite": False,
         }
         assert result == expected
@@ -181,7 +178,6 @@ class TestConfig:
     def test_setattr_with_uninitialized_logger(self):
         config = Config.__new__(Config)
 
-        # This should not raise an AttributeError
         config.verbose = True
 
         assert config.verbose is True

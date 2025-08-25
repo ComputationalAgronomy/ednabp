@@ -25,7 +25,7 @@ class Config:
         self.dry = dry
 
     def __setattr__(self, name, value):
-        if name == "verbose":
+        if name == "verbose" and hasattr(self, "logger"):
             if value:
                 self.logger.setLevel("INFO")
             else:
@@ -41,10 +41,10 @@ class Config:
         return {
             "logger": self.logger,
             "verbose": self.verbose,
-            "dry_run": self.dry,
+            "dry": self.dry,
         }
 
-    def add_machine_info(
+    def add_machine_config(
         self,
         n_cpu=SETTINGS["config_machine"]["n_cpu"],
         memory=SETTINGS["config_machine"]["memory"],
@@ -67,7 +67,7 @@ class Config:
         """
         if "machine" not in self.config_categories:
             self.logger.warning(
-                "Machine configuration not added. Run add_machine_info() first."
+                "Machine configuration not added. Run add_machine_config() first."
             )
             return
         return {"n_cpu": self.n_cpu, "memory": self.memory}
@@ -86,6 +86,11 @@ class Config:
         self.iqtree_overwrite = overwrite
 
     def get_iqtree_config(self) -> dict:
+        if "machine" not in self.config_categories:
+            self.logger.warning(
+                "Machine configuration not added. Run add_machine_config() first."
+            )
+            return
         if "iqtree" not in self.config_categories:
             self.logger.warning(
                 "IQTree configuration not added. Run add_iqtree_config() first."
@@ -98,22 +103,22 @@ class Config:
             "overwrite": self.iqtree_overwrite,
         }
 
-    def add_seqcluster_config(self, reducer_kwargs, clusterer_kwargs, encode):
-        self.config_categories.append("seqcluster")
-        self.seqclu_reducer_kwargs = reducer_kwargs
-        self.seqclu_clusterer_kwargs = clusterer_kwargs
-        self.seqclu_encode = encode
+    def add_cluster_config(self, reducer_kwargs, clusterer_kwargs, encode):
+        self.config_categories.append("cluster")
+        self.cluster_reducer_kwargs = reducer_kwargs
+        self.cluster_clusterer_kwargs = clusterer_kwargs
+        self.cluster_encode = encode
 
-    def get_seqcluster_config(self) -> dict:
-        if "seqcluster" not in self.config_categories:
+    def get_cluster_config(self) -> dict:
+        if "cluster" not in self.config_categories:
             self.logger.warning(
-                "Cluster configuration not added. Run add_seqcluster_config() first."
+                "Cluster configuration not added. Run add_cluster_config() first."
             )
             return
         return {
-            "reducer_kwargs": self.seqclu_reducer_kwargs,
-            "clusterer_kwargs": self.seqclu_clusterer_kwargs,
-            "encode": self.seqclu_encode,
+            "reducer_kwargs": self.cluster_reducer_kwargs,
+            "clusterer_kwargs": self.cluster_clusterer_kwargs,
+            "encode": self.cluster_encode,
         }
 
     def add_plot_config(self, show_plot, save_dir, overwrite):

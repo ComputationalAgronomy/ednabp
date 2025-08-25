@@ -86,7 +86,7 @@ class Clusterer:
             reducer_kwargs = {}
         if clusterer_kwargs is None:
             clusterer_kwargs = {}
-        self.config.add_seqcluster_config(
+        self.config.add_cluster_config(
             reducer_kwargs, clusterer_kwargs, encode
         )
 
@@ -145,7 +145,7 @@ class Clusterer:
                 "data should be a BPData, MitoData class, or valid .FASTA file."
             )
 
-        config = self.config.get_seqcluster_config()
+        config = self.config.get_cluster_config()
         self.encode_fasta(in_fasta, config["encode"])
         self.fit_predict(config["reducer_kwargs"], config["clusterer_kwargs"])
         self.results_to_df()

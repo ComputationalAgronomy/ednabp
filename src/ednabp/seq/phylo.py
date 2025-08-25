@@ -25,7 +25,7 @@ class Phylo:
     def add_config(self, verbose, n_cpu, model, bootstrap, overwrite):
         self.config = config.Config()
         self.config.verbose = verbose
-        self.config.add_machine_info(n_cpu=n_cpu)
+        self.config.add_machine_config(n_cpu=n_cpu)
         self.config.add_iqtree_config(model, bootstrap, overwrite)
         fp_fh = base_logger.get_file_handler(
             os.path.join(self.out_dir, "phylo.log")

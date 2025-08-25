@@ -32,7 +32,7 @@ class Writer(base_writer.BaseWriter, ABC):
 
     def __init__(self, data, verbose=False, n_cpu=1):
         super().__init__(data, verbose)
-        self.config.add_machine_info(n_cpu=n_cpu)
+        self.config.add_machine_config(n_cpu=n_cpu)
 
     def load_units2fasta(
         self, add_taxa_info: bool = True, filter_taxa=None, filter_sample=None

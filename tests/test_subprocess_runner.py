@@ -90,11 +90,9 @@ class TestSubprocessRunner:
         )
         runner.run()
 
-        # Verify command passed as string when shell=True
         call_args = mock_subprocess_run.call_args[0][0]
         assert call_args == "echo test"
 
-        # Verify shell=True passed to subprocess.run
         call_kwargs = mock_subprocess_run.call_args[1]
         assert call_kwargs["shell"] is True
 

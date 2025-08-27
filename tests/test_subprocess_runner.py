@@ -14,22 +14,6 @@ from ednabp.common.config import Config
 
 class TestSubprocessRunner:
     @pytest.fixture
-    def mock_config(self):
-        config = Mock(spec=Config)
-        config.verbose = True
-        config.dry = False
-        config.logger = Mock()
-        return config
-
-    @pytest.fixture
-    def dry_config(self):
-        config = Mock(spec=Config)
-        config.verbose = True
-        config.dry = True
-        config.logger = Mock()
-        return config
-
-    @pytest.fixture
     def subprocess_runner(self, mock_config):
         return SubprocessRunner("test_subprocess", "echo test", mock_config)
 
@@ -213,14 +197,6 @@ class TestSubprocessRunner:
 
 
 class TestRedirectOutputRunner:
-    @pytest.fixture
-    def mock_config(self):
-        config = Mock(spec=Config)
-        config.verbose = True
-        config.dry = False
-        config.logger = Mock()
-        return config
-
     @pytest.fixture
     def mock_subprocess_runner(self, mock_config):
         runner = Mock(spec=SubprocessRunner)

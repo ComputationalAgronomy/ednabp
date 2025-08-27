@@ -1,13 +1,12 @@
 import os
 import tempfile
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 from ednabp.bp.step_build.function_runner import FunctionRunner
 from ednabp.bp.step_build.stage_builder import StageBuilder
 from ednabp.bp.step_build.subproces_runner import SubprocessRunner
-from ednabp.common.config import Config
 
 
 class ImplementedStageBuilder(StageBuilder):
@@ -20,14 +19,6 @@ class ImplementedStageBuilder(StageBuilder):
 
 
 class TestStageBuilder:
-    @pytest.fixture
-    def mock_config(self):
-        config = Mock(spec=Config)
-        config.verbose = True
-        config.dry = False
-        config.logger = Mock()
-        return config
-
     @pytest.fixture
     def tmp_dirs(self):
         with (

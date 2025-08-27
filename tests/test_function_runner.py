@@ -1,28 +1,7 @@
-from unittest.mock import Mock
-
-import pytest
-
 from ednabp.bp.step_build.function_runner import FunctionRunner
-from ednabp.common.config import Config
 
 
 class TestFunctionRunner:
-    @pytest.fixture
-    def mock_config(self):
-        config = Mock(spec=Config)
-        config.verbose = True
-        config.dry = False
-        config.logger = Mock()
-        return config
-
-    @pytest.fixture
-    def dry_config(self):
-        config = Mock(spec=Config)
-        config.verbose = True
-        config.dry = True
-        config.logger = Mock()
-        return config
-
     def test_runner_init(self, mock_config):
         def test_function():
             return "test_result"

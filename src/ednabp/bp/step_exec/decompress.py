@@ -17,8 +17,8 @@ class DecompressStage(stage_builder.StageBuilder):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
         )
-        in_suffix2 = in_suffix.replace("R1", "R2")
-        out_suffix2 = out_suffix.replace("R1", "R2")
+        in_suffix2 = in_suffix.replace("_R1", "_R2").replace("_1", "_2")
+        out_suffix2 = out_suffix.replace("_R1", "_R2").replace("_1", "_2")
         self.insuffix_list = [in_suffix, in_suffix2]
         self.outsuffix_list = [out_suffix, out_suffix2]
         self.infile_list = []

@@ -20,14 +20,6 @@ class ImplementedStageBuilder(StageBuilder):
 
 class TestStageBuilder:
     @pytest.fixture
-    def tmp_dirs(self):
-        with (
-            tempfile.TemporaryDirectory() as in_dir,
-            tempfile.TemporaryDirectory() as out_dir,
-        ):
-            yield in_dir, out_dir
-
-    @pytest.fixture
     def stage_builder(self, mock_config, tmp_dirs):
         in_dir, out_dir = tmp_dirs
         return ImplementedStageBuilder(mock_config, in_dir, out_dir)

@@ -1,3 +1,4 @@
+import tempfile
 from unittest.mock import Mock
 
 import pytest
@@ -21,3 +22,12 @@ def dry_config():
     config.dry = True
     config.logger = Mock()
     return config
+
+
+@pytest.fixture(scope="session")
+def tmp_dirs():
+    with (
+        tempfile.TemporaryDirectory() as in_dir,
+        tempfile.TemporaryDirectory() as out_dir,
+    ):
+        yield in_dir, out_dir

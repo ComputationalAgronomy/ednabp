@@ -16,6 +16,7 @@ class ImplementedStageBuilder(StageBuilder):
 
     def setup(self, prefix):
         self.infile = os.path.join(self.in_dir, f"{prefix}{self.in_suffix}")
+        self.check_infile()
 
 
 class TestStageBuilder:
@@ -85,8 +86,10 @@ class TestStageBuilder:
 
     def test_setup_infile_creation(self, mock_config, tmp_dirs):
         in_dir, out_dir = tmp_dirs
-        stage = ImplementedStageBuilder(mock_config, in_dir, out_dir)
+        with open(os.path.join(in_dir, "test_infile_test.txt"), "w") as f:
+            f.write("test content")
 
+        stage = ImplementedStageBuilder(mock_config, in_dir, out_dir)
         stage.setup("test_infile")
 
         expected_infile = os.path.join(in_dir, "test_infile_test.txt")
@@ -100,15 +103,12 @@ class TestStageBuilder:
             f.write("test content")
 
         stage_builder.setup("test")
-        stage_builder.check_infile()
 
     def test_check_infile_file_not_found_error(self, stage_builder):
-        stage_builder.setup("nonexistent")
-
         with pytest.raises(
             FileNotFoundError, match="nonexistent_test.txt not found"
         ):
-            stage_builder.check_infile()
+            stage_builder.setup("nonexistent")
 
     def test_check_infile_attribute_error(self, stage_builder):
         with pytest.raises(AttributeError):

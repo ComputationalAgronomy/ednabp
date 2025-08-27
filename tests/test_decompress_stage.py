@@ -34,7 +34,7 @@ class TestDecompressStage:
         assert stage.infile_list == []
         assert stage.outfile_list == []
 
-    def test_stage_init_custom_suffixes(self, mock_config, tmp_dirs):
+    def test_stage_init_custom(self, mock_config, tmp_dirs):
         in_dir, out_dir = tmp_dirs
         stage = DecompressStage(
             config=mock_config,

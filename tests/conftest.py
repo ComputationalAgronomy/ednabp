@@ -12,6 +12,7 @@ def mock_config():
     config.verbose = True
     config.dry = False
     config.logger = Mock()
+    config.n_cpu = 4
     return config
 
 

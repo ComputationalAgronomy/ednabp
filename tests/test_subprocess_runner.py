@@ -17,7 +17,7 @@ class TestSubprocessRunner:
     def subprocess_runner(self, mock_config):
         return SubprocessRunner("test_subprocess", "echo test", mock_config)
 
-    def test_runner_init_default(self, mock_config):
+    def test_runner_init(self, mock_config):
         runner = SubprocessRunner("test_subprocess", "echo test", mock_config)
 
         assert runner.prog_name == "test_subprocess"

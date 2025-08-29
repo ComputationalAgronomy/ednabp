@@ -30,7 +30,6 @@ SETTINGS = {
         "report": "_report.txt",
     },
     "merge": {
-        "prog": "usearch",
         "maxdiff": 5,
         "pctid": 90,
     },
@@ -38,8 +37,8 @@ SETTINGS = {
         "rm_p_5": "GTCGGTAAAACTCGTGCCAGC",
         "rm_p_3": "CAAACTGGGATTAGATACCCCACTATG",
         "error_rate": 0.15,
-        "min_read_len": 204,
-        "max_read_len": 254,
+        "min_read_len": 163,
+        "max_read_len": 185,
     },
     "denoise": {
         "minsize": 8,

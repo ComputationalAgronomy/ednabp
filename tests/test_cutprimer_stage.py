@@ -66,7 +66,7 @@ class TestCutPrimerStage:
         expected_command = (
             f"cutadapt {expected_infile} "
             f"-g GTCGGTAAAACTCGTGCCAGC;max_error_rate=0.15...CAAACTGGGATTAGATACCCCACTATG;max_error_rate=0.15 "
-            f"--minimum-length 156 --maximum-length 233 --discard-untrimmed -j 4"
+            f"--minimum-length 163 --maximum-length 185 --discard-untrimmed -j 4"
         )
 
         assert command_runner.command == expected_command

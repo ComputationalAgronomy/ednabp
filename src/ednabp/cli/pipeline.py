@@ -309,7 +309,7 @@ def main():
                 "args": ["--verbose"],
                 "kwargs": {
                     "action": "store_true",
-                    "default": SETTINGS["config"]["verbose"],
+                    "default": SETTINGS["config_basic"]["verbose"],
                     "help": "Enable detailed logging output (default: %(default)s).",
                 },
             },
@@ -317,7 +317,7 @@ def main():
                 "args": ["--n-cpu"],
                 "kwargs": {
                     "type": int,
-                    "default": SETTINGS["config"]["n_cpu"],
+                    "default": SETTINGS["config_machine"]["n_cpu"],
                     "help": "Number of CPU cores to use for processing (default: %(default)s).",
                 },
             },

@@ -17,8 +17,8 @@ class CutPrimerStage(stage_builder.StageBuilder):
         rm_p_5="GTCGGTAAAACTCGTGCCAGC",
         rm_p_3="CAAACTGGGATTAGATACCCCACTATG",
         error_rate=0.15,
-        min_read_len=204,
-        max_read_len=254,
+        min_read_len=163,
+        max_read_len=185,
     ):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
@@ -34,12 +34,10 @@ class CutPrimerStage(stage_builder.StageBuilder):
     def parse_params(
         self, rm_p_5, rm_p_3, min_read_len, max_read_len, error_rate
     ):
-        min_adapter_length = min(len(rm_p_5), len(rm_p_3))
-        max_adapter_length = len(rm_p_5) + len(rm_p_3)
         self.params = (
             f"-g {rm_p_5};max_error_rate={error_rate}...{rm_p_3};max_error_rate={error_rate}"
-            f" --minimum-length {min_read_len - max_adapter_length}"
-            f" --maximum-length {max_read_len - min_adapter_length}"
+            f" --minimum-length {min_read_len}"
+            f" --maximum-length {max_read_len}"
         )
 
     def setup(self, prefix):

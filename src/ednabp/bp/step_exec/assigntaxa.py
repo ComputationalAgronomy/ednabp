@@ -105,7 +105,9 @@ class AssignTaxaStage(stage_builder.StageBuilder):
         try:
             blast_result = pd.read_csv(self.blast_outfile, header=None)
         except pd.errors.EmptyDataError:
-            self.logger.error(f"BLAST result is empty: {self.blast_outfile}")
+            self.config.logger.error(
+                f"BLAST result is empty: {self.blast_outfile}"
+            )
             return False
         taxa_matrix = []
         for sseqid in blast_result[1]:
@@ -120,15 +122,16 @@ class AssignTaxaStage(stage_builder.StageBuilder):
                     if otherlv[0] == genus:
                         taxonomy_levels = [species, ""] + otherlv
                         break
-            elif genus.endswith("iformes") or genus.endswith(
-                "oidea"
-            ):  # only identified to order level
+            elif genus.endswith("iformes") or genus.endswith("oidea"):
                 for _, otherlv in self.genus2otherlv.items():
                     if otherlv[1] == genus:
                         taxonomy_levels = [species, "", ""] + otherlv[1:]
                         break
             else:
-                print(f"genus {genus} not found in: {self.lineage_path}")
+                self.config.logger.error(
+                    f"genus {genus} not found in: {self.lineage_path}"
+                )
+                taxonomy_levels = [species, genus] + [""] * 4
             taxa_matrix.append(taxonomy_levels)
 
         taxa_matrix_trans = np.array(taxa_matrix).T

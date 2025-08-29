@@ -22,6 +22,13 @@ def get_file_handler(log_path):
     return fh
 
 
+def close_file_handler(logger):
+    for handler in logger.handlers:
+        if isinstance(handler, logging.FileHandler):
+            logger.removeHandler(handler)
+            handler.close()
+
+
 def prog_log(prog_name: str, log_file: str | None = None):
     def decorator(func):
         def wrapper(*args, **kwargs):

@@ -100,6 +100,8 @@ class BioPipeline:
         else:
             self.run_stages_one_file(input_path)
 
+        self.close_file_handler()
+
     def add_default_settings(self, settings):
         self.stage_class = {
             "decompress": decompress.DecompressStage,
@@ -116,7 +118,7 @@ class BioPipeline:
         )
         self.stage_dir_name = {
             k: settings.get(f"{k}_dir_name", v)
-            for k, v in SETTINGS["stage_dir_name"].items()
+            for k, v in SETTINGS["dir_name"].items()
         }
         self.stage_dir = {
             k: os.path.join(self.outdir_path, v)
@@ -225,4 +227,7 @@ class BioPipeline:
         prefix = os.path.basename(input_path).replace(
             self.stage_suffix["raw"], ""
         )
-        self.run_one_file(prefix, self.stages)
+        self.run_one_file(prefix)
+
+    def close_file_handler(self):
+        base_logger.close_file_handler(self.config.logger)

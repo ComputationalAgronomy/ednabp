@@ -17,7 +17,7 @@ class TestSubprocessRunner:
     def subprocess_runner(self, mock_config):
         return SubprocessRunner("test_subprocess", "echo test", mock_config)
 
-    def test_runner_init(self, mock_config):
+    def test_init(self, mock_config):
         runner = SubprocessRunner("test_subprocess", "echo test", mock_config)
 
         assert runner.prog_name == "test_subprocess"
@@ -27,14 +27,44 @@ class TestSubprocessRunner:
         assert runner.message == "Program: test_subprocess."
         assert runner.capture_output is None
 
-    def test_runner_init_custom(self, mock_config):
+    def test_init_custom(self, mock_config):
         runner = SubprocessRunner(
             "test_subprocess", "echo test", mock_config, shell=True
         )
         assert runner.shell is True
 
     @patch("subprocess.run")
-    def test_run_success(self, mock_subprocess_run, subprocess_runner):
+    def test_shell_false(self, mock_subprocess_run, mock_config):
+        mock_result = Mock()
+        mock_subprocess_run.return_value = mock_result
+
+        runner = SubprocessRunner(
+            "test_subprocess", "echo test", mock_config, shell=False
+        )
+        runner.run()
+
+        call_args = mock_subprocess_run.call_args[0][0]
+        assert isinstance(call_args, list)
+        assert call_args == ["echo", "test"]
+
+    @patch("subprocess.run")
+    def test_shell_true(self, mock_subprocess_run, mock_config):
+        mock_result = Mock()
+        mock_subprocess_run.return_value = mock_result
+
+        runner = SubprocessRunner(
+            "test_subprocess", "echo test", mock_config, shell=True
+        )
+        runner.run()
+
+        call_args = mock_subprocess_run.call_args[0][0]
+        assert call_args == "echo test"
+
+        call_kwargs = mock_subprocess_run.call_args[1]
+        assert call_kwargs["shell"] is True
+
+    @patch("subprocess.run")
+    def test_run(self, mock_subprocess_run, subprocess_runner):
         mock_result = Mock()
         mock_result.returncode = 0
         mock_subprocess_run.return_value = mock_result
@@ -50,35 +80,13 @@ class TestSubprocessRunner:
         )
         mock_subprocess_run.assert_called_once()
 
-    @patch("subprocess.run")
-    def test_run_shell_false(self, mock_subprocess_run, mock_config):
-        mock_result = Mock()
-        mock_subprocess_run.return_value = mock_result
+    def test_run_dry(self, dry_config):
+        runner = SubprocessRunner("test_subprocess", "echo test", dry_config)
 
-        runner = SubprocessRunner(
-            "test_subprocess", "echo test", mock_config, shell=False
-        )
-        runner.run()
+        result = runner.run()
 
-        call_args = mock_subprocess_run.call_args[0][0]
-        assert isinstance(call_args, list)
-        assert call_args == ["echo", "test"]
-
-    @patch("subprocess.run")
-    def test_run_shell_true(self, mock_subprocess_run, mock_config):
-        mock_result = Mock()
-        mock_subprocess_run.return_value = mock_result
-
-        runner = SubprocessRunner(
-            "test_subprocess", "echo test", mock_config, shell=True
-        )
-        runner.run()
-
-        call_args = mock_subprocess_run.call_args[0][0]
-        assert call_args == "echo test"
-
-        call_kwargs = mock_subprocess_run.call_args[1]
-        assert call_kwargs["shell"] is True
+        assert result is None
+        dry_config.logger.info.assert_called_with("Program: test_subprocess.")
 
     @patch("subprocess.run")
     def test_run_called_process_error(
@@ -122,14 +130,6 @@ class TestSubprocessRunner:
         subprocess_runner.config.logger.error.assert_called_with(
             "FAIL: test_subprocess. Other Exception: Unexpected error."
         )
-
-    def test_run_dry(self, dry_config):
-        runner = SubprocessRunner("test_subprocess", "echo test", dry_config)
-
-        result = runner.run()
-
-        assert result is None
-        dry_config.logger.info.assert_called_with("Program: test_subprocess.")
 
     @patch("subprocess.run")
     def test_capture_output_stored(
@@ -222,7 +222,7 @@ class TestRedirectOutputRunner:
         except FileNotFoundError:
             pass
 
-    def test_runner_init(self, mock_config, mock_subprocess_runner, tmp_files):
+    def test_init(self, mock_config, mock_subprocess_runner, tmp_files):
         stdout_file, stderr_file = tmp_files
 
         runner = RedirectOutputRunner(
@@ -249,7 +249,7 @@ class TestRedirectOutputRunner:
                 "test", invalid_runner, stdout_file, stderr_file, mock_config
             )
 
-    def test_run_success(self, mock_config, mock_subprocess_runner, tmp_files):
+    def test_run(self, mock_config, mock_subprocess_runner, tmp_files):
         stdout_file, stderr_file = tmp_files
 
         runner = RedirectOutputRunner(
@@ -271,6 +271,31 @@ class TestRedirectOutputRunner:
         with open(stdout_file) as out_f, open(stderr_file) as err_f:
             assert out_f.read() == "test stdout"
             assert err_f.read() == "test stderr"
+
+    def test_run_dry(self, mock_subprocess_runner, tmp_files):
+        stdout_file, stderr_file = tmp_files
+        dry_config = Mock(spec=Config)
+        dry_config.verbose = True
+        dry_config.dry = True
+        dry_config.logger = Mock()
+
+        runner = RedirectOutputRunner(
+            "test_redirect",
+            mock_subprocess_runner,
+            stdout_file,
+            stderr_file,
+            dry_config,
+        )
+
+        result = runner.run()
+
+        assert result is None
+        dry_config.logger.info.assert_called_with(
+            "RedirectOutput: test_redirect."
+        )
+
+        with open(stdout_file) as f:
+            assert f.read() == ""
 
     def test_run_no_stdout(
         self, mock_config, mock_subprocess_runner, tmp_files
@@ -335,31 +360,6 @@ class TestRedirectOutputRunner:
         mock_config.logger.error.assert_called()
         error_call = mock_config.logger.error.call_args[0][0]
         assert "FAIL: test_redirect. Error:" in error_call
-
-    def test_run_dry(self, mock_subprocess_runner, tmp_files):
-        stdout_file, stderr_file = tmp_files
-        dry_config = Mock(spec=Config)
-        dry_config.verbose = True
-        dry_config.dry = True
-        dry_config.logger = Mock()
-
-        runner = RedirectOutputRunner(
-            "test_redirect",
-            mock_subprocess_runner,
-            stdout_file,
-            stderr_file,
-            dry_config,
-        )
-
-        result = runner.run()
-
-        assert result is None
-        dry_config.logger.info.assert_called_with(
-            "RedirectOutput: test_redirect."
-        )
-
-        with open(stdout_file) as f:
-            assert f.read() == ""
 
     def test_file_creation(self, mock_config, mock_subprocess_runner):
         with tempfile.TemporaryDirectory() as temp_dir:

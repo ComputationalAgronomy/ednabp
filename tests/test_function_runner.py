@@ -2,7 +2,7 @@ from ednabp.bp.step_build.function_runner import FunctionRunner
 
 
 class TestFunctionRunner:
-    def test_runner_init(self, mock_config):
+    def test_init(self, mock_config):
         def test_function():
             return "test_result"
 
@@ -59,48 +59,42 @@ class TestFunctionRunner:
         dry_config.logger.info.assert_called_with("Program: dry_function.")
 
     def test_run_function_value_error(self, mock_config):
-        def value_error_function():
+        def value_error():
             raise ValueError("Test error")
 
-        runner = FunctionRunner(
-            "value_error_function", value_error_function, mock_config
-        )
+        runner = FunctionRunner("value_error", value_error, mock_config)
         result = runner.run()
 
         assert result is False
         mock_config.logger.error.assert_called()
         error_call = mock_config.logger.error.call_args[0][0]
-        assert "FAIL: value_error_function" in error_call
+        assert "FAIL: value_error" in error_call
         assert "Exception: Test error" in error_call
 
-    def test_run_function_runtime_error(self, mock_config):
-        def runtime_error_function():
+    def test_run_runtime_error(self, mock_config):
+        def runtime_error():
             raise RuntimeError("Runtime error occurred")
 
-        runner = FunctionRunner(
-            "runtime_error_function", runtime_error_function, mock_config
-        )
+        runner = FunctionRunner("runtime_error", runtime_error, mock_config)
         result = runner.run()
 
         assert result is False
         mock_config.logger.error.assert_called()
         error_call = mock_config.logger.error.call_args[0][0]
-        assert "FAIL: runtime_error_function" in error_call
+        assert "FAIL: runtime_error" in error_call
         assert "Exception: Runtime error occurred" in error_call
 
-    def test_run_function_type_error(self, mock_config):
-        def type_error_function():
+    def test_run_type_error(self, mock_config):
+        def type_error():
             return "foobar" + 42
 
-        runner = FunctionRunner(
-            "type_error_function", type_error_function, mock_config
-        )
+        runner = FunctionRunner("type_error", type_error, mock_config)
         result = runner.run()
 
         assert result is False
         mock_config.logger.error.assert_called()
         error_call = mock_config.logger.error.call_args[0][0]
-        assert "FAIL: type_error_function" in error_call
+        assert "FAIL: type_error" in error_call
         assert (
             """Exception: can only concatenate str (not "int") to str"""
             in error_call

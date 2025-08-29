@@ -13,7 +13,7 @@ class TestCutPrimerStage:
             config=mock_config, in_dir=in_dir, out_dir=out_dir
         )
 
-    def test_stage_init(self, mock_config, tmp_dirs):
+    def test_init(self, mock_config, tmp_dirs):
         in_dir, out_dir = tmp_dirs
         stage = CutPrimerStage(
             config=mock_config, in_dir=in_dir, out_dir=out_dir
@@ -27,7 +27,7 @@ class TestCutPrimerStage:
         assert stage.out_suffix == "_cut.fastq"
         assert stage.report_suffix == "_report.txt"
 
-    def test_stage_init_custom(self, mock_config, tmp_dirs):
+    def test_init_custom(self, mock_config, tmp_dirs):
         in_dir, out_dir = tmp_dirs
         stage = CutPrimerStage(
             config=mock_config,
@@ -49,7 +49,7 @@ class TestCutPrimerStage:
         assert stage.in_suffix == "_merged.fq"
         assert stage.out_suffix == "_trimmed.fq"
 
-    def test_setup_creates_correct_command(self, cutprimer_stage, tmp_dirs):
+    def test_setup(self, cutprimer_stage, tmp_dirs):
         in_dir, _out_dir = tmp_dirs
         test_prefix = "sample001"
 

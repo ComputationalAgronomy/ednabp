@@ -20,7 +20,7 @@ class TestDecompressStage:
             b"@read1\nACGTACGT\n+\nIIIIIIII\n@read2\nTGCATGCA\n+\nIIIIIIII\n"
         )
 
-    def test_stage_init(self, mock_config, tmp_dirs):
+    def test_init(self, mock_config, tmp_dirs):
         in_dir, out_dir = tmp_dirs
         stage = DecompressStage(
             config=mock_config, in_dir=in_dir, out_dir=out_dir
@@ -34,7 +34,7 @@ class TestDecompressStage:
         assert stage.infile_list == []
         assert stage.outfile_list == []
 
-    def test_stage_init_custom(self, mock_config, tmp_dirs):
+    def test_init_custom(self, mock_config, tmp_dirs):
         in_dir, out_dir = tmp_dirs
         stage = DecompressStage(
             config=mock_config,
@@ -49,7 +49,7 @@ class TestDecompressStage:
         assert stage.insuffix_list == ["_1.fq.gz", "_2.fq.gz"]
         assert stage.outsuffix_list == ["_1.fq", "_2.fq"]
 
-    def test_setup_with_existing_files(
+    def test_setup_existed_files(
         self, decompress_stage, tmp_dirs, sample_fastq_content
     ):
         in_dir, out_dir = tmp_dirs

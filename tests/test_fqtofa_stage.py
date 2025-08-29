@@ -15,7 +15,7 @@ class TestFqToFaStage:
     def sample_fastq_content(self):
         return "@read1\nACGTACGT\n+\nIIIIIIII\n@read2\nTGCATGCA\n+\nIIIIIIII\n"
 
-    def test_fqtofa_stage_init(self, mock_config, tmp_dirs):
+    def test_init(self, mock_config, tmp_dirs):
         in_dir, out_dir = tmp_dirs
         stage = FqToFaStage(config=mock_config, in_dir=in_dir, out_dir=out_dir)
 
@@ -25,7 +25,7 @@ class TestFqToFaStage:
         assert stage.in_suffix == "_cut.fastq"
         assert stage.out_suffix == "_cut.fasta"
 
-    def test_fqtofa_stage_init_custom(self, mock_config, tmp_dirs):
+    def test_init_custom(self, mock_config, tmp_dirs):
         in_dir, out_dir = tmp_dirs
         stage = FqToFaStage(
             config=mock_config,
@@ -40,7 +40,7 @@ class TestFqToFaStage:
         assert stage.in_suffix == "_trimmed.fq"
         assert stage.out_suffix == "_trimmed.fa"
 
-    def test_setup_creates_function_runner(self, fqtofa_stage, tmp_dirs):
+    def test_setup(self, fqtofa_stage, tmp_dirs):
         in_dir, out_dir = tmp_dirs
         test_prefix = "sample001"
 
@@ -59,7 +59,7 @@ class TestFqToFaStage:
         assert fqtofa_stage.infile == expected_infile
         assert fqtofa_stage.outfile == expected_outfile
 
-    def test_fq_to_fa(self, fqtofa_stage, tmp_dirs, sample_fastq_content):
+    def test_run(self, fqtofa_stage, tmp_dirs, sample_fastq_content):
         in_dir, out_dir = tmp_dirs
         test_prefix = "real_test"
 
@@ -82,7 +82,7 @@ class TestFqToFaStage:
             assert "@" not in content
             assert "+" not in content
 
-    def test_empty_fastq_file(self, fqtofa_stage, tmp_dirs):
+    def test_empty_file(self, fqtofa_stage, tmp_dirs):
         in_dir, out_dir = tmp_dirs
         test_prefix = "empty_test"
 

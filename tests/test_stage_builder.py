@@ -25,7 +25,7 @@ class TestStageBuilder:
         in_dir, out_dir = tmp_dirs
         return ImplementedStageBuilder(mock_config, in_dir, out_dir)
 
-    def test_stage_builder_init(self, mock_config, tmp_dirs):
+    def test_init(self, mock_config, tmp_dirs):
         in_dir, out_dir = tmp_dirs
         stage = ImplementedStageBuilder(mock_config, in_dir, out_dir)
 

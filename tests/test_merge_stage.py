@@ -11,20 +11,20 @@ class TestMergeStage:
         in_dir, out_dir = tmp_dirs
         return MergeStage(config=mock_config, in_dir=in_dir, out_dir=out_dir)
 
-    def test_stage_init(self, mock_config, tmp_dirs):
+    def test_init(self, mock_config, tmp_dirs):
         in_dir, out_dir = tmp_dirs
         stage = MergeStage(config=mock_config, in_dir=in_dir, out_dir=out_dir)
 
         assert stage.config == mock_config
         assert stage.in_dir == in_dir
         assert stage.out_dir == out_dir
-        assert stage.USEARCH_PROG == "usearch"
+        assert stage.usearch_prog == "usearch"
         assert stage.in_suffix == "_R1.fastq"
         assert stage.out_suffix == "_merge.fastq"
         assert stage.report_suffix == "_report.txt"
         assert stage.params == "-fastq_maxdiffs 5 -fastq_pctid 90 -threads 4"
 
-    def test_stage_init_custom(self, mock_config, tmp_dirs):
+    def test_init_custom(self, mock_config, tmp_dirs):
         in_dir, out_dir = tmp_dirs
         stage = MergeStage(
             config=mock_config,
@@ -39,12 +39,12 @@ class TestMergeStage:
         )
 
         assert stage.heading == "custom_merge"
-        assert stage.USEARCH_PROG == "usearch12"
+        assert stage.usearch_prog == "usearch12"
         assert stage.in_suffix == "_R1.fq"
         assert stage.out_suffix == "_merged.fq"
         assert stage.params == "-fastq_maxdiffs 10 -fastq_pctid 85 -threads 4"
 
-    def test_setup_creates_correct_command(self, merge_stage, tmp_dirs):
+    def test_setup(self, merge_stage, tmp_dirs):
         in_dir, out_dir = tmp_dirs
         test_prefix = "sample001"
 

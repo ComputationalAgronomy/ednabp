@@ -63,10 +63,22 @@ class TestCutPrimerStage:
         command_runner = cutprimer_stage.runners[0]
 
         expected_infile = os.path.join(in_dir, f"{test_prefix}_merge.fastq")
+        expected_untrimmed_file = os.path.join(
+            _out_dir, f"{test_prefix}_untrimmed.fastq"
+        )
+        expected_tooshort_file = os.path.join(
+            _out_dir, f"{test_prefix}_too_short.fastq"
+        )
+        expected_toolong_file = os.path.join(
+            _out_dir, f"{test_prefix}_too_long.fastq"
+        )
         expected_command = (
-            f"cutadapt {expected_infile} "
-            f"-g GTCGGTAAAACTCGTGCCAGC;max_error_rate=0.15...CAAACTGGGATTAGATACCCCACTATG;max_error_rate=0.15 "
-            f"--minimum-length 163 --maximum-length 185 --discard-untrimmed -j 4"
+            f"cutadapt {expected_infile}"
+            f" -g GTCGGTAAAACTCGTGCCAGC;max_error_rate=0.15...CAAACTGGGATTAGATACCCCACTATG;max_error_rate=0.15"
+            f" --minimum-length 163 --maximum-length 185 -j 4"
+            f" --untrimmed-output {expected_untrimmed_file}"
+            f" --too-short-output {expected_tooshort_file}"
+            f" --too-long-output {expected_toolong_file}"
         )
 
         assert command_runner.command == expected_command

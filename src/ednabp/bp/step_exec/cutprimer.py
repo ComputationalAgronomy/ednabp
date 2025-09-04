@@ -50,7 +50,10 @@ class CutPrimerStage(stage_builder.StageBuilder):
         cmd = (
             f"{self.cutadapt_prog} {self.infile}"
             f" {self.params}"
-            f" --discard-untrimmed -j {self.config.n_cpu}"
+            f" -j {self.config.n_cpu}"
+            f" --untrimmed-output {os.path.join(self.out_dir, prefix + '_untrimmed.fastq')}"
+            f" --too-short-output {os.path.join(self.out_dir, prefix + '_too_short.fastq')}"
+            f" --too-long-output {os.path.join(self.out_dir, prefix + '_too_long.fastq')}"
         )
         super().add_stage("Cut primers for merged sequences", cmd)
         super().add_stage_output_to_file(

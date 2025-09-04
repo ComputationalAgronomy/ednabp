@@ -6,7 +6,7 @@ import pytest
 from ednabp.common.config import Config
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def mock_config():
     config = Mock(spec=Config)
     config.verbose = True
@@ -16,7 +16,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def dry_config():
     config = Mock(spec=Config)
     config.verbose = True
@@ -25,7 +25,7 @@ def dry_config():
     return config
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def tmp_dirs():
     with (
         tempfile.TemporaryDirectory() as in_dir,

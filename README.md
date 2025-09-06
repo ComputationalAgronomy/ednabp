@@ -1,249 +1,199 @@
-# eDNA_Bioinformatics_Pipeline
-The purpose of this project is to implement eDNA bioinformatics processing and to explore taxonomic delimitation from various perspectives using eDNA sequences.
+# eDNA Bioinformatics Pipeline (ednabp)
 
-# Contents
+A comprehensive Python package for processing environmental DNA (eDNA) sequences through bioinformatics workflows including quality control, taxonomic assignment, and diversity analysis.
 
-- [Getting Started](#getting-started)
-  
-- [Usage](#usage)
+## Contents
 
-- [Pytest](#pytest)
+- [Installation](#installation)
+- [Modules](#modules)
+- [Usage Examples](#usage-examples)
+- [Testing](#testing)
 
-# Getting Started
- - [Local Version](#local-version)
+## Installation
 
- - [Google Colab Version](#google-colab-version)
 
- - [Docker Version](#docker-version)
-## Local Version
+### Package Installation
 
-### Dependency Installation
-
-Make sure you have installed all of the following prerequisites on your machine:
-* Clustal Omega - [Download](http://www.clustal.org/omega/)
-* Cutadapt - [Download](https://cutadapt.readthedocs.io/en/stable/installation.html)
-* IQTREE2 - [Download](http://www.iqtree.org/)
-* NCBI-BLAST+ - [Download](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/)
-* USEARCH12 - [Download](https://github.com/rcedgar/usearch12.git)
-
-, and ensure the path of downloaded software is added to the "Path" variable in "Environmental Variables".
-
-### Installation
-1. Required Python Package Installation
-```sh
-python -m pip install -r requirements.txt
-```
-2. Local package installs
-```sh
-python -m pip install -e .
+1. Install dependencies:
+```bash
+pip install -r requirements.txt
 ```
 
-## Google Colab Version
-
-For details check [ednabp.ipynb](https://colab.research.google.com/drive/1HTjt7VIZwWkEjDWdPMAJ3U8vSWy2KlVd?usp=sharing)
-
-## Docker Version
-
-For details check `docker.md`
-
-# Usage
-  - [`fastq_processor`](#fastq_processor-module)
-
-  - [`analysis_toolkit`](#analysis_toolkit-module)
-
-## `fastq_processor` Module
-This module processes raw FASTQ data through several stages including paired-end merging, primer cutting, reformatting, dereplication, denoising, and taxonomic assignment.
-
-### Step 0. Prepare necessary files.
- - A directory to save the output files, and ensure that it contains a subdirectory with your raw FASTQ.GZ files. Filenames for raw data should follow the pattern `<prefix><suffix>`. You can change the suffix pattern by modifying the `raw_suffix` parameter (see [Optional Parameters](#optional-parameters)).
- ```
-parent_dir/
-└── raw_dir/
-    ├── sample1_R1.fastq.gz
-    ├── sample1_R2.fastq.gz
-    └── ...
+2. Install from source:
+```bash
+git clone https://github.com/ComputationalAgronomy/ednabp.git
+cd ednabp
+pip install -e .
 ```
 
- - A directory contains index files, which serve as the reference data for assigning sequences to species. If you want to create a custom set of index files as a reference database, use the following command:
- ```
-makeblastdb -in ref.fasta -dbtype nucl -out db_prefix`
-```
+### Additional prerequisites for running the `bp` module
 
- - A lineage CSV file includes taxonomic information from the domain to genus level, which serves as a reference for labeled species at the taxonomic level above the species. 
+If you will run the `bp` module, ensure the following external tools are installed and available in your PATH:
+* **Cutadapt** - [Download](https://cutadapt.readthedocs.io/en/stable/installation.html)
+* **USEARCH** - [Download](https://github.com/rcedgar/usearch12.git)
+* **NCBI-BLAST+** - [Download](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/)
 
-### Step 1. Write the following code to create a Python script and run the script.
+### Additional prerequisites for running the `seq` module
+
+If you will run the `seq` module, ensure the following external tools are installed and available in your PATH:
+* **USEARCH** - [Download](https://github.com/rcedgar/usearch12.git)
+* **Clustal Omega** - [Download](http://www.clustal.org/omega/)
+* **IQTREE** - [Download](https://iqtree.github.io/doc/Quickstart#installation)
+
+## Modules
+
+![modules](./img/modules.png)
+
+### 1. Bioinformatics Pipeline (`bp`)
+Core processing pipeline with the following stages:
+
+- **Decompress**: Extract compressed FASTQ files
+- **Merge**: Combine paired-end reads
+- **Cut Primer**: Remove primer sequences and length filtering
+- **FASTQ to FASTA**: Format conversion
+- **Dereplicate**: Remove duplicate sequences
+- **Denoise**: Error correction
+- **Assign Taxa**: Taxonomic classification
+
+### 2. Data Management (`data`)
+
+- **Data Objects**: Structured data containers for pipeline results.
+
+A complete data container structure looks like the following:
+
+![data](./img/data.png)
+
+### 3. Diversity Analysis (`div`)
+
+- **Writing**: Export diversity metrics CSV tables.
+- **Plotting**: Visualization tools (`barchart`, `heatmap`, `rankcorr`, `sankey`) using Plotly as the underlying package.
+
+### 4. Sequence Analysis (`seq`)
+
+- **Clustering**: Sequence clustering analysis architecture that accepts a reducer class (e.g., `PCA`, `TSNE`, `UMAP`) and a clusterer class (e.g., `AgglomerativeClustering`, `HDBSCAN`). Note: You may need to install additional packages to access these classes.
+- **Phylogenetics**: Tree construction and analysis using **IQTREE**.        .
+- (TODO) **Haplotype Networks**: Write NEXUS files as input for **POPART** to draw haplotype networks.
+
+May separate the `cluster` module into an independent repository in the future to keep each repo simple.
+
+May remove the `phylo` and `hap_net modules` as it is somewhat redundant to use a Python interface rather than using those software packages directly.
+
+## Usage Examples
+- [Pipeline processing](#pipeline-processing)
+- [Data management](#data-management)
+- [Diversity metrics summary](#diversity-metrics-summary)
+
+### Pipeline Processing
 ```python
-from fastq_processor import FastqProcessor
-
-FastqProcessor(stages_parent_dir = "/path/to/parent_dir",
-               raw_dir_name = "RAW_DIR_NAME",
-               db_path = "/path/to/db_dir/DB_PREFIX",
-               lineage_path = "path/to/lineage.csv")
-```
-The `stages_parent_dir` should be set to the directory path that contains a subdirectory with raw data to be processed and where output files will be saved.
-
-The `raw_dir_name` should be set to the name of the subdirectory that contains raw data.
-
-The `db_path` should be set to the directory path containing the indexed files, with the prefix string appended to the folder path.
-
-The `lineage_path` should be set to the path of the lineage CVS file.
-
-### Step 2. Check the results. It should look something like this:
-```
-parent_dir/
-├── raw_dir/
-|   ├── sample1_R1.fastq.gz
-|   └── sample1_R2.fastq.gz
-├── decompress/
-|   ├── sample1_R1.fastq
-|   └── sample1_R2.fastq
-├── merge/
-|   ├── sample1_merge.fastq
-|   └── sample1_report.txt
-├── cut_primer/
-|   ├── sample1_cut.fastq
-|   └── sample1_report.txt
-├── fq_to_fa/
-|   └── sample1_cut.fasta
-├── dereplicate/
-|   ├── sample1_uniq.fasta
-|   └── sample1_report.txt
-├── denoise/
-|   ├── sample1_denoise.fasta
-|   ├── sample1_denoise_report.txt
-|   └── sample1_report.txt
-└── blast/
-    └── sample1_blast.csv
+from ednabp.bp import BioPipeline
 ```
 
-**You have successfully run the process and obtained the processed data!**
-
-### Optional Parameters:
-
-`enabled_stages`: The list of stages to run.
- Default is `["decompress", "merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "assigntaxa"]`.
-
-`raw_suffix`: The suffix pattern used for R1 raw data. Default is `_R1.fastq.gz`.
-
-`n_cpu`: Number of CPU cores to be used for processing. Default is `1`.
-
-`verbose`: Set to True to enable detailed logging output. Default is `True`.
-
-Paired-end merging related:
-
-`maxdiff`: Maximum number of mismatches in the alignment. Default is `5`.
-
-`pctid`: Minimum %id of alignment. Default is `90`.
-
-Primer cutting related:
-
-`rm_p_5`: Non-internal 5’ primer. Default is `"GTCGGTAAAACTCGTGCCAGC"` (MiFish-UF).
-
-`rm_p_3`: Non-internal 3’ primer. Default is `"CAAACTGGGATTAGATACCCCACTATG"` (reverse-complement MiFish-UR).
-
-`error_rate`: The maximum rate of error could be tolerated. The actual error rate is computed as the number of errors in the match divided by the length of the matching part of the primer. Default is `0.15`.
-
-`min_read_len`: Discard processed reads that are shorter than this parameter. Default is `204`.
-
-`max_read_len`: Discard processed reads that are longer than this parameter. Default is `254`.
-
-Denoising related:
-
-`minsize`: Discard sequences with abundance that are smaller than this parameter. Default is `8`.
-
-`alpha`: See [UNOISE2 paper](https://www.biorxiv.org/content/10.1101/081257v1.full) for definition. Default is `2`.
-
-Taxonomic assignment related:
-
-`evalue`: Expectation value (E) threshold for saving hits. Default is `0.00001`.
-
-`qcov_hsp_perc`: The percent threshold of the query sequence that has to form an alignment against the reference to be retained. Default is `90`.
-
-`perc_identity`: Percent identity cutoff. Default is `90`.
-
-`specifiers`: Use to customize format specifiers. Default is `"qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore"`
-
-## `Analysis_toolkit` Module
-This module conducts various types of writing and plotting tasks using the output results of `fastq_processor`.
-
-[Step 0. Create Data Object](#create-data-object)
-
-Haplotypes related:
-
- - [UMAP]
-
- - [HDBSCAN on UMAP embedding]
-
- - [Maximum Likelihood tree]
-
- - [NEXUS file for Haplotype Network]
-
-Abundance or Richness related:
-
- - [Barchart](#barchart)
-
- - [Heatmap](#heatmap)
-
-### Create Data Object
-#### Import Data
+#### Run default pipeline
 ```python
-from analysis_toolkit import SampleData
-
-sample_data = SampleData()
-sample_data.import_data(uniq_dir = "/path/to/dir_save_uniq_fa",
-                        denoise_dir = "/path/to/dir_save_denoise_fa",
-                        denoise_report_dir = "/path/to/dir_save_denoise_report",
-                        blast_dir = "/path/to/dir_save_blast_csv",
-                        sample_info_path = "/path/to/sample_info.csv")
+pipeline = BioPipeline(
+    input_path="/path/to/files_folder",   # Directory containing multiple files
+    # input_path="/path/to/single_file",  # Alternative: single file input
+    output_path="/path/to/output",
+)
 ```
-#### Merge Data
+
+#### Run custom settings
 ```python
-# Suppose you import another dataset into an object called "sample_data2",
-# and you want to combine these two datasets to run an analysis.
-sample_data.merge_data(sample_data2)
+custom_settings = {
+    "rm_p_5": "GGACGATAAGACCCTATAAA",
+    "rm_p_3": "ACTTTAGGGATAACAGCGT",
+    "min_read_len": 154,
+    "max_read_len": 189,
+    "verbose": True,
+    "n_cpu": 8,
+}
+
+pipeline = BioPipeline(
+    input_path="/path/to/files_folder",
+    output_path="/path/to/output",
+    **custom_settings
+)
 ```
-#### Save Instance
+#### CLI
+
+```bash
+ednabp -i INPUT_PATH -o OUTPUT_PATH
+```
+
+To check the parameters, please run command:
+```bash
+ednabp -h
+```
+
+### Data Management
 ```python
-sample_data.save_data(save_instance_dir = "/path/to/save",
-                      save_prefix = "INSTANCE_NAME",
-                      overwrite = True)
+from ednabp.data import BPData, MitoData
 ```
 
-#### Load Data
+#### Import from ednabp.bp.BioPipeline outputs
 ```python
-from analysis_toolkit import SampleData
-
-sample_data = SampleData()
-sample_data.load_data(load_instance_path = "/path/to/save/INSTANCE_NAME.pkl")
+data = BPData()
+data.import_data("results/")
+# optional
+data.import_metadata("path/to/sample_metadata")
+data.import_spc_info("path/to/fishbase_db", "path/to/stock_db")
 ```
 
-### Barchart
+#### Import from MiFish Pipeline outputs
+
+This package supports import data from another popular pipeline to run downstream analysis.
+
+[MiFish Pipeline webpage](https://mitofish.aori.u-tokyo.ac.jp/mifish/)
+
 ```python
-from analysis_toolkit import BarchartRunner
-
-br = BarchartRunner(sample_data)
-br.run_write(taxa_level = "family",
-             write_type = "abundance",
-             save_dir = "stage_test",
-             normalize = True)
-br.run_plot(csv_path = "stage_test/species_abundance.csv")
+data = MitoData()
+data.import_data("results/")
+# optional
+data.import_metadata("path/to/sample_metadata")
 ```
 
-### Heatmap
+#### Reuse a data container
+You can serialize and deserialize a data container for repetitive use. This process is known as "pickling" and "unpickling." Note: Never unpickle a .pkl file from an unknown source.
+
 ```python
-from analysis_toolkit import HeatmapRunner
-
-hr = HeatmapRunner(sample_data)
-hr.run_write(taxa_level = "family",
-             write_type = "richness",
-             save_dir = "TI_test")
-hr.run_plot(csv_path = "TI_test/Species_richness.csv",
-            x_categories = ["Site", "Sample"])
+data.pickle_data("path/to/save_dir", "save_name")
 ```
-## Pytest
-check `pytest.ini`
-```sh
+Next time, you only need to unpickle the data container and don't need to import everything again.
+
+```python
+data = BPData()
+data.unpickle_data("path/to/pkl_file")
+```
+
+### Diversity Metrics Summary
+Here is an example with writing abundance table and drawing barchart of species abundance across samples.
+
+
+```python
+from ednabp.div.write import Writer
+from ednabp.div.plot import barchart
+
+# Create abundance dataframe
+writer = Writer(data)
+df = writer.abundance(taxa_lv='species')
+
+# Generate barchart
+fig, plotter = barchart(
+    df=df,
+    values='abundance',
+    index='species',
+    columns='sample_id'
+)
+```
+
+We also provide two other metrics: **richness** and **detection probability**, plus three additional visualization options: **heatmap**, **sankey diagram**, and **rank correlation matrix**. Additionally, you can customize parameters for summarizing metrics and visualizing data, such as `taxa_lv`, `values`, `index`, and `columns`. These options give you the flexibility to describe your own data.
+
+## Testing
+
+Run the test suite:
+
+```bash
 pytest
-# OR
-pytest tests
+# or
+pytest ./tests/test_XXX.py
 ```

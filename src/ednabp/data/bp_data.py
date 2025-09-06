@@ -10,6 +10,7 @@ import pandas as pd
 
 from ..bp.run_bp import SETTINGS
 from ..common import base_logger
+from ..common.default_settings import SETTINGS as DEFAULT_SETTINGS
 from .read import denoise_report_reader, fasta_reader, taxa_table_reader
 
 DEFAULT_SUFFIXES = {
@@ -98,40 +99,59 @@ class BPData:
 
     def import_data(
         self,
-        dereplicate_dir: str,
-        denoise_dir: str,
-        assigntaxa_dir: str,
+        results_dir: str,
+        dereplicate_dirname: str | None = None,
+        denoise_dirname: str | None = None,
+        assigntaxa_dirname: str | None = None,
         sample_id_list: list[str] | None = None,
-        fishbase_db_path: str | None = None,
-        stock_db_path: str | None = None,
         **suffixes,
     ):
         r"""
-        Import sample data by specifying the import directories, import file suffixes, and sample metadata table.
+        Import sample data by specifying either a parent directory or individual directories.
 
-        :param dereplicate_dir: Path to the directory containing unique amplicon FASTA files.
-        :param denoise_dir: Path to the directory containing denoised haplotype FASTA files and denoise report TXT files.
-        :param assigntaxa_dir: Path to the directory containing taxa table CSV files.
-        :param sample_id_list: List of sample IDs to import. If not provided, all available sample IDs will be imported. The sample IDs are extracted from the file names using the provided suffix.
-        :param sample_metadata_path: Path to the sample metadata CSV file. If provided, sample information will be loaded from this file. Default is None.
-        :param suffixes: Additional optional arguments to specify the suffixes format of import files. These include:
-            - dereplicate_suffix: Suffix for unique amplicon FASTA files. Default: "_uniq.fasta".
-            - denoise_suffix: Suffix for denoised haplotype FASTA files. Default: "_zotus.fasta".
-              p.s. Suffix of denoise table would be `re.sub(r"\.\w+", "_report.txt", DENOISE_SUFFIX)`.
-            - assigntaxa_suffix: Suffix for taxa CSV table files. Default: "_taxa.csv".
+        :param input_path: Parent directory containing subdirectories, or individual directory path when using specific dir params.
+        :param dereplicate_dirname: Subdirectory name for dereplicate files. Default from settings.
+        :param denoise_dirname: Subdirectory name for denoise files. Default from settings.
+        :param assigntaxa_dirname: Subdirectory name for assigntaxa files. Default from settings.
+        :param sample_id_list: List of sample IDs to import. If None, imports all available.
+        :param suffixes: File suffix overrides (dereplicate_suffix, denoise_suffix, assigntaxa_suffix).
         """
         self.import_sample_id_list = []
         self.files_path = {}
-        self.parse_import_info(
-            dereplicate_dir, denoise_dir, assigntaxa_dir, suffixes
+
+        dirs = self.resolve_dirs(
+            results_dir,
+            dereplicate_dirname,
+            denoise_dirname,
+            assigntaxa_dirname,
         )
 
+        self.parse_import_info(*dirs, suffixes)
         self.read_sample_data(sample_id_list)
-
-        if fishbase_db_path is not None and stock_db_path is not None:
-            self.read_spc_info(fishbase_db_path, stock_db_path)
-
         self.sample_id_list.extend(self.import_sample_id_list)
+
+    def resolve_dirs(
+        self,
+        input_path: str,
+        dereplicate_subdir: str | None,
+        denoise_subdir: str | None,
+        assigntaxa_subdir: str | None,
+    ) -> tuple[str, str, str]:
+        dereplicate_subdir = (
+            dereplicate_subdir or DEFAULT_SETTINGS["dir_name"]["dereplicate"]
+        )
+        denoise_subdir = (
+            denoise_subdir or DEFAULT_SETTINGS["dir_name"]["denoise"]
+        )
+        assigntaxa_subdir = (
+            assigntaxa_subdir or DEFAULT_SETTINGS["dir_name"]["assigntaxa"]
+        )
+
+        dereplicate_dir = os.path.join(input_path, dereplicate_subdir)
+        denoise_dir = os.path.join(input_path, denoise_subdir)
+        assigntaxa_dir = os.path.join(input_path, assigntaxa_subdir)
+
+        return dereplicate_dir, denoise_dir, assigntaxa_dir
 
     def parse_import_info(
         self,
@@ -224,8 +244,58 @@ class BPData:
     def is_valid_file(self, file_path: str):
         return os.path.exists(file_path)
 
+    @base_logger.prog_log(prog_name="Import sample metadata")
+    def import_metadata(
+        self,
+        sample_metadata_path: str | None = None,
+        date_column: str = "date",
+        date_format: str = "%Y-%m",
+    ) -> None:
+        with open(sample_metadata_path, "rb") as f:
+            result = chardet.detect(f.read())
+        df = pd.read_csv(
+            sample_metadata_path,
+            index_col=self.SAMPLE_ID_COLUMN,
+            encoding=result["encoding"],
+        )
+
+        df = self.convert_str_to_date(df, date_column, date_format)
+
+        for sample_id in self.import_sample_id_list:
+            if str(sample_id) not in df.index.astype(str):
+                self.logger.warning(
+                    f"Sample ID '{sample_id}' not found in the sample metadata table."
+                )
+            else:
+                self.sample_metadata[sample_id] = df.loc[
+                    df.index.astype(str) == str(sample_id)
+                ].to_dict("records")[0]
+
+    def convert_str_to_date(
+        self, df, date_column: str, date_format: str
+    ) -> pd.DataFrame:
+        if date_column is None:
+            return df
+
+        if date_column is not None and date_column not in df.columns:
+            self.logger.warning(
+                f"Date column '{date_column}' not found in the sample metadata table. "
+                "Double check your metadata CSV or set `date_column` to `None` to prevent this warning"
+            )
+            return df
+
+        try:
+            df[date_column] = pd.to_datetime(
+                df[date_column], format=date_format
+            ).dt.to_period("M")
+        except ValueError as e:
+            self.logger.error(
+                f"Failed to convert date column '{date_column}': {str(e)}"
+            )
+        return df
+
     @base_logger.prog_log(prog_name="Import species information")
-    def read_spc_info(self, fishbase_db_path, stock_db_path):
+    def import_spc_info(self, fishbase_db_path, stock_db_path):
         spc_info = {}
         conn = duckdb.connect()
         try:
@@ -249,7 +319,7 @@ class BPData:
 
             all_species = {
                 level["species"]
-                for sample_id in self.import_sample_id_list
+                for sample_id in self.sample_id_list
                 for level in self.sample_data[sample_id].hap2level.values()
             }
 
@@ -320,56 +390,6 @@ class BPData:
             conn.close()
 
         self.spc_info.update(spc_info)
-
-    @base_logger.prog_log(prog_name="Import sample metadata")
-    def import_metadata(
-        self,
-        sample_metadata_path: str | None = None,
-        date_column: str = "date",
-        date_format: str = "%Y-%m",
-    ) -> None:
-        with open(sample_metadata_path, "rb") as f:
-            result = chardet.detect(f.read())
-        df = pd.read_csv(
-            sample_metadata_path,
-            index_col=self.SAMPLE_ID_COLUMN,
-            encoding=result["encoding"],
-        )
-
-        df = self.convert_str_to_date(df, date_column, date_format)
-
-        for sample_id in self.import_sample_id_list:
-            if str(sample_id) not in df.index.astype(str):
-                self.logger.warning(
-                    f"Sample ID '{sample_id}' not found in the sample metadata table."
-                )
-            else:
-                self.sample_metadata[sample_id] = df.loc[
-                    df.index.astype(str) == str(sample_id)
-                ].to_dict("records")[0]
-
-    def convert_str_to_date(
-        self, df, date_column: str, date_format: str
-    ) -> pd.DataFrame:
-        if date_column is None:
-            return df
-
-        if date_column is not None and date_column not in df.columns:
-            self.logger.warning(
-                f"Date column '{date_column}' not found in the sample metadata table. "
-                "Double check your metadata CSV or set `date_column` to `None` to prevent this warning"
-            )
-            return df
-
-        try:
-            df[date_column] = pd.to_datetime(
-                df[date_column], format=date_format
-            ).dt.to_period("M")
-        except ValueError as e:
-            self.logger.error(
-                f"Failed to convert date column '{date_column}': {str(e)}"
-            )
-        return df
 
     @base_logger.prog_log(prog_name="Pickle sample data")
     def pickle_data(

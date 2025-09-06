@@ -45,7 +45,7 @@ SETTINGS = {
         "alpha": 2,
     },
     "assigntaxa": {
-        "db_path": None,
+        "db_path": "nt",
         "lineage_path": None,
         "evalue": 0.00001,
         "qcov_hsp_perc": 90,

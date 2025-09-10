@@ -1,6 +1,6 @@
 # eDNA Bioinformatics Pipeline (ednabp)
 
-A comprehensive Python package for processing environmental DNA (eDNA) sequences through bioinformatics workflows including quality control, taxonomic assignment, and diversity analysis.
+A pipeline for processing environmental DNA (eDNA) sequences through bioinformatics workflows including quality control, taxonomic assignment, and diversity analysis.
 
 ## Contents
 

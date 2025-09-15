@@ -1,11 +1,8 @@
 import os
-import tempfile
-from unittest.mock import Mock, patch
 
 import pytest
 
 from ednabp.bp.step_exec.denoise import DenoiseStage
-from ednabp.common.config import Config
 
 
 class TestDenoiseStage:

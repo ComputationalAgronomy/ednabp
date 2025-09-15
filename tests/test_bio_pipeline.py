@@ -1,6 +1,6 @@
 import os
 import tempfile
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -324,8 +324,8 @@ class TestBioPipeline:
             "rm_p_3": "CUSTOM3PRIMER",
             "minsize": 10,
             "alpha": 3,
-            "db_path": "/custom/db/path",
             "evalue": 1e-10,
+            "blast_db": "/custom/db/path",
             "usearch_prog": "custom_usearch",
             "cutadapt_prog": "custom_cutadapt",
             "blast_prog": "custom_blastn",
@@ -367,8 +367,8 @@ class TestBioPipeline:
             assert denoise_call_kwargs["usearch_prog"] == "custom_usearch"
 
             assigntaxa_call_kwargs = mock_assigntaxa.call_args[1]
-            assert assigntaxa_call_kwargs["db_path"] == "/custom/db/path"
             assert assigntaxa_call_kwargs["evalue"] == 1e-10
+            assert assigntaxa_call_kwargs["blast_db"] == "/custom/db/path"
             assert assigntaxa_call_kwargs["blast_prog"] == "custom_blastn"
 
     def test_stage_directory_creation(self, tmp_dirs):

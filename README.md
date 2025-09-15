@@ -14,15 +14,21 @@ A pipeline for processing environmental DNA (eDNA) sequences through bioinformat
 
 ### Package Installation
 
-1. Install dependencies:
+1. Download from source:
+```bash
+git clone https://github.com/ComputationalAgronomy/ednabp.git
+```
+```bash
+cd ednabp
+````
+
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Install from source:
+3. Install package locally:
 ```bash
-git clone https://github.com/ComputationalAgronomy/ednabp.git
-cd ednabp
 pip install -e .
 ```
 
@@ -104,6 +110,8 @@ custom_settings = {
     "rm_p_3": "ACTTTAGGGATAACAGCGT",
     "min_read_len": 154,
     "max_read_len": 189,
+    "blast_db": "/path/to/custom/blast/db",
+    "lineage_db": "/path/to/custom/lineage/db"
     "verbose": True,
     "n_cpu": 8,
 }
@@ -126,12 +134,10 @@ ednabp -h
 ```
 
 ### Data Management
-```python
-from ednabp.data import BPData, MitoData
-```
-
 #### Import from ednabp.bp.BioPipeline outputs
 ```python
+from ednabp.data import BPData
+
 data = BPData()
 data.import_data("results/")
 # optional
@@ -146,6 +152,8 @@ This package supports import data from another popular pipeline to run downstrea
 [MiFish Pipeline webpage](https://mitofish.aori.u-tokyo.ac.jp/mifish/)
 
 ```python
+from ednabp.data import MitoData
+
 data = MitoData()
 data.import_data("results/")
 # optional
@@ -161,7 +169,7 @@ data.pickle_data("path/to/save_dir", "save_name")
 Next time, you only need to unpickle the data container and don't need to import everything again.
 
 ```python
-data = BPData()
+data = BPData() # or MitoData()
 data.unpickle_data("path/to/pkl_file")
 ```
 

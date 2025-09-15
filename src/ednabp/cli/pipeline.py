@@ -230,22 +230,6 @@ def main():
         ],
         "Taxonomic Assignment Settings": [
             {
-                "args": ["-db", "--db-path"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["assigntaxa"]["db_path"],
-                    "help": "Path to the taxonomic database (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["-ln", "--lineage-path"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["assigntaxa"]["lineage_path"],
-                    "help": "Path to the taxonomic database (default: %(default)s).",
-                },
-            },
-            {
                 "args": ["--evalue"],
                 "kwargs": {
                     "type": float,
@@ -275,6 +259,30 @@ def main():
                     "type": str,
                     "default": SETTINGS["assigntaxa"]["specifiers"],
                     "help": "Custom format specifiers for BLAST results. (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["-bdb", "--blast-db"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["assigntaxa"]["blast_db"],
+                    "help": "Path to the BLAST database (default [NCBI remote nucleotide sequence database]: %(default)s).",
+                },
+            },
+            {
+                "args": ["-lndb", "--lineage-db"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["assigntaxa"]["lineage_db"],
+                    "help": "Path to the lineage database (default [NCBI remote nucleotide lineage database]: %(default)s).",
+                },
+            },
+            {
+                "args": ["-email", "--entrez-email"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["assigntaxa"]["entrez_email"],
+                    "help": "The email used by NCBI to contact you in case of excessive usage or issues. (default : %(default)s).",
                 },
             },
         ],

@@ -1,3 +1,5 @@
+import pandas as pd
+
 from ...common import base_logger
 from .base_reader import Reader
 
@@ -38,45 +40,9 @@ class TaxaTableReader(Reader):
         self.hap2level = {}
 
     @base_logger.prog_log(prog_name="Read Taxa CSV Table")
-    def read_taxa_table(self, blast_table: str):
-        """
-        Read the BLAST CSV table and update the dictionary 'self.hap2level' with the corresponding taxonomic names at each level for every haplotype (ZOTU).
-        Seven levels are used: species, genus, family, order, class, phylum, kingdom.
-
-        :param blast_table_path: Path to the BLAST CSV table.
-        """
-        with open(blast_table) as file:
-            for line in file.readlines():
-                self.process_line(line)
-
-    def process_line(self, line: str):
-        """
-        Process a single line from the BLAST CSV table.
-        The line list should be in the format:
-        0: Haplotype_id
-        (not used)1: Subject accession
-        2-8: species, genus, family, order, class, phylum, kingdom
-        (not used)9-18: pident, length, mismatch, gapopen, qstart, qend, sstart, send, evalue, bitscore (check specifiers: https://www.biostars.org/p/88944/#88949)
-
-        :param line: The line to process.
-        :return: A tuple containing the haplotype_id (e.g. "Zotu1") and a dictionary of taxonomic levels (e.g. {"species": "spcA", ...}).
-        """
-        line_list = line.split(",")
-
-        level_list = [str(line_list[i]) for i in range(2, 9)]
-        # identity = line_list[9]
-        # length = line_list[14]
-        # evalue = line_list[17]
-        # bitscore = line_list[18]
-
-        level_list[0] = level_list[0].translate(self.error_table)
-        if level_list[2] in self.TAX_REPLACMENT:
-            level_list[2] = self.TAX_REPLACMENT[level_list[2]]
-        hap2level_entry = dict(
-            zip(self.DESIRED_LEVEL, level_list, strict=False)
-        )
-        haplotype = line_list[0]
-        self.update_hap2level(haplotype, hap2level_entry)
-
-    def update_hap2level(self, haplotype, hap2level_entry):
-        self.hap2level[haplotype] = hap2level_entry
+    def read_taxa_table(self, taxa_table: str):
+        df = pd.read_csv(taxa_table)
+        key_column = "qseqid"
+        value_columns = self.DESIRED_LEVEL
+        df_indexed = df.set_index(key_column)[value_columns]
+        self.hap2level = df_indexed.to_dict("index")

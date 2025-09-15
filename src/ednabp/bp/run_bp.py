@@ -58,13 +58,14 @@ class BioPipeline:
             - alpha (int): Denoising sensitivity parameter. See UNOISE2 paper for definition. Default: 2.
 
           Assign Taxa Settings:
-            - db_path (str): Path to the taxonomic database. Default: None.
-            - lineage_path (str): Path to the taxonomic lineage file. Default: None.
             - evalue (float): Expectation value (E) threshold for saving hits. Default: 0.00001.
             - qcov_hsp_perc (int): The %threshold of the query sequence that has to form an alignment against the reference to be retained. Default: 90.
             - perc_identity (int): Minimum percentage identity required for taxonomic assignment. Default: 90.
             - specifiers (str): Output format specifiers for BLAST results. Default:
               "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore".
+            - blast_db (str): Path to the taxonomic database. Default: 'nt'.
+            - lineage_db (str): Path to the taxonomic lineage file. Default: 'nucleotide'.
+            - entrez_email (str): The email used by NCBI to contact you in case of excessive usage or issues. Default: None
 
           External Program Setting:
             - usearch_prog (str): Command to execute USEARCH for merge, dereplicate, and denoise stages. Default: "usearch".

@@ -19,7 +19,7 @@ DEFAULT_SUFFIXES = {
     "denoise_report_suffix": re.sub(
         r"\.\w+", SETTINGS["suffix"]["report"], SETTINGS["suffix"]["denoise"]
     ),
-    "assigntaxa_suffix": SETTINGS["suffix"],
+    "assigntaxa_suffix": SETTINGS["suffix"]["assigntaxa"],
 }
 
 
@@ -29,10 +29,10 @@ class SingleBPData:
     This class initializes by reading data from given FASTA, denoise report, and BLAST table files,
     and stores the parsed information for further use.
 
-    :param uniq_fasta_path: Path to the unique amplicon FASTA file.
-    :param zotu_fasta_path: Path to the ZOTU haplotype FASTA file.
-    :param denoise_report_path: Path to the denoise report file.
-    :param blast_table_path: Path to the BLAST table file.
+    :param uniq_fasta: Path to the unique amplicon FASTA file.
+    :param denoise_fasta: Path to the ZOTU haplotype FASTA file.
+    :param denoise_report: Path to the denoise report file.
+    :param taxa_table: Path to the BLAST table file.
 
     :attribute amp_seq: A dictionary containing amplicon sequences from the unique FASTA file.
     :attribute hap_seq: A dictionary containing haplotype sequences from the ZOTU FASTA file.
@@ -48,7 +48,7 @@ class SingleBPData:
         uniq_fasta: str,
         denoise_fasta: str,
         denoise_report: str,
-        blast_table: str,
+        taxa_table: str,
     ):
         ufr = fasta_reader.FastaReader()
         ufr.read_fasta(seq_path=uniq_fasta, seq_type="Amplicon")
@@ -65,7 +65,7 @@ class SingleBPData:
         self.hap_size = drr.hap_size
 
         br = taxa_table_reader.TaxaTableReader()
-        br.read_taxa_table(blast_table=blast_table)
+        br.read_taxa_table(taxa_table=taxa_table)
         self.hap2level = br.hap2level
 
 

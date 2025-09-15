@@ -45,12 +45,13 @@ SETTINGS = {
         "alpha": 2,
     },
     "assigntaxa": {
-        "db_path": "nt",
-        "lineage_path": None,
         "evalue": 0.00001,
         "qcov_hsp_perc": 90,
         "perc_identity": 90,
         "specifiers": "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
+        "blast_db": "nt",
+        "lineage_db": "nucleotide",
+        "entrez_email": None,
     },
     "prog": {
         "usearch": "usearch",

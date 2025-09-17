@@ -25,7 +25,6 @@ class BarchartPlotter(base_plotter.Plotter):
         self.index = index
         self.columns = columns
         self.aggfunc = aggfunc
-        self.df = None
         self.pivot_table = None
         super().__init__(verbose, show_plot, save_dir, overwrite)
 

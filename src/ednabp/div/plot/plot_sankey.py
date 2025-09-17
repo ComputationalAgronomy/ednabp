@@ -157,22 +157,26 @@ class SankeyPlotter(base_plotter.Plotter):
         self.create_node_labels()
         self.get_colors(color_link_by, priority)
 
+        node_args = {
+            "pad": 15,
+            "thickness": 20,
+            "line": {"color": "black", "width": 0.5},
+            "label": self.node_label_list,
+            "color": self.node_colors,
+        }
+        link_args = {
+            "source": self.source,
+            "target": self.target,
+            "value": self.count,
+        }
+        if hasattr(self, "link_colors"):
+            link_args["color"] = self.link_colors
+
         fig = go.Figure(
             data=[
                 go.Sankey(
-                    node={
-                        "pad": 15,
-                        "thickness": 20,
-                        "line": {"color": "black", "width": 0.5},
-                        "label": self.node_label_list,
-                        "color": self.node_colors,
-                    },
-                    link={
-                        "source": self.source,
-                        "target": self.target,
-                        "value": self.count,
-                        "color": self.link_colors,
-                    },
+                    node=node_args,
+                    link=link_args,
                 )
             ]
         )

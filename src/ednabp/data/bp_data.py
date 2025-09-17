@@ -248,8 +248,6 @@ class BPData:
     def import_metadata(
         self,
         sample_metadata_path: str | None = None,
-        date_column: str = "date",
-        date_format: str = "%Y-%m",
     ) -> None:
         with open(sample_metadata_path, "rb") as f:
             result = chardet.detect(f.read())
@@ -258,8 +256,6 @@ class BPData:
             index_col=self.SAMPLE_ID_COLUMN,
             encoding=result["encoding"],
         )
-
-        df = self.convert_str_to_date(df, date_column, date_format)
 
         for sample_id in self.import_sample_id_list:
             if str(sample_id) not in df.index.astype(str):
@@ -270,29 +266,6 @@ class BPData:
                 self.sample_metadata[sample_id] = df.loc[
                     df.index.astype(str) == str(sample_id)
                 ].to_dict("records")[0]
-
-    def convert_str_to_date(
-        self, df, date_column: str, date_format: str
-    ) -> pd.DataFrame:
-        if date_column is None:
-            return df
-
-        if date_column is not None and date_column not in df.columns:
-            self.logger.warning(
-                f"Date column '{date_column}' not found in the sample metadata table. "
-                "Double check your metadata CSV or set `date_column` to `None` to prevent this warning"
-            )
-            return df
-
-        try:
-            df[date_column] = pd.to_datetime(
-                df[date_column], format=date_format
-            ).dt.to_period("M")
-        except ValueError as e:
-            self.logger.error(
-                f"Failed to convert date column '{date_column}': {str(e)}"
-            )
-        return df
 
     @base_logger.prog_log(prog_name="Import species information")
     def import_spc_info(self, fishbase_db_path, stock_db_path):

@@ -23,6 +23,9 @@ DEFAULT_SUFFIXES = {
 }
 
 
+FILL_NA = "N/A"
+
+
 class SingleBPData:
     """
     Container for handling and processing data from various bioinformatics files.
@@ -323,17 +326,11 @@ class BPData:
                         water += "Salt Water; "
                     if fb_data[2] == 1:
                         water += "Brack Water; "
-                    habitat = (
-                        fb_data[3] if fb_data[3] is not None else "Not record"
-                    )
-                    depth_s = (
-                        fb_data[4] if fb_data[4] is not None else "Not record"
-                    )
-                    depth_d = (
-                        fb_data[5] if fb_data[5] is not None else "Not record"
-                    )
+                    habitat = fb_data[3] if fb_data[3] is not None else FILL_NA
+                    depth_s = fb_data[4] if fb_data[4] is not None else FILL_NA
+                    depth_d = fb_data[5] if fb_data[5] is not None else FILL_NA
                     fisheries_role = (
-                        fb_data[6] if fb_data[6] is not None else "Not record"
+                        fb_data[6] if fb_data[6] is not None else FILL_NA
                     )
                     iucn_data = (
                         link_stock.filter(f"SpecCode = {fb_data[7]}")
@@ -343,13 +340,17 @@ class BPData:
                     iucn_lv = (
                         IUCN_levels[iucn_data[0]]
                         if iucn_data[0] in IUCN_levels
-                        else "Not Available"
+                        else FILL_NA
                     )
                 else:
-                    water, habitat, depth_s, depth_d, fisheries_role = [
-                        "Not record"
-                    ] * 5
-                    iucn_lv = "Not Available"
+                    (
+                        water,
+                        habitat,
+                        depth_s,
+                        depth_d,
+                        fisheries_role,
+                        iucn_lv,
+                    ) = [FILL_NA] * 6
                 spc_info[species_name] = {
                     "Water area": water,
                     "Habitat": habitat,

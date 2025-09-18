@@ -7,11 +7,11 @@ import numpy as np
 import pandas as pd
 
 from ...common import base_logger, base_writer
+from ...data.bp_data import FILL_NA
 from ..plot.base_plotter import VALUE_COLUMN
 
 UNIT_COLUMN = "unit"
 SAMPLE_ID_COLUMN = "sample_id"
-FILL_NA = "N/A"
 
 
 def get_unit_name(level_dict: dict, unit_level: str, hap: str) -> str:

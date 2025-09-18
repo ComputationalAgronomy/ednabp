@@ -10,7 +10,6 @@ class RankcorrPlotter(base_plotter.Plotter):
     def __init__(
         self,
         df,
-        values,
         index,
         columns,
         aggfunc,
@@ -22,7 +21,6 @@ class RankcorrPlotter(base_plotter.Plotter):
         overwrite,
     ):
         self.read_df(df)
-        self.values = values
         self.index = index
         self.columns = columns
         self.aggfunc = aggfunc
@@ -35,7 +33,7 @@ class RankcorrPlotter(base_plotter.Plotter):
     def create_pivot_table(self):
         self.pivot_table = pd.pivot_table(
             self.df,
-            values=self.values,
+            values=base_plotter.VALUE_COLUMN,
             index=self.index,
             columns=self.columns,
             aggfunc=self.aggfunc,
@@ -96,7 +94,6 @@ class RankcorrPlotter(base_plotter.Plotter):
 
 def rankcorr(
     df: str | pd.DataFrame,
-    values: str,
     index: str,
     columns: str | list[str],
     aggfunc: Literal["mean", "sum"] = "mean",
@@ -108,17 +105,16 @@ def rankcorr(
     overwrite: bool = False,
 ) -> tuple[go.Figure, RankcorrPlotter]:
     plotter = RankcorrPlotter(
-        df,
-        values,
-        index,
-        columns,
-        aggfunc,
-        rcorr,
-        alpha,
-        verbose,
-        show_plot,
-        save_dir,
-        overwrite,
+        df=df,
+        index=index,
+        columns=columns,
+        aggfunc=aggfunc,
+        rcorr=rcorr,
+        alpha=alpha,
+        verbose=verbose,
+        show_plot=show_plot,
+        save_dir=save_dir,
+        overwrite=overwrite,
     )
     fig = plotter.plot()
     plotter.show_and_save(fig, "rankcorr")

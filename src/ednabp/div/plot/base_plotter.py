@@ -5,6 +5,8 @@ import pandas as pd
 
 from ...common import config
 
+VALUE_COLUMN = "values"
+
 
 class Plotter(ABC):
     @abstractmethod

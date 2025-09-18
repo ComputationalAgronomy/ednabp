@@ -11,7 +11,6 @@ class BarchartPlotter(base_plotter.Plotter):
     def __init__(
         self,
         df,
-        values,
         index,
         columns,
         aggfunc,
@@ -21,7 +20,6 @@ class BarchartPlotter(base_plotter.Plotter):
         overwrite,
     ):
         self.read_df(df)
-        self.values = values
         self.index = index
         self.columns = columns
         self.aggfunc = aggfunc
@@ -31,7 +29,7 @@ class BarchartPlotter(base_plotter.Plotter):
     def get_pivot_table(self):
         self.pivot_table = pd.pivot_table(
             self.df,
-            values=self.values,
+            values=base_plotter.VALUE_COLUMN,
             index=self.index,
             columns=self.columns,
             aggfunc=self.aggfunc,
@@ -92,15 +90,14 @@ def barchart(
     overwrite: bool = False,
 ) -> tuple[go.Figure, BarchartPlotter]:
     plotter = BarchartPlotter(
-        df,
-        values,
-        index,
-        columns,
-        aggfunc,
-        verbose,
-        show_plot,
-        save_dir,
-        overwrite,
+        df=df,
+        index=index,
+        columns=columns,
+        aggfunc=aggfunc,
+        verbose=verbose,
+        show_plot=show_plot,
+        save_dir=save_dir,
+        overwrite=overwrite,
     )
     fig = plotter.plot()
     plotter.show_and_save(fig, "barchart")

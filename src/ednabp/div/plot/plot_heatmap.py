@@ -16,7 +16,6 @@ class HeatmapPlotter(base_plotter.Plotter):
     def __init__(
         self,
         df,
-        values,
         index,
         columns,
         aggfunc,
@@ -27,7 +26,6 @@ class HeatmapPlotter(base_plotter.Plotter):
         overwrite,
     ):
         self.read_df(df)
-        self.values = values
         self.index = index
         self.columns = columns
         self.aggfunc = aggfunc
@@ -38,7 +36,7 @@ class HeatmapPlotter(base_plotter.Plotter):
     def create_pivot_table(self):
         self.pivot_table = pd.pivot_table(
             self.df,
-            values=self.values,
+            values=base_plotter.VALUE_COLUMN,
             index=self.index,
             columns=self.columns,
             aggfunc=self.aggfunc,
@@ -114,7 +112,6 @@ class HeatmapPlotter(base_plotter.Plotter):
 
 def heatmap(
     df: str | pd.DataFrame,
-    values: str,
     index: str,
     columns: str | list[str],
     aggfunc: Literal["mean", "sum"] = "mean",
@@ -127,16 +124,15 @@ def heatmap(
     overwrite: bool = False,
 ) -> tuple[go.Figure, HeatmapPlotter]:
     plotter = HeatmapPlotter(
-        df,
-        values,
-        index,
-        columns,
-        aggfunc,
-        sort_method,
-        verbose,
-        show_plot,
-        save_dir,
-        overwrite,
+        df=df,
+        index=index,
+        columns=columns,
+        aggfunc=aggfunc,
+        sort_method=sort_method,
+        verbose=verbose,
+        show_plot=show_plot,
+        save_dir=save_dir,
+        overwrite=overwrite,
     )
     fig = plotter.plot()
     plotter.show_and_save(fig, "heatmap")

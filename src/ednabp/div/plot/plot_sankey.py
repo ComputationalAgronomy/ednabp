@@ -29,7 +29,6 @@ class SankeyPlotter(base_plotter.Plotter):
     def __init__(
         self,
         df,
-        values,
         categories,
         aggfunc,
         verbose,
@@ -38,7 +37,6 @@ class SankeyPlotter(base_plotter.Plotter):
         overwrite,
     ):
         self.read_df(df)
-        self.values = values
         self.categories = categories
         self.aggfunc = aggfunc
         super().__init__(verbose, show_plot, save_dir, overwrite)
@@ -47,14 +45,18 @@ class SankeyPlotter(base_plotter.Plotter):
         sankey_df = pd.DataFrame()
         for i in range(len(self.categories) - 1):
             temp_df = self.df[
-                [self.categories[i], self.categories[i + 1], self.values]
+                [
+                    self.categories[i],
+                    self.categories[i + 1],
+                    base_plotter.VALUE_COLUMN,
+                ]
             ]
-            temp_df.columns = ["source", "target", self.values]
+            temp_df.columns = ["source", "target", base_plotter.VALUE_COLUMNa]
             sankey_df = pd.concat([sankey_df, temp_df])
 
         sankey_df = (
             sankey_df.groupby(["source", "target"])
-            .agg({self.values: self.aggfunc})
+            .agg({base_plotter.VALUE_COLUMN: self.aggfunc})
             .reset_index()
         )
 
@@ -67,7 +69,7 @@ class SankeyPlotter(base_plotter.Plotter):
 
         self.source = sankey_df["source"].apply(lambda x: self.labels.index(x))
         self.target = sankey_df["target"].apply(lambda x: self.labels.index(x))
-        self.count = sankey_df[self.values]
+        self.count = sankey_df[base_plotter.VALUE_COLUMN]
 
     def create_node_labels(self):
         self.node_dict = {}
@@ -210,7 +212,6 @@ class SankeyPlotter(base_plotter.Plotter):
 
 def sankey(
     df: str | pd.DataFrame,
-    values: str,
     categories: list[str],
     aggfunc: Literal["mean", "sum"] = "mean",
     color_link_by: Literal[
@@ -223,14 +224,13 @@ def sankey(
     overwrite: bool = False,
 ) -> tuple[go.Figure, SankeyPlotter]:
     plotter = SankeyPlotter(
-        df,
-        values,
-        categories,
-        aggfunc,
-        verbose,
-        show_plot,
-        save_dir,
-        overwrite,
+        df=df,
+        categories=categories,
+        aggfunc=aggfunc,
+        verbose=verbose,
+        show_plot=show_plot,
+        save_dir=save_dir,
+        overwrite=overwrite,
     )
     fig = plotter.plot(color_link_by, priority)
     plotter.show_and_save(fig, "sankey")

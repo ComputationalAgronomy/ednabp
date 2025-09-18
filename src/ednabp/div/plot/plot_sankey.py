@@ -51,7 +51,7 @@ class SankeyPlotter(base_plotter.Plotter):
                     base_plotter.VALUE_COLUMN,
                 ]
             ]
-            temp_df.columns = ["source", "target", base_plotter.VALUE_COLUMNa]
+            temp_df.columns = ["source", "target", base_plotter.VALUE_COLUMN]
             sankey_df = pd.concat([sankey_df, temp_df])
 
         sankey_df = (

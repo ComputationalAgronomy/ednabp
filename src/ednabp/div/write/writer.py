@@ -9,9 +9,6 @@ import pandas as pd
 from ...common import base_logger, base_writer
 from ..plot.base_plotter import VALUE_COLUMN
 
-ABUNDANCE_COLUMN = VALUE_COLUMN
-RICHNESS_COLUMN = VALUE_COLUMN
-DETECTPROB_COLUMN = VALUE_COLUMN
 UNIT_COLUMN = "unit"
 SAMPLE_ID_COLUMN = "sample_id"
 FILL_NA = "N/A"
@@ -74,7 +71,7 @@ class Writer(base_writer.BaseWriter):
             export_df(
                 self.richness_df,
                 save_dir,
-                f"{taxa_lv}_{unit_lv}_{RICHNESS_COLUMN}.csv",
+                f"{taxa_lv}_{unit_lv}_richness.csv",
                 overwrite,
                 self.config.logger,
             )
@@ -110,14 +107,14 @@ class Writer(base_writer.BaseWriter):
             export_df(
                 self.abundance_df,
                 save_dir,
-                f"{taxa_lv}_{process}_{ABUNDANCE_COLUMN}.csv",
+                f"{taxa_lv}_{process}_abundance.csv",
                 overwrite,
                 self.config.logger,
             )
         return self.abundance_df
 
     @base_logger.prog_log("Write detection probability table")
-    def detect_prob(
+    def detectprob(
         self,
         taxa_lv: str,
         detectprob_columns: str | list[str] = "sample",
@@ -144,7 +141,7 @@ class Writer(base_writer.BaseWriter):
             export_df(
                 self.dp_df,
                 save_dir,
-                f"{taxa_lv}_{DETECTPROB_COLUMN}_{'_'.join(detectprob_columns)}.csv",
+                f"{taxa_lv}_detectprob_{'_'.join(detectprob_columns)}.csv",
                 overwrite,
                 self.config.logger,
             )
@@ -158,7 +155,7 @@ class Writer(base_writer.BaseWriter):
             self.update_metric_df(
                 sample_id,
                 self.units_occur,
-                [self.taxa_lv, UNIT_COLUMN, RICHNESS_COLUMN],
+                [self.taxa_lv, UNIT_COLUMN, VALUE_COLUMN],
                 "occur_df",
             )
         # self._filter_richness_df()
@@ -186,7 +183,7 @@ class Writer(base_writer.BaseWriter):
             self.update_metric_df(
                 sample_id,
                 self.taxa_abundance.items(),
-                [self.taxa_lv, ABUNDANCE_COLUMN],
+                [self.taxa_lv, VALUE_COLUMN],
                 "abundance_df",
             )  # columns: taxa_level, Abundance, Sample_id
         self.add_sample_metadata(
@@ -212,7 +209,7 @@ class Writer(base_writer.BaseWriter):
             self.update_metric_df(
                 sample_id,
                 self.units_occur,
-                [self.taxa_lv, UNIT_COLUMN, DETECTPROB_COLUMN],
+                [self.taxa_lv, UNIT_COLUMN, VALUE_COLUMN],
                 "taxa_occur",
             )  # columns: taxa_level, unit, detect_prob, Sample_id
         self.fill_non_detect_zero(self.taxa_lv)
@@ -306,7 +303,7 @@ class Writer(base_writer.BaseWriter):
     def convert_units_occur_to_taxa_richness(self):
         self.richness_df = (
             self.occur_df.groupby([self.taxa_lv, SAMPLE_ID_COLUMN])[
-                RICHNESS_COLUMN
+                VALUE_COLUMN
             ]
             .sum()
             .reset_index()
@@ -362,7 +359,7 @@ class Writer(base_writer.BaseWriter):
             [
                 taxa_level,
                 UNIT_COLUMN,
-                DETECTPROB_COLUMN,
+                VALUE_COLUMN,
                 SAMPLE_ID_COLUMN,
             ],
             "taxa_occur",
@@ -370,10 +367,10 @@ class Writer(base_writer.BaseWriter):
 
     def convert_taxa_occur_to_taxa_dp(self):
         groupby_columns = self.taxa_occur.columns.drop(
-            [UNIT_COLUMN, DETECTPROB_COLUMN, SAMPLE_ID_COLUMN] + self.dp_col
+            [UNIT_COLUMN, VALUE_COLUMN, SAMPLE_ID_COLUMN] + self.dp_col
         ).tolist()
         self.dp_df = (
-            self.taxa_occur.groupby(groupby_columns)[DETECTPROB_COLUMN]
+            self.taxa_occur.groupby(groupby_columns)[VALUE_COLUMN]
             .mean()
             .reset_index()
         )

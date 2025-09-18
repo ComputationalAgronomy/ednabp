@@ -80,7 +80,6 @@ class BarchartPlotter(base_plotter.Plotter):
 
 def barchart(
     df: str | pd.DataFrame,
-    values: str,
     index: str,
     columns: str | list[str],
     aggfunc: Literal["mean", "sum"] = "mean",

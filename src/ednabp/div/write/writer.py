@@ -7,13 +7,14 @@ import numpy as np
 import pandas as pd
 
 from ...common import base_logger, base_writer
+from ..plot.base_plotter import VALUE_COLUMN
 
-ABUNDANCE_COLUMN = "abundance"
-RICHNESS_COLUMN = "richness"
-DETECTPROB_COLUMN = "detectprob"
+ABUNDANCE_COLUMN = VALUE_COLUMN
+RICHNESS_COLUMN = VALUE_COLUMN
+DETECTPROB_COLUMN = VALUE_COLUMN
 UNIT_COLUMN = "unit"
 SAMPLE_ID_COLUMN = "sample_id"
-FILL_NA = "Not_record"
+FILL_NA = "N/A"
 
 
 def get_unit_name(level_dict: dict, unit_level: str, hap: str) -> str:
@@ -119,7 +120,7 @@ class Writer(base_writer.BaseWriter):
     def detect_prob(
         self,
         taxa_lv: str,
-        detectprob_column: str | list[str] = "Sample",
+        detectprob_columns: str | list[str] = "sample",
         save_dir: str = None,
         overwrite: bool = False,
         sample_id_list: list[str] | None = None,
@@ -133,17 +134,17 @@ class Writer(base_writer.BaseWriter):
         :param sample_id_list: A list of sample IDs to write.
         """
         self.taxa_lv = taxa_lv
-        self.dp_col = detectprob_column
         self.taxa_occur = pd.DataFrame()
         self.dp_df = pd.DataFrame()
+        self.add_dp_col(detectprob_columns)
 
         self.load_sample_id_list(sample_id_list)
-        self.create_dp_df(taxa_lv, detectprob_column)
+        self.create_dp_df()
         if save_dir is not None:
             export_df(
                 self.dp_df,
                 save_dir,
-                f"{taxa_lv}_{DETECTPROB_COLUMN}_{'_'.join(detectprob_column)}.csv",
+                f"{taxa_lv}_{DETECTPROB_COLUMN}_{'_'.join(detectprob_columns)}.csv",
                 overwrite,
                 self.config.logger,
             )
@@ -196,6 +197,14 @@ class Writer(base_writer.BaseWriter):
     @base_logger.prog_log(
         "Calculate taxa detection probability and create dataframe"
     )
+    def add_dp_col(self, dp_col):
+        if type(dp_col) is list:
+            self.dp_col = dp_col
+        elif type(dp_col) in (str, int):
+            self.dp_col = [dp_col]
+        else:
+            raise ValueError(f"Invalid detectprob_column: {dp_col}")
+
     def create_dp_df(self):
         for sample_id in self.sample_id_used:
             self.config.logger.info(f"Sample ID: {sample_id}")
@@ -210,9 +219,7 @@ class Writer(base_writer.BaseWriter):
         self.add_sample_metadata(
             "taxa_occur"
         )  # columns: taxa_level, detect_prob, Sample_id, Site, Year, Month, Sample
-        self.convert_taxa_occur_to_taxa_dp(
-            self.dp_col
-        )  # columns: taxa_level, detect_prob, Site, Year, Month
+        self.convert_taxa_occur_to_taxa_dp()  # columns: taxa_level, detect_prob, Site, Year, Month
         self.add_spc_info("dp_df")
 
     def get_sample_units_occur(self, sample_id: str, unit_lv: str):
@@ -363,8 +370,7 @@ class Writer(base_writer.BaseWriter):
 
     def convert_taxa_occur_to_taxa_dp(self):
         groupby_columns = self.taxa_occur.columns.drop(
-            [UNIT_COLUMN, DETECTPROB_COLUMN, SAMPLE_ID_COLUMN]
-            + list(self.dp_col)
+            [UNIT_COLUMN, DETECTPROB_COLUMN, SAMPLE_ID_COLUMN] + self.dp_col
         ).tolist()
         self.dp_df = (
             self.taxa_occur.groupby(groupby_columns)[DETECTPROB_COLUMN]

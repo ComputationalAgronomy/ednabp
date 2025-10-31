@@ -317,7 +317,7 @@ class TestBioPipeline:
             f.write("test")
 
         custom_settings = {
-            "enabled_stages": ["merge", "cutprimer", "denoise", "assigntaxa"],
+            "enabled_stages": ["merge", "cutprimer", "denoise", "blast"],
             "maxdiff": 15,
             "pctid": 85,
             "rm_p_5": "CUSTOM5PRIMER",
@@ -338,9 +338,7 @@ class TestBioPipeline:
                 "ednabp.bp.step_exec.cutprimer.CutPrimerStage"
             ) as mock_cutprimer,
             patch("ednabp.bp.step_exec.denoise.DenoiseStage") as mock_denoise,
-            patch(
-                "ednabp.bp.step_exec.assigntaxa.AssignTaxaStage"
-            ) as mock_assigntaxa,
+            patch("ednabp.bp.step_exec.blast.BlastStage") as mock_assigntaxa,
         ):
             pipeline = BioPipeline(
                 in_dir,

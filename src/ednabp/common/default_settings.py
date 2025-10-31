@@ -8,7 +8,9 @@ SETTINGS = {
         "fqtofa",
         "dereplicate",
         "denoise",
-        "assigntaxa",
+        "blast",
+        "addlineage",
+        "addhap",
     ],
     "dir_name": {
         "decompress": "decompress",
@@ -17,7 +19,9 @@ SETTINGS = {
         "fqtofa": "fqtofa",
         "dereplicate": "dereplicate",
         "denoise": "denoise",
-        "assigntaxa": "assigntaxa",
+        "blast": "blast",
+        "addlineage": "blast",
+        "addhap": "blast",
     },
     "suffix": {
         "raw": "_R1.fastq.gz",
@@ -26,7 +30,9 @@ SETTINGS = {
         "cutprimer": "_trimmed.fastq",
         "dereplicate": "_uniqs.fasta",
         "denoise": "_zotus.fasta",
-        "assigntaxa": "_taxa.csv",
+        "blast": "_blast.csv",
+        "addlineage": "_blast.csv",
+        "addhap": "_blast.csv",
         "report": "_report.txt",
     },
     "merge": {
@@ -44,12 +50,14 @@ SETTINGS = {
         "minsize": 8,
         "alpha": 2,
     },
-    "assigntaxa": {
+    "blast": {
         "evalue": 0.00001,
         "qcov_hsp_perc": 90,
         "perc_identity": 90,
         "specifiers": "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
         "blast_db": "nt",
+    },
+    "addlineage": {
         "lineage_db": "nucleotide",
         "entrez_email": None,
     },

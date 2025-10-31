@@ -5,11 +5,12 @@ from ..data import BPData, MitoData
 
 
 class BaseWriter(ABC):
-    def __init__(self, data: BPData | MitoData, verbose: bool):
+    def __init__(self, data: BPData | MitoData | None, verbose: bool):
         self.sample_id_used = None
         self.config = config.Config()
         self.config.verbose = verbose
-        self.import_data(data)
+        if data is not None:
+            self.import_data(data)
 
     def import_data(self, data):
         if not isinstance(data, BPData | MitoData):

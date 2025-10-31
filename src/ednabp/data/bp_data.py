@@ -1,6 +1,5 @@
 import os
 import pickle
-import re
 import sys
 from datetime import date
 
@@ -8,78 +7,79 @@ import chardet
 import duckdb
 import pandas as pd
 
-from ..bp.run_bp import SETTINGS
 from ..common import base_logger
 from ..common.default_settings import SETTINGS as DEFAULT_SETTINGS
-from .read import denoise_report_reader, fasta_reader, taxa_table_reader
-
-DEFAULT_SUFFIXES = {
-    "dereplicate_suffix": SETTINGS["suffix"]["dereplicate"],
-    "denoise_suffix": SETTINGS["suffix"]["denoise"],
-    "denoise_report_suffix": re.sub(
-        r"\.\w+", SETTINGS["suffix"]["report"], SETTINGS["suffix"]["denoise"]
-    ),
-    "assigntaxa_suffix": SETTINGS["suffix"]["assigntaxa"],
-}
-
 
 FILL_NA = "N/A"
 
 
 class SingleBPData:
     """
-    Container for handling and processing data from various bioinformatics files.
-    This class initializes by reading data from given FASTA, denoise report, and BLAST table files,
-    and stores the parsed information for further use.
+    Container for handling ZOTU data from taxa CSV files.
+    This class reads ZOTU sequences, sizes, and taxonomy information from a single taxa.csv file.
 
-    :param uniq_fasta: Path to the unique amplicon FASTA file.
-    :param denoise_fasta: Path to the ZOTU haplotype FASTA file.
-    :param denoise_report: Path to the denoise report file.
-    :param taxa_table: Path to the BLAST table file.
+    :param taxa_csv: Path to the taxa CSV file containing ZOTU information.
 
-    :attribute amp_seq: A dictionary containing amplicon sequences from the unique FASTA file.
-    :attribute hap_seq: A dictionary containing haplotype sequences from the ZOTU FASTA file.
-    :attribute amp_size: A dictionary containing amplicon sizes from the denoise report.
-    :attribute hap2amp: A dictionary mapping haplotypes to amplicons from the denoise report.
-    :attribute hap_size: A dictionary containing haplotype sizes from the denoise report.
-    :attribute hap2level: A dictionary mapping haplotypes to taxonomic levels from the BLAST table.
-
+    :attribute hap_seq: A dictionary containing ZOTU sequences.
+    :attribute hap_size: A dictionary containing ZOTU sizes.
+    :attribute hap2level: A dictionary mapping ZOTUs to taxonomic levels.
     """
 
-    def __init__(
-        self,
-        uniq_fasta: str,
-        denoise_fasta: str,
-        denoise_report: str,
-        taxa_table: str,
-    ):
-        ufr = fasta_reader.FastaReader()
-        ufr.read_fasta(seq_path=uniq_fasta, seq_type="Amplicon")
-        self.amp_seq = ufr.seq_dict
+    DESIRED_LEVELS = [
+        "species",
+        "genus",
+        "family",
+        "order",
+        "class",
+        "phylum",
+        "kingdom",
+    ]
 
-        dfr = fasta_reader.FastaReader()
-        dfr.read_fasta(seq_path=denoise_fasta, seq_type="Haplotype")
-        self.hap_seq = dfr.seq_dict
+    def __init__(self, taxa_csv: str):
+        self.hap_seq = {}
+        self.hap_size = {}
+        self.hap2level = {}
+        self._read_csv(taxa_csv)
 
-        drr = denoise_report_reader.DenoiseReportReader()
-        drr.read_denoise_report(denoise_report=denoise_report)
-        self.amp_size = drr.amp_size
-        self.hap2amp = drr.hap2amp
-        self.hap_size = drr.hap_size
+    @base_logger.prog_log(prog_name="Read Taxa CSV")
+    def _read_csv(self, taxa_csv: str):
+        try:
+            df = pd.read_csv(taxa_csv)
+            if df.empty:
+                base_logger.logger.warning("Taxa CSV is empty")
+                return
 
-        br = taxa_table_reader.TaxaTableReader()
-        br.read_taxa_table(taxa_table=taxa_table)
-        self.hap2level = br.hap2level
+            # Read sequences if available
+            if "zotu" in df.columns:
+                self.hap_seq = dict(
+                    zip(df["qseqid"], df["zotu"], strict=False)
+                )
+
+            # Read sizes if available
+            if "size" in df.columns:
+                self.hap_size = dict(
+                    zip(df["qseqid"], df["size"], strict=False)
+                )
+
+            # Read taxonomy levels
+            available_levels = [
+                col for col in self.DESIRED_LEVELS if col in df.columns
+            ]
+            if available_levels:
+                df_indexed = df.set_index("qseqid")[available_levels]
+                self.hap2level = df_indexed.to_dict("index")
+
+        except (pd.errors.EmptyDataError, FileNotFoundError) as e:
+            base_logger.logger.warning(f"Error reading taxa CSV: {e}")
 
 
 class BPData:
     """
-    A class for managing sample data storage.
+    A class for managing sample data storage from taxa CSV files.
     It provides methods for importing, pickling, unpickling, merging.
 
-    :attribute DATA_FILE_INFO: A dictionary mapping import data types to tuples containing the corresponding child directory and file suffix.
-    :attribute sample_data: A dictionary to store sample data, the key is sample ID, and the value is a OneSampleData instance.
-    :attribute sample_metadata A dictionary to store sample information, the key is sample ID, and the value is a dictionary containing sample metadata.
+    :attribute sample_data: A dictionary to store sample data, the key is sample ID, and the value is a SingleBPData instance.
+    :attribute sample_metadata: A dictionary to store sample information, the key is sample ID, and the value is a dictionary containing sample metadata.
     :attribute sample_id_list: A list to store sample IDs.
     :attribute verbose: A boolean flag to control logging verbosity. Default is True.
     """
@@ -103,79 +103,22 @@ class BPData:
     def import_data(
         self,
         results_dir: str,
-        dereplicate_dirname: str | None = None,
-        denoise_dirname: str | None = None,
-        assigntaxa_dirname: str | None = None,
         sample_id_list: list[str] | None = None,
-        **suffixes,
+        file_suffix: str = "_blast.csv",
     ):
-        r"""
-        Import sample data by specifying either a parent directory or individual directories.
+        """
+            Import sample data from taxa CSV files.
 
-        :param input_path: Parent directory containing subdirectories, or individual directory path when using specific dir params.
-        :param dereplicate_dirname: Subdirectory name for dereplicate files. Default from settings.
-        :param denoise_dirname: Subdirectory name for denoise files. Default from settings.
-        :param assigntaxa_dirname: Subdirectory name for assigntaxa files. Default from settings.
-        :param sample_id_list: List of sample IDs to import. If None, imports all available.
-        :param suffixes: File suffix overrides (dereplicate_suffix, denoise_suffix, assigntaxa_suffix).
+            :param results_dir: Parent directory containing output CSV files.
+            :param sample_id_list: List of sample IDs to import. If None, imports all available.
+        :param file_suffix: File suffix for blast files. Default is '_blast.csv'.
         """
         self.import_sample_id_list = []
-        self.files_path = {}
+        self.results_dir = results_dir
 
-        dirs = self.resolve_dirs(
-            results_dir,
-            dereplicate_dirname,
-            denoise_dirname,
-            assigntaxa_dirname,
-        )
-
-        self.parse_import_info(*dirs, suffixes)
+        self.file_suffix = file_suffix
         self.read_sample_data(sample_id_list)
         self.sample_id_list.extend(self.import_sample_id_list)
-
-    def resolve_dirs(
-        self,
-        input_path: str,
-        dereplicate_subdir: str | None,
-        denoise_subdir: str | None,
-        assigntaxa_subdir: str | None,
-    ) -> tuple[str, str, str]:
-        dereplicate_subdir = (
-            dereplicate_subdir or DEFAULT_SETTINGS["dir_name"]["dereplicate"]
-        )
-        denoise_subdir = (
-            denoise_subdir or DEFAULT_SETTINGS["dir_name"]["denoise"]
-        )
-        assigntaxa_subdir = (
-            assigntaxa_subdir or DEFAULT_SETTINGS["dir_name"]["assigntaxa"]
-        )
-
-        dereplicate_dir = os.path.join(input_path, dereplicate_subdir)
-        denoise_dir = os.path.join(input_path, denoise_subdir)
-        assigntaxa_dir = os.path.join(input_path, assigntaxa_subdir)
-
-        return dereplicate_dir, denoise_dir, assigntaxa_dir
-
-    def parse_import_info(
-        self,
-        dereplicate_dir: str,
-        denoise_dir: str,
-        assigntaxa_dir: str,
-        suffixes: dict,
-    ):
-        self.suffixes = suffixes
-        self.add_default_suffixes()
-        self.import_info = [
-            (dereplicate_dir, self.suffixes["dereplicate_suffix"]),
-            (denoise_dir, self.suffixes["denoise_suffix"]),
-            (denoise_dir, self.suffixes["denoise_report_suffix"]),
-            (assigntaxa_dir, self.suffixes["assigntaxa_suffix"]),
-        ]
-
-    def add_default_suffixes(self):
-        for key, value in DEFAULT_SUFFIXES.items():
-            if key not in self.suffixes:
-                self.suffixes[key] = value
 
     @base_logger.prog_log(prog_name="Import sample sequence data")
     def read_sample_data(self, sample_id_list: list[str] | None):
@@ -188,20 +131,20 @@ class BPData:
 
         for sample_id in self.import_sample_id_list:
             self.logger.info(f"Sample ID: {sample_id}")
-            self.sample_data[sample_id] = SingleBPData(
-                *self.files_path[sample_id]
+            taxa_file = os.path.join(
+                self.results_dir, f"{sample_id}{self.file_suffix}"
             )
+            self.sample_data[sample_id] = SingleBPData(taxa_file)
 
     def add_unspecified_sample_id_list(self):
-        uniq_dir, suffix = self.import_info[0]
         self.logger.info(
-            f"Searching sample IDs: prefix with the suffix '{suffix}' in the directory: {uniq_dir}."
+            f"Searching sample IDs with suffix '{self.file_suffix}' in directory: {self.results_dir}."
         )
-        file_list = os.listdir(uniq_dir)
+        file_list = os.listdir(self.results_dir)
         sample_id_list = [
-            file.replace(suffix, "")
+            file.replace(self.file_suffix, "")
             for file in file_list
-            if file.endswith(suffix)
+            if file.endswith(self.file_suffix)
         ]
         self.logger.info(f"Found {len(sample_id_list)} samples.")
         for sample_id in sample_id_list:
@@ -211,11 +154,15 @@ class BPData:
                     "Skipping import."
                 )
                 continue
-            success, files_path = self.get_files_path(sample_id)
-            if not success:
-                continue
-            self.files_path[sample_id] = files_path
-            self.import_sample_id_list.append(sample_id)
+            taxa_file = os.path.join(
+                self.results_dir, f"{sample_id}{self.file_suffix}"
+            )
+            if self.is_valid_file(taxa_file):
+                self.import_sample_id_list.append(sample_id)
+            else:
+                self.logger.warning(
+                    f"File {taxa_file} doesn't exist. Skipping import."
+                )
 
     def add_specified_sample_id_list(self, sample_id_list: list[str]):
         for sample_id in sample_id_list:
@@ -225,24 +172,15 @@ class BPData:
                     "Skipping import."
                 )
                 continue
-            success, files_path = self.get_files_path(sample_id)
-            if not success:
-                continue
-            self.files_path[sample_id] = files_path
-            self.import_sample_id_list.append(sample_id)
-
-    def get_files_path(self, sample_id: str):
-        files_path = [
-            os.path.join(in_dir, f"{sample_id}{suffix}")
-            for in_dir, suffix in self.import_info
-        ]
-        for file_path in files_path:
-            if not self.is_valid_file(file_path):
+            taxa_file = os.path.join(
+                self.results_dir, f"{sample_id}{self.file_suffix}"
+            )
+            if self.is_valid_file(taxa_file):
+                self.import_sample_id_list.append(sample_id)
+            else:
                 self.logger.warning(
-                    f"File {file_path} doesn't exist. Skipping import."
+                    f"File {taxa_file} doesn't exist. Skipping import."
                 )
-                return False, None
-        return True, files_path
 
     def is_valid_file(self, file_path: str):
         return os.path.exists(file_path)
@@ -300,6 +238,8 @@ class BPData:
             }
 
             for species_name in all_species:
+                if not isinstance(species_name, str):
+                    continue
                 (genus_name, *species_subnames) = species_name.split("_")
                 species_subname = (
                     species_subnames[0] if len(species_subnames) > 0 else "sp"

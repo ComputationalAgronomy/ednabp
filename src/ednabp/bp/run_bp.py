@@ -1,10 +1,13 @@
 import os
 import re
+import warnings
 
 from ..common import base_logger, config
 from ..common.default_settings import SETTINGS
 from .step_exec import (
-    assigntaxa,
+    addhap,
+    addlineage,
+    blast,
     cutprimer,
     decompress,
     denoise,
@@ -57,20 +60,22 @@ class BioPipeline:
             - minsize (int): Discard sequences with abundance that are smaller than this parameter. Default: 8.
             - alpha (int): Denoising sensitivity parameter. See UNOISE2 paper for definition. Default: 2.
 
-          Assign Taxa Settings:
+          Blast Settings:
             - evalue (float): Expectation value (E) threshold for saving hits. Default: 0.00001.
             - qcov_hsp_perc (int): The %threshold of the query sequence that has to form an alignment against the reference to be retained. Default: 90.
             - perc_identity (int): Minimum percentage identity required for taxonomic assignment. Default: 90.
             - specifiers (str): Output format specifiers for BLAST results. Default:
               "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore".
             - blast_db (str): Path to the taxonomic database. Default: 'nt'.
+
+          Add lineage Settings:
             - lineage_db (str): Path to the taxonomic lineage file. Default: 'nucleotide'.
             - entrez_email (str): The email used by NCBI to contact you in case of excessive usage or issues. Default: None
 
           External Program Setting:
             - usearch_prog (str): Command to execute USEARCH for merge, dereplicate, and denoise stages. Default: "usearch".
             - cutadapt_prog (str): Command to execute Cutadapt for primer trimming stage. Default: "cutadapt".
-            - blast_prog (str): Command to execute BLAST for taxonomic assignment stage. Default: "blastn".
+            - blast_prog (str): Command to execute BLAST for blast stage. Default: "blastn".
 
           Configuration Settings:
             - verbose (bool): Whether to enable verbose logging. Default: True.
@@ -111,7 +116,9 @@ class BioPipeline:
             "fqtofa": fqtofa.FqToFaStage,
             "dereplicate": dereplicate.DereplicateStage,
             "denoise": denoise.DenoiseStage,
-            "assigntaxa": assigntaxa.AssignTaxaStage,
+            "blast": blast.BlastStage,
+            "addlineage": addlineage.AddLineageStage,
+            "addhap": addhap.AddHapStage,
         }
 
         self.enabled_stages = settings.get(
@@ -138,9 +145,13 @@ class BioPipeline:
         self.denoise_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["denoise"].items()
         }
-        self.assigntaxa_settings = {
-            k: settings.get(k, v) for k, v in SETTINGS["assigntaxa"].items()
+        self.blast_settings = {
+            k: settings.get(k, v) for k, v in SETTINGS["blast"].items()
         }
+        self.addlineage_settings = {
+            k: settings.get(k, v) for k, v in SETTINGS["addlineage"].items()
+        }
+        self.addhap_settings = {}
         self.prog_settings = {
             k: settings.get(f"{k}_prog", v)
             for k, v in SETTINGS["prog"].items()
@@ -191,10 +202,19 @@ class BioPipeline:
                 stage_args["usearch_prog"] = self.prog_settings["usearch"]
             elif stage == "cutprimer":
                 stage_args["cutadapt_prog"] = self.prog_settings["cutadapt"]
-            elif stage == "assigntaxa":
+            elif stage in ["blast", "assigntaxa"]:
                 stage_args["blast_prog"] = self.prog_settings["blast"]
 
-            if stage in ["merge", "cutprimer", "denoise", "assigntaxa"]:
+            if stage == "addhap":
+                stage_args["denoise_dir"] = self.stage_dir["denoise"]
+            
+            if stage in [
+                "merge",
+                "cutprimer",
+                "denoise",
+                "blast",
+                "addlineage",
+            ]:
                 stage_args.update(eval(f"self.{stage}_settings"))
 
             self.stages[stage] = self.stage_class[stage](**stage_args)

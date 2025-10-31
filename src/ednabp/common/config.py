@@ -79,10 +79,10 @@ class Config:
     def get_denoise_config(self) -> dict:
         return {}
 
-    def add_iqtree_config(self, model, boostrap, overwrite):
+    def add_iqtree_config(self, model, bootstrap, overwrite):
         self.config_categories.append("iqtree")
         self.iqtree_model = model
-        self.iqtree_boostrap = boostrap
+        self.iqtree_bootstrap = bootstrap
         self.iqtree_overwrite = overwrite
 
     def get_iqtree_config(self) -> dict:
@@ -99,7 +99,7 @@ class Config:
         return {
             "threads": self.n_cpu,
             "model": self.iqtree_model,
-            "boostrap": self.iqtree_boostrap,
+            "bootstrap": self.iqtree_bootstrap,
             "overwrite": self.iqtree_overwrite,
         }
 

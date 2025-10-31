@@ -10,9 +10,6 @@ from ..common import base_writer
 def filter_by_dict(target_dict, filter_dict):
     match = True
     for filter_key, filter_value in filter_dict.items():
-        if filter_key not in filter_dict:
-            continue
-
         if isinstance(filter_value, list):
             if target_dict[filter_key] not in filter_value:
                 match = False
@@ -25,80 +22,108 @@ def filter_by_dict(target_dict, filter_dict):
     return match
 
 
-class Writer(base_writer.BaseWriter, ABC):
-    """
-    An abstract class for running sequence related analysis
-    """
-
+class Writer(base_writer.BaseWriter):
     def __init__(self, data, verbose=False, n_cpu=1):
         super().__init__(data, verbose)
         self.config.add_machine_config(n_cpu=n_cpu)
 
     def load_units2fasta(
-        self, add_taxa_info: bool = True, filter_taxa=None, filter_sample=None
+        self,
+        add_taxa_info: bool = True,
+        filter_taxa: dict[str, str] | None = None,
+        filter_sample: dict[str, str] | None = None,
     ):
         self.units2fasta = defaultdict(str)
-        for sample_id in self.sample_id_used:
-            for hap, lv_dict in self.data.sample_data[
-                sample_id
-            ].hap2level.items():
+
+        for sample_id in self.data.sample_id_list:
+            if isinstance(filter_sample, dict):
+                if not filter_by_dict(
+                    self.data.sample_metadata[sample_id], filter_sample
+                ):
+                    continue
+
+            hap2level = self.data.sample_data[sample_id].hap2level
+            for hap, seq in self.data.sample_data[sample_id].hap_seq.items():
                 if isinstance(filter_taxa, dict):
-                    if not filter_by_dict(lv_dict, filter_taxa):
+                    if hap not in hap2level:
                         continue
-                if isinstance(filter_sample, dict):
-                    if not filter_by_dict(
-                        self.data.sample_metadata[sample_id], filter_sample
-                    ):
+                    if not filter_by_dict(hap2level[hap], filter_taxa):
                         continue
-                unit_name = (
-                    f"{lv_dict['class']}_{lv_dict['family']}_{lv_dict['species']}-"
-                    if add_taxa_info
-                    else ""
-                )
-                title = f"{unit_name}{sample_id}_{hap}"
+
+                if add_taxa_info:
+                    if hap in hap2level:
+                        lv_dict = hap2level[hap]
+                        taxa_info = f"{lv_dict['class']}_{lv_dict['family']}_{lv_dict['species']}-"
+                    else:
+                        taxa_info = "NA_NA_NA-"
+                else:
+                    taxa_info = ""
+
+                unit_description = f"{taxa_info}{sample_id}_{hap}"
                 seq = self.data.sample_data[sample_id].hap_seq[hap]
-                self.units2fasta[unit_name] += f">{title}\n{seq}\n"
+                self.units2fasta[unit_description] += (
+                    f">{unit_description}\n{seq}\n"
+                )
 
-    def fasta(self, out_path: str, add_taxa_info: bool = True):
-        """
-        Write sequences to a FASTA file.
-
-        :param save_path: Path to the output FASTA file.
-        """
-        self.load_units2fasta(add_taxa_info)
+    def fasta(
+        self,
+        out_path: str,
+        add_taxa_info: bool = True,
+        filter_taxa: dict[str, str] | None = None,
+        filter_sample: dict[str, str] | None = None,
+    ):
+        self.load_units2fasta(add_taxa_info, filter_taxa, filter_sample)
         fasta_str = "".join(list(self.units2fasta.values()))
         with open(out_path, "w") as file:
             file.write(fasta_str)
         self.config.logger.info(f"Saved sequence file to: {out_path}")
 
-    def derep_fasta(self, in_path, out_path):
+    def derep_fasta(
+        self,
+        in_path: str,
+        out_path: str,
+        usearch_prog: str = "usearch",
+        annot_size: bool = False,
+        seq_label: None | str = "Uniq",
+        write_report: bool = False,
+    ):
         in_dir = os.path.dirname(in_path)
         out_dir = os.path.dirname(out_path)
         in_basename = os.path.basename(in_path)
         out_basename = os.path.basename(out_path)
         stage = dereplicate.DereplicateStage(
             self.config,
+            usearch_prog=usearch_prog,
             in_dir=in_dir,
             out_dir=out_dir,
             in_suffix=in_basename,
             out_suffix=out_basename,
-            annot_size=False,
-            write_report=False,
+            annot_size=annot_size,
+            seq_label=seq_label,
+            write_report=write_report,
         )
         stage.setup("")
         stage.run()
 
-    def align_fasta(self, in_path, out_path):
+    def align_fasta(
+        self,
+        in_path: str,
+        out_path: str,
+        clustalo_prog: str = "clustalo",
+        overwrite: bool = True,
+    ):
         in_dir = os.path.dirname(in_path)
         out_dir = os.path.dirname(out_path)
         in_basename = os.path.basename(in_path)
         out_basename = os.path.basename(out_path)
         stage = MSAStage(
             self.config,
+            clustalo_prog=clustalo_prog,
             in_dir=in_dir,
             out_dir=out_dir,
             in_suffix=in_basename,
             out_suffix=out_basename,
+            overwrite=overwrite,
         )
         stage.setup("")
         stage.run()

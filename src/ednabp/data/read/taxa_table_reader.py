@@ -41,8 +41,16 @@ class TaxaTableReader(Reader):
 
     @base_logger.prog_log(prog_name="Read Taxa CSV Table")
     def read_taxa_table(self, taxa_table: str):
-        df = pd.read_csv(taxa_table)
-        key_column = "qseqid"
-        value_columns = self.DESIRED_LEVEL
-        df_indexed = df.set_index(key_column)[value_columns]
-        self.hap2level = df_indexed.to_dict("index")
+        try:
+            df = pd.read_csv(taxa_table)
+            if df.empty:
+                self.hap2level = {}
+                base_logger.logger.warning("Taxa table is empty")
+                return
+            key_column = "qseqid"
+            value_columns = self.DESIRED_LEVEL
+            df_indexed = df.set_index(key_column)[value_columns]
+            self.hap2level = df_indexed.to_dict("index")
+        except pd.errors.EmptyDataError:
+            self.hap2level = {}
+            base_logger.logger.warning("Taxa table is empty")

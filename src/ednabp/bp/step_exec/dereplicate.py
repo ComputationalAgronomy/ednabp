@@ -30,7 +30,9 @@ class DereplicateStage(stage_builder.StageBuilder):
 
     def parse_params(self, annot_size, seq_label):
         sizeout = "-sizeout" if annot_size else ""
-        self.params = f"{sizeout} -relabel {seq_label}"
+        self.params = f"{sizeout}"
+        if seq_label:
+            self.params += f" -relabel {seq_label}"
 
     def setup(self, prefix):
         self.infile = os.path.join(self.in_dir, f"{prefix}{self.in_suffix}")

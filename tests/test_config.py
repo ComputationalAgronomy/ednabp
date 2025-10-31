@@ -74,23 +74,23 @@ class TestConfig:
         assert result is None
 
     def test_add_iqtree_config(self, config):
-        config.add_iqtree_config(model="GTR+G", boostrap=1000, overwrite=True)
+        config.add_iqtree_config(model="GTR+G", bootstrap=1000, overwrite=True)
 
         assert "iqtree" in config.config_categories
         assert config.iqtree_model == "GTR+G"
-        assert config.iqtree_boostrap == 1000
+        assert config.iqtree_bootstrap == 1000
         assert config.iqtree_overwrite is True
 
     def test_get_iqtree_config_added(self, config):
         config.add_machine_config(n_cpu=4, memory=8)
-        config.add_iqtree_config(model="GTR+G", boostrap=1000, overwrite=True)
+        config.add_iqtree_config(model="GTR+G", bootstrap=1000, overwrite=True)
 
         result = config.get_iqtree_config()
 
         expected = {
             "threads": 4,
             "model": "GTR+G",
-            "boostrap": 1000,
+            "bootstrap": 1000,
             "overwrite": True,
         }
         assert result == expected
@@ -103,7 +103,7 @@ class TestConfig:
         assert result is None
 
     def test_get_iqtree_config_not_added_machine(self, config):
-        config.add_iqtree_config(model="GTR+G", boostrap=1000, overwrite=True)
+        config.add_iqtree_config(model="GTR+G", bootstrap=1000, overwrite=True)
         result = config.get_iqtree_config()
 
         config.logger.warning.assert_called_once()

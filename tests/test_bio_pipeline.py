@@ -279,10 +279,11 @@ class TestBioPipeline:
                 raw_suffix="_R1.fastq.gz",
             )
 
-            expected_calls = [(("sample001",), {}), (("sample002",), {})]
+            expected_samples = {"sample001", "sample002"}
 
             actual_calls = mock_run_one_file.call_args_list[:2]
-            assert actual_calls == expected_calls
+            actual_samples = {call[0][0] for call in actual_calls}
+            assert actual_samples == expected_samples
 
     def test_run_stages_one_file(self, tmp_dirs):
         in_dir, out_dir = tmp_dirs
@@ -317,7 +318,7 @@ class TestBioPipeline:
             f.write("test")
 
         custom_settings = {
-            "enabled_stages": ["merge", "cutprimer", "denoise", "assigntaxa"],
+            "enabled_stages": ["merge", "cutprimer", "denoise", "blast"],
             "maxdiff": 15,
             "pctid": 85,
             "rm_p_5": "CUSTOM5PRIMER",
@@ -338,9 +339,7 @@ class TestBioPipeline:
                 "ednabp.bp.step_exec.cutprimer.CutPrimerStage"
             ) as mock_cutprimer,
             patch("ednabp.bp.step_exec.denoise.DenoiseStage") as mock_denoise,
-            patch(
-                "ednabp.bp.step_exec.assigntaxa.AssignTaxaStage"
-            ) as mock_assigntaxa,
+            patch("ednabp.bp.step_exec.blast.BlastStage") as mock_assigntaxa,
         ):
             pipeline = BioPipeline(
                 in_dir,

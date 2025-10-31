@@ -84,11 +84,27 @@ def main():
                 },
             },
             {
-                "args": ["--assigntaxa-dir-name"],
+                "args": ["--blast-dir-name"],
                 "kwargs": {
                     "type": str,
-                    "default": SETTINGS["dir_name"]["assigntaxa"],
-                    "help": "Name of the subdirectory for taxonomic assignment (default: %(default)s).",
+                    "default": SETTINGS["dir_name"]["blast"],
+                    "help": "Name of the subdirectory for BLAST search (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--addlineage-dir-name"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["dir_name"]["addlineage"],
+                    "help": "Name of the subdirectory for adding lineage information (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--addhap-dir-name"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["dir_name"]["addhap"],
+                    "help": "Name of the subdirectory for adding haplotype information (default: %(default)s).",
                 },
             },
         ],
@@ -142,11 +158,27 @@ def main():
                 },
             },
             {
-                "args": ["--assigntaxa-suffix"],
+                "args": ["--blast-suffix"],
                 "kwargs": {
                     "type": str,
-                    "default": SETTINGS["suffix"]["assigntaxa"],
-                    "help": "File suffix for taxonomic assignment results (default: %(default)s).",
+                    "default": SETTINGS["suffix"]["blast"],
+                    "help": "File suffix for BLAST results (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--addlineage-suffix"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["suffix"]["addlineage"],
+                    "help": "File suffix for lineage assignment results (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--addhap-suffix"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["suffix"]["addhap"],
+                    "help": "File suffix for haplotype information results (default: %(default)s).",
                 },
             },
         ],
@@ -228,12 +260,12 @@ def main():
                 },
             },
         ],
-        "Taxonomic Assignment Settings": [
+        "BLAST Settings": [
             {
                 "args": ["--evalue"],
                 "kwargs": {
                     "type": float,
-                    "default": SETTINGS["assigntaxa"]["evalue"],
+                    "default": SETTINGS["blast"]["evalue"],
                     "help": "Expectation value (E) threshold for saving hits (default: %(default)s).",
                 },
             },
@@ -241,7 +273,7 @@ def main():
                 "args": ["--qcov-hsp-perc"],
                 "kwargs": {
                     "type": int,
-                    "default": SETTINGS["assigntaxa"]["qcov_hsp_perc"],
+                    "default": SETTINGS["blast"]["qcov_hsp_perc"],
                     "help": "Percentage of query coverage for high-scoring segment pairs (default: %(default)s).",
                 },
             },
@@ -249,7 +281,7 @@ def main():
                 "args": ["--perc-identity"],
                 "kwargs": {
                     "type": int,
-                    "default": SETTINGS["assigntaxa"]["perc_identity"],
+                    "default": SETTINGS["blast"]["perc_identity"],
                     "help": "Minimum Percentage identity for taxonomic assignment (default: %(default)s).",
                 },
             },
@@ -257,7 +289,7 @@ def main():
                 "args": ["--specifiers"],
                 "kwargs": {
                     "type": str,
-                    "default": SETTINGS["assigntaxa"]["specifiers"],
+                    "default": SETTINGS["blast"]["specifiers"],
                     "help": "Custom format specifiers for BLAST results. (default: %(default)s).",
                 },
             },
@@ -265,15 +297,17 @@ def main():
                 "args": ["-bdb", "--blast-db"],
                 "kwargs": {
                     "type": str,
-                    "default": SETTINGS["assigntaxa"]["blast_db"],
+                    "default": SETTINGS["blast"]["blast_db"],
                     "help": "Path to the BLAST database (default [NCBI remote nucleotide sequence database]: %(default)s).",
                 },
             },
+        ],
+        "Add Lineage Settings": [
             {
                 "args": ["-lndb", "--lineage-db"],
                 "kwargs": {
                     "type": str,
-                    "default": SETTINGS["assigntaxa"]["lineage_db"],
+                    "default": SETTINGS["addlineage"]["lineage_db"],
                     "help": "Path to the lineage database (default [NCBI remote nucleotide lineage database]: %(default)s).",
                 },
             },
@@ -281,7 +315,7 @@ def main():
                 "args": ["-email", "--entrez-email"],
                 "kwargs": {
                     "type": str,
-                    "default": SETTINGS["assigntaxa"]["entrez_email"],
+                    "default": SETTINGS["addlineage"]["entrez_email"],
                     "help": "The email used by NCBI to contact you in case of excessive usage or issues. (default : %(default)s).",
                 },
             },
@@ -308,7 +342,7 @@ def main():
                 "kwargs": {
                     "type": str,
                     "default": SETTINGS["prog"]["blast"],
-                    "help": "Command to execute BLAST for taxonomic assignment stage (default: %(default)s).",
+                    "help": "Command to execute BLAST for blast stage (default: %(default)s).",
                 },
             },
         ],

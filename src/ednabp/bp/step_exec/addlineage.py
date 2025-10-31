@@ -57,66 +57,25 @@ def get_lineage_from_entrez(taxid, logger):
         return None
 
 
-class AssignTaxaStage(stage_builder.StageBuilder):
+class AddLineageStage(stage_builder.StageBuilder):
     def __init__(
         self,
         config,
         heading=os.path.basename(__file__),
-        blast_prog="blastn",
         in_dir="",
         out_dir="",
-        in_suffix="_denoise.fasta",
-        out_suffix="_blast.csv",
-        maxhitnum: int = 1,
-        evalue: float = 0.00001,
-        qcov_hsp_perc: int = 90,
-        perc_identity: int = 90,
-        outfmt: str = "10",
-        specifiers: str = "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore sscinames scomnames sskingdoms",
-        blast_db: str | Literal["nt"] = "nt",
+        in_suffix="_blast.csv",
+        out_suffix="_taxa.csv",
         lineage_db: str | Literal["nucleotide"] = "nucleotide",
         entrez_email: str = None,
     ):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
         )
-        self.blast_prog = blast_prog
         self.in_suffix = in_suffix
         self.out_suffix = out_suffix
-        self.blast_outfile = None
-        self.specifiers = specifiers
         self.lineage_db = lineage_db
-        self.parse_params(
-            blast_db,
-            maxhitnum,
-            evalue,
-            qcov_hsp_perc,
-            perc_identity,
-            outfmt,
-        )
         self.parse_lineage_db(entrez_email)
-
-    def parse_params(
-        self,
-        seq_db,
-        maxhitnum,
-        evalue,
-        qcov_hsp_perc,
-        perc_identity,
-        outfmt,
-    ):
-        if seq_db == "nt":
-            seq_db = "nt -remote"
-        self.params = (
-            f"-db {seq_db}"
-            f" -max_target_seqs {maxhitnum}"
-            f" -evalue {evalue}"
-            f" -qcov_hsp_perc {qcov_hsp_perc}"
-            f" -perc_identity {perc_identity}"
-            f' -outfmt "{outfmt} {self.specifiers}"'
-        )
-        if "remote" not in self.params:
-            self.params += f" -num_threads {self.config.n_cpu}"
 
     def parse_genus2otherlv(self, lineage_path: str):
         self.genus2otherlv = {}
@@ -155,50 +114,22 @@ class AssignTaxaStage(stage_builder.StageBuilder):
 
     def setup(self, prefix):
         self.infile = os.path.join(self.in_dir, f"{prefix}{self.in_suffix}")
-        self.blast_outfile = os.path.join(
-            self.out_dir, f"{prefix}{self.out_suffix}"
-        )
+        self.outfile = os.path.join(self.out_dir, f"{prefix}{self.out_suffix}")
         self.check_infile()
-        cmd = (
-            f"{self.blast_prog} -query {self.infile}"
-            f" {self.params}"
-            f" -out {self.blast_outfile}"
-        )
-        super().add_stage("Run BLAST", cmd)
-        super().add_stage_function(
-            "Update output table header", self.add_table_header
-        )
         if not self.config.dry and hasattr(self, "get_lineage_func"):
             super().add_stage_function(
                 "Add taxonomy to BLAST result",
                 self.get_lineage_func,
             )
 
-    def add_table_header(self):
-        if os.path.exists(self.blast_outfile):
-            try:
-                blast_result = pd.read_csv(self.blast_outfile)
-                blast_result.columns = self.specifiers.split(" ")
-                blast_result.to_csv(self.blast_outfile, index=False)
-            except pd.errors.EmptyDataError:
-                self.config.logger.warning(
-                    f"BLAST result is empty: {self.blast_outfile}"
-                )
-                return False
-        else:
-            self.config.logger.error(
-                f"BLAST result does not exist: {self.blast_outfile}"
-            )
-            return False
-
     def get_lineage_from_custom_db(self):
         if not hasattr(self, "genus2otherlv"):
-            self.config.logger.waring(
+            self.config.logger.warning(
                 f"lineage_db is not set: {self.lineage_db}"
             )
             return False
 
-        blast_result = pd.read_csv(self.blast_outfile)
+        blast_result = pd.read_csv(self.infile)
 
         sseqids = blast_result["sseqid"].unique()
 
@@ -236,12 +167,12 @@ class AssignTaxaStage(stage_builder.StageBuilder):
             lineage_df, left_on="sseqid", right_on="sseqid", how="left"
         )
 
-        merged_result.to_csv(self.blast_outfile, index=False)
+        merged_result.to_csv(self.outfile, index=False)
 
         return True
 
     def get_lineage_from_entrez(self):
-        blast_result = pd.read_csv(self.blast_outfile)
+        blast_result = pd.read_csv(self.infile)
 
         Entrez.email = self.entrez_email
 
@@ -323,7 +254,7 @@ class AssignTaxaStage(stage_builder.StageBuilder):
             lineage_df, left_on="sseqid", right_on="sseqid", how="left"
         )
 
-        merged_result.to_csv(self.blast_outfile, index=False)
+        merged_result.to_csv(self.outfile, index=False)
 
         return True
 
@@ -332,22 +263,18 @@ class AssignTaxaStage(stage_builder.StageBuilder):
         return all(self.output)
 
 
-def assign_taxa_demo(
+def addlineage_demo(
     config,
     prefix,
-    denoise_dir="",
+    blast_dir="",
     save_dir="",
-    db_path="",
     lineage_path="",
-    specifiers="qseqid sscinames sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
 ):
-    stage = AssignTaxaStage(
+    stage = AddLineageStage(
         config,
-        in_dir=denoise_dir,
+        in_dir=blast_dir,
         out_dir=save_dir,
-        blast_db=db_path,
         lineage_db=lineage_path,
-        specifiers=specifiers,
     )
     stage.setup(prefix)
     is_complete = stage.run()

@@ -34,9 +34,10 @@ class TestBlastStage:
         assert stage.out_suffix == "_blast.csv"
 
         expected_params = (
-            "-db nt -remote -max_target_seqs 1 -evalue 1e-05 "
+            "-max_target_seqs 1 -evalue 1e-05 "
             "-qcov_hsp_perc 90 -perc_identity 90 "
-            '-outfmt "10 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore sscinames scomnames sskingdoms"'
+            '-outfmt "10 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore" '
+            "-db nt -remote"
         )
         assert stage.params == expected_params
 
@@ -50,13 +51,13 @@ class TestBlastStage:
             out_dir=out_dir,
             in_suffix="_zotus.fa",
             out_suffix="_blast_results.csv",
-            blast_db="/path/to/blast_db",
             maxhitnum=5,
             evalue=1e-10,
             qcov_hsp_perc=95,
             perc_identity=97,
             outfmt="6",
             specifiers="qseqid sseqid pident",
+            blast_db="/path/to/blast_db",
         )
 
         assert stage.heading == "custom_blast"
@@ -65,9 +66,11 @@ class TestBlastStage:
         assert stage.out_suffix == "_blast_results.csv"
 
         expected_params = (
-            "-db /path/to/blast_db -max_target_seqs 5 -evalue 1e-10 "
+            "-max_target_seqs 5 -evalue 1e-10 "
             "-qcov_hsp_perc 95 -perc_identity 97 "
-            '-outfmt "6 qseqid sseqid pident" -num_threads 4'
+            '-outfmt "6 qseqid sseqid pident" '
+            "-db /path/to/blast_db "
+            "-num_threads 4"
         )
         assert stage.params == expected_params
 
@@ -101,9 +104,10 @@ class TestBlastStage:
 
         expected_command = (
             f"blastn -query {expected_infile} "
-            f"-db /path/to/blast_db -max_target_seqs 1 -evalue 1e-05 "
-            f"-qcov_hsp_perc 90 -perc_identity 90 "
-            f'-outfmt "10 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore sscinames scomnames sskingdoms" '
+            "-max_target_seqs 1 -evalue 1e-05 "
+            "-qcov_hsp_perc 90 -perc_identity 90 "
+            '-outfmt "10 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore" '
+            "-db /path/to/blast_db "
             f"-num_threads 4 -out {expected_outfile}"
         )
 
@@ -124,7 +128,7 @@ class TestBlastStage:
 
         _result = blast_stage.add_table_header()
 
-        mock_read_csv.assert_called_once_with(blast_file)
+        mock_read_csv.assert_called_once_with(blast_file, header=None)
         mock_blast_df.to_csv.assert_called_once_with(blast_file, index=False)
 
     @patch("pandas.read_csv")

@@ -21,7 +21,7 @@ class BlastStage(stage_builder.StageBuilder):
         qcov_hsp_perc: int = 90,
         perc_identity: int = 90,
         outfmt: str = "10",
-        specifiers: str = "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore sscinames scomnames sskingdoms",
+        specifiers: str = "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
         blast_db: str | Literal["nt"] = "nt",
     ):
         super().__init__(
@@ -33,32 +33,32 @@ class BlastStage(stage_builder.StageBuilder):
         self.blast_outfile = None
         self.specifiers = specifiers
         self.parse_params(
-            blast_db,
             maxhitnum,
             evalue,
             qcov_hsp_perc,
             perc_identity,
             outfmt,
+            blast_db,
         )
 
     def parse_params(
         self,
-        seq_db,
         maxhitnum,
         evalue,
         qcov_hsp_perc,
         perc_identity,
         outfmt,
+        blast_db,
     ):
-        if seq_db == "nt":
-            seq_db = "nt -remote"
+        if blast_db == "nt":
+            blast_db = "nt -remote"
         self.params = (
-            f"-db {seq_db}"
-            f" -max_target_seqs {maxhitnum}"
+            f"-max_target_seqs {maxhitnum}"
             f" -evalue {evalue}"
             f" -qcov_hsp_perc {qcov_hsp_perc}"
             f" -perc_identity {perc_identity}"
             f' -outfmt "{outfmt} {self.specifiers}"'
+            f" -db {blast_db}"
         )
         if "remote" not in self.params:
             self.params += f" -num_threads {self.config.n_cpu}"
@@ -82,7 +82,7 @@ class BlastStage(stage_builder.StageBuilder):
     def add_table_header(self):
         if os.path.exists(self.blast_outfile):
             try:
-                blast_result = pd.read_csv(self.blast_outfile)
+                blast_result = pd.read_csv(self.blast_outfile, header=None)
                 blast_result.columns = self.specifiers.split(" ")
                 blast_result.to_csv(self.blast_outfile, index=False)
             except pd.errors.EmptyDataError:

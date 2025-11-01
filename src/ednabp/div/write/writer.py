@@ -160,6 +160,7 @@ class Writer(base_writer.BaseWriter):
             )
         # self._filter_richness_df()
         self.convert_units_occur_to_taxa_richness()  # columns: taxa_level, Richness, Sample_id
+        self.richness_df = self.fillna(self.richness_df, FILL_NA)
         self.add_sample_metadata(
             "richness_df"
         )  # columns: taxa_level, Richness, Sample_id, Site, Year, Month, Sample
@@ -186,6 +187,7 @@ class Writer(base_writer.BaseWriter):
                 [self.taxa_lv, VALUE_COLUMN],
                 "abundance_df",
             )  # columns: taxa_level, Abundance, Sample_id
+        self.abundance_df = self.fillna(self.abundance_df, FILL_NA)
         self.add_sample_metadata(
             "abundance_df"
         )  # columns: taxa_level, Abundance, Sample_id, Site, Year, Month, Sample
@@ -213,6 +215,7 @@ class Writer(base_writer.BaseWriter):
                 "taxa_occur",
             )  # columns: taxa_level, unit, detect_prob, Sample_id
         self.fill_non_detect_zero(self.taxa_lv)
+        self.taxa_occur = self.fillna(self.taxa_occur, FILL_NA)
         self.add_sample_metadata(
             "taxa_occur"
         )  # columns: taxa_level, detect_prob, Sample_id, Site, Year, Month, Sample
@@ -241,12 +244,21 @@ class Writer(base_writer.BaseWriter):
         if sample_id is not None:
             df[SAMPLE_ID_COLUMN] = sample_id
         metric_df = getattr(self, metric_df_name)
-        updated_metric_df = pd.concat([metric_df, df], ignore_index=True)
+
+        if not metric_df.empty and not df.empty:
+            updated_metric_df = pd.concat([metric_df, df], axis=0)
+        elif not metric_df.empty:
+            updated_metric_df = metric_df.copy()
+        elif not df.empty:
+            updated_metric_df = df.copy()
+        else:
+            updated_metric_df = pd.DataFrame()
+
         setattr(self, metric_df_name, updated_metric_df)
 
     def add_sample_metadata(self, metric_df_name):
         if not hasattr(self.data, "sample_metadata"):
-            self.config.logger.warning(
+            self.config.logger.info(
                 "No attribute `sample_metadata` found. Skipping."
             )
             return
@@ -263,17 +275,17 @@ class Writer(base_writer.BaseWriter):
             how="left",
         )
         if updated_metric_df.isna().any().any():
-            self.config.logger.warning(
+            self.config.logger.info(
                 f"Some samples are missing metadata. Filling them with '{FILL_NA}'."
             )
-            updated_metric_df = updated_metric_df.fillna(FILL_NA)
+            updated_metric_df = self.fillna(updated_metric_df, FILL_NA)
         setattr(self, metric_df_name, updated_metric_df)
 
     def add_spc_info(self, metric_df_name):
         if self.taxa_lv != "species":
             return
         if not hasattr(self.data, "spc_info"):
-            self.config.logger.warning("No species info found. Skipping.")
+            self.config.logger.info("No species info found. Skipping.")
             return
         metric_df = getattr(self, metric_df_name)
         spc_info_df = (
@@ -285,10 +297,10 @@ class Writer(base_writer.BaseWriter):
             left=metric_df, right=spc_info_df, on="species", how="left"
         )
         if updated_metric_df.isna().any().any():
-            self.config.logger.warning(
-                f"Some samples are missing metadata. Filling them with '{FILL_NA}'."
+            self.config.logger.info(
+                f"Some species information is missing. Filling them with '{FILL_NA}'."
             )
-            updated_metric_df = updated_metric_df.fillna(FILL_NA)
+            updated_metric_df = self.fillna(updated_metric_df, FILL_NA)
         setattr(self, metric_df_name, updated_metric_df)
 
     # def _filter_richness_df(self, site_occur_thres: int = 0, sample_occur_thres: int = 0):
@@ -374,3 +386,8 @@ class Writer(base_writer.BaseWriter):
             .mean()
             .reset_index()
         )
+
+    def fillna(self, df, fillna_value):
+        with pd.option_context("future.no_silent_downcasting", True):
+            updated_df = df.fillna(fillna_value).infer_objects(copy=False)
+        return updated_df

@@ -117,7 +117,7 @@ class Writer(base_writer.BaseWriter):
     def detectprob(
         self,
         taxa_lv: str,
-        detectprob_columns: str | list[str] = "sample",
+        detectprob_columns: str | list[str],
         save_dir: str = None,
         overwrite: bool = False,
         sample_id_list: list[str] | None = None,

@@ -25,7 +25,7 @@ class BioPipeline:
         :param input_path (str): The input path for raw sequences. This can be either a directory containing files or the path to a single file.
         :param output_path (str): The directory where output files will be saved.
         :param enabled_stages (list[str]): The process stages to be executed. The execution order will match the list order. Default:
-         ["decompress", "merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "assigntaxa"] (all stages will be run).
+         ["decompress", "merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "blast", "addlineage", "addhap"] (all stages will be run).
         :param settings: Additional optional arguments to configure pipeline stages and runtime behavior. These include:
           Directory Names:
             - decompress_dir_name (str): The name of the subdirectory for the decompression stage. Default: "decompress".
@@ -34,7 +34,9 @@ class BioPipeline:
             - fqtofa_dir_name (str): The name of the subdirectory for converting FastQ to FastA. Default: "fqtofa".
             - dereplicate_dir_nam (str): The name of the subdirectory for the dereplication stage. Default: "dereplicate".
             - denoise_dir_name (str): The name of the subdirectory for the denoising stage. Default: "denoise".
-            - assigntaxa_dir_name (str): The name of the subdirectory for taxonomic assignment. Default: "assigntaxa".
+            - blast_dir_name (str): The name of the subdirectory for taxonomic assignment. Default: "blast".
+            - addlineage_dir_name (str): The name of the subdirectory for adding lineage information. Default: "blast".
+            - addhap_dir_name (str): The name of the subdirectory for adding haplotype information. Default: "blast".
 
           File Suffixes:
             - raw_suffix (str): File suffix for raw input sequences. Default: "_R1.fastq.gz".
@@ -43,7 +45,9 @@ class BioPipeline:
             - cutprimer_suffix (str): File suffix for trimmed sequences after primer removal. Default: "_trimmed.fastq".
             - dereplicate_suffix (str): File suffix for unique sequences after dereplication. Default: "_uniqs.fasta".
             - denoise_suffix (str): File suffix for denoised sequences (ZOTUs). Default: "_zotus.fasta".
-            - assigntaxa_suffix (str): File suffix for taxonomic assignment results. Default: "_taxa.csv".
+            - blast_suffix (str): File suffix for taxonomic assignment results. Default: "_blast.csv".
+            - addlineage_suffix (str): File suffix for lineage assignment results. Default: "_blast.csv".
+            - addhap_suffix (str): File suffix for haplotype information results. Default: "_blast.csv".
 
           Merge Settings:
             - maxdiff (int): Maximum number of mismatches in the alignment. Default: 5.
@@ -207,7 +211,7 @@ class BioPipeline:
 
             if stage == "addhap":
                 stage_args["denoise_dir"] = self.stage_dir["denoise"]
-            
+
             if stage in [
                 "merge",
                 "cutprimer",

@@ -41,13 +41,13 @@ class BioPipeline:
           File Suffixes:
             - raw_suffix (str): File suffix for raw input sequences. Default: "_R1.fastq.gz".
             - decompress_suffix (str): File suffix for sequences after decompression. Default: "_R1.fastq".
-            - merge_suffix (str): File suffix for merged sequences. Default: "_merged.fastq".
-            - cutprimer_suffix (str): File suffix for trimmed sequences after primer removal. Default: "_trimmed.fastq".
-            - dereplicate_suffix (str): File suffix for unique sequences after dereplication. Default: "_uniqs.fasta".
-            - denoise_suffix (str): File suffix for denoised sequences (ZOTUs). Default: "_zotus.fasta".
-            - blast_suffix (str): File suffix for taxonomic assignment results. Default: "_blast.csv".
-            - addlineage_suffix (str): File suffix for lineage assignment results. Default: "_blast.csv".
-            - addhap_suffix (str): File suffix for haplotype information results. Default: "_blast.csv".
+            - merge_suffix (str): File suffix for merged sequences. Default: ".fastq".
+            - cutprimer_suffix (str): File suffix for trimmed sequences after primer removal. Default: ".fastq".
+            - dereplicate_suffix (str): File suffix for unique sequences after dereplication. Default: ".fasta".
+            - denoise_suffix (str): File suffix for denoised sequences (ZOTUs). Default: ".fasta".
+            - blast_suffix (str): File suffix for taxonomic assignment results. Default: ".csv".
+            - addlineage_suffix (str): File suffix for lineage assignment results. Default: ".csv".
+            - addhap_suffix (str): File suffix for haplotype information results. Default: ".csv".
 
           Merge Settings:
             - maxdiff (int): Maximum number of mismatches in the alignment. Default: 5.

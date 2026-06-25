@@ -22,8 +22,8 @@ class TestFqToFaStage:
         assert stage.config == mock_config
         assert stage.in_dir == in_dir
         assert stage.out_dir == out_dir
-        assert stage.in_suffix == "_cut.fastq"
-        assert stage.out_suffix == "_cut.fasta"
+        assert stage.in_suffix == ".fastq"
+        assert stage.out_suffix == ".fasta"
 
     def test_init_custom(self, mock_config, tmp_dirs):
         in_dir, out_dir = tmp_dirs
@@ -44,7 +44,7 @@ class TestFqToFaStage:
         in_dir, out_dir = tmp_dirs
         test_prefix = "sample001"
 
-        input_file = os.path.join(in_dir, f"{test_prefix}_cut.fastq")
+        input_file = os.path.join(in_dir, f"{test_prefix}.fastq")
         with open(input_file, "w") as f:
             f.write("@read1\nACGT\n+\nIIII\n")
 
@@ -54,8 +54,8 @@ class TestFqToFaStage:
         runner = fqtofa_stage.runners[0]
         assert runner.prog_name == "Convert FASTQ to FASTA"
 
-        expected_infile = os.path.join(in_dir, f"{test_prefix}_cut.fastq")
-        expected_outfile = os.path.join(out_dir, f"{test_prefix}_cut.fasta")
+        expected_infile = os.path.join(in_dir, f"{test_prefix}.fastq")
+        expected_outfile = os.path.join(out_dir, f"{test_prefix}.fasta")
         assert fqtofa_stage.infile == expected_infile
         assert fqtofa_stage.outfile == expected_outfile
 
@@ -63,7 +63,7 @@ class TestFqToFaStage:
         in_dir, out_dir = tmp_dirs
         test_prefix = "real_test"
 
-        input_file = os.path.join(in_dir, f"{test_prefix}_cut.fastq")
+        input_file = os.path.join(in_dir, f"{test_prefix}.fastq")
         with open(input_file, "w") as f:
             f.write(sample_fastq_content)
 
@@ -71,7 +71,7 @@ class TestFqToFaStage:
 
         fqtofa_stage.run()
 
-        output_file = os.path.join(out_dir, f"{test_prefix}_cut.fasta")
+        output_file = os.path.join(out_dir, f"{test_prefix}.fasta")
         assert os.path.exists(output_file)
 
         with open(output_file) as f:
@@ -86,14 +86,14 @@ class TestFqToFaStage:
         in_dir, out_dir = tmp_dirs
         test_prefix = "empty_test"
 
-        input_file = os.path.join(in_dir, f"{test_prefix}_cut.fastq")
+        input_file = os.path.join(in_dir, f"{test_prefix}.fastq")
         with open(input_file, "w") as f:
             f.write("")
 
         fqtofa_stage.setup(test_prefix)
         fqtofa_stage.fq_to_fa()
 
-        output_file = os.path.join(out_dir, f"{test_prefix}_cut.fasta")
+        output_file = os.path.join(out_dir, f"{test_prefix}.fasta")
         assert os.path.exists(output_file)
 
         with open(output_file) as f:

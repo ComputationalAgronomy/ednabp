@@ -30,8 +30,8 @@ class TestBlastStage:
         assert stage.in_dir == in_dir
         assert stage.out_dir == out_dir
         assert stage.blast_prog == "blastn"
-        assert stage.in_suffix == "_denoise.fasta"
-        assert stage.out_suffix == "_blast.csv"
+        assert stage.in_suffix == ".fasta"
+        assert stage.out_suffix == ".csv"
 
         expected_params = (
             "-max_target_seqs 1 -evalue 1e-05 "
@@ -90,7 +90,7 @@ class TestBlastStage:
         in_dir, out_dir = tmp_dirs
         test_prefix = "sample001"
 
-        input_file = os.path.join(in_dir, f"{test_prefix}_denoise.fasta")
+        input_file = os.path.join(in_dir, f"{test_prefix}.fasta")
         with open(input_file, "w") as f:
             f.write(">seq1\nACGTACGT\n>seq2\nTGCATGCA\n")
 
@@ -99,8 +99,8 @@ class TestBlastStage:
         assert len(blast_stage.runners) == 2
         blast_runner = blast_stage.runners[0]
 
-        expected_infile = os.path.join(in_dir, f"{test_prefix}_denoise.fasta")
-        expected_outfile = os.path.join(out_dir, f"{test_prefix}_blast.csv")
+        expected_infile = os.path.join(in_dir, f"{test_prefix}.fasta")
+        expected_outfile = os.path.join(out_dir, f"{test_prefix}.csv")
 
         expected_command = (
             f"blastn -query {expected_infile} "

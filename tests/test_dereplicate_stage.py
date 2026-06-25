@@ -23,8 +23,8 @@ class TestDereplicateStage:
         assert stage.in_dir == in_dir
         assert stage.out_dir == out_dir
         assert stage.usearch_prog == "usearch"
-        assert stage.in_suffix == "_cut.fasta"
-        assert stage.out_suffix == "_uniq.fasta"
+        assert stage.in_suffix == ".fasta"
+        assert stage.out_suffix == ".fasta"
         assert stage.report_suffix == "_report.txt"
         assert stage.write_report is True
 
@@ -53,7 +53,7 @@ class TestDereplicateStage:
         in_dir, out_dir = tmp_dirs
         test_prefix = "sample001"
 
-        input_file = os.path.join(in_dir, f"{test_prefix}_cut.fasta")
+        input_file = os.path.join(in_dir, f"{test_prefix}.fasta")
         with open(input_file, "w") as f:
             f.write(">seq1\nACGT\n>seq2\nACGT\n>seq3\nTGCA\n")
 
@@ -62,8 +62,8 @@ class TestDereplicateStage:
         assert len(dereplicate_stage.runners) == 2
         command_runner = dereplicate_stage.runners[0]
 
-        expected_infile = os.path.join(in_dir, f"{test_prefix}_cut.fasta")
-        expected_outfile = os.path.join(out_dir, f"{test_prefix}_uniq.fasta")
+        expected_infile = os.path.join(in_dir, f"{test_prefix}.fasta")
+        expected_outfile = os.path.join(out_dir, f"{test_prefix}.fasta")
 
         expected_command = (
             f"usearch -fastx_uniques {expected_infile} "

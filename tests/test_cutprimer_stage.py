@@ -23,8 +23,8 @@ class TestCutPrimerStage:
         assert stage.in_dir == in_dir
         assert stage.out_dir == out_dir
         assert stage.cutadapt_prog == "cutadapt"
-        assert stage.in_suffix == "_merge.fastq"
-        assert stage.out_suffix == "_cut.fastq"
+        assert stage.in_suffix == ".fastq"
+        assert stage.out_suffix == ".fastq"
         assert stage.report_suffix == "_report.txt"
 
     def test_init_custom(self, mock_config, tmp_dirs):
@@ -53,7 +53,7 @@ class TestCutPrimerStage:
         in_dir, _out_dir = tmp_dirs
         test_prefix = "sample001"
 
-        input_file = os.path.join(in_dir, f"{test_prefix}_merge.fastq")
+        input_file = os.path.join(in_dir, f"{test_prefix}.fastq")
         with open(input_file, "w") as f:
             f.write("@read1\nACGT\n+\nIIII\n")
 
@@ -62,7 +62,7 @@ class TestCutPrimerStage:
         assert len(cutprimer_stage.runners) == 2
         command_runner = cutprimer_stage.runners[0]
 
-        expected_infile = os.path.join(in_dir, f"{test_prefix}_merge.fastq")
+        expected_infile = os.path.join(in_dir, f"{test_prefix}.fastq")
         expected_untrimmed_file = os.path.join(
             _out_dir, f"{test_prefix}_untrimmed.fastq"
         )

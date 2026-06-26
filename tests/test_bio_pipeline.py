@@ -72,7 +72,6 @@ class TestBioPipeline:
 
         custom_settings = {
             "enabled_stages": ["decompress", "merge"],
-            "decompress_dir_name": "custom_decompress",
             "maxdiff": 10,
             "verbose": False,
             "n_cpu": 8,
@@ -89,7 +88,7 @@ class TestBioPipeline:
             pipeline.config = Mock()
 
             assert pipeline.enabled_stages == ["decompress", "merge"]
-            assert pipeline.stage_dir_name["decompress"] == "custom_decompress"
+            assert pipeline.stage_dir_name["decompress"] == "decompress"
             assert pipeline.merge_settings["maxdiff"] == 10
             assert pipeline.config_basic_settings["verbose"] is False
             assert pipeline.config_machine_settings["n_cpu"] == 8
@@ -132,16 +131,20 @@ class TestBioPipeline:
         with open(input_file, "w") as f:
             f.write("test")
 
+        def mock_add_config(self):
+            self.config = Mock()
+            self.config.logger = Mock()
+
         with (
             patch.object(BioPipeline, "setup_stages"),
             patch.object(BioPipeline, "run_stages_files"),
             patch.object(BioPipeline, "close_file_handler"),
-            patch("ednabp.common.base_logger.get_file_handler"),
+            patch.object(BioPipeline, "add_config", mock_add_config),
         ):
             pipeline = BioPipeline(
                 in_dir,
                 out_dir,
-                enabled_stages=["decompress", "merge"],
+                enabled_stages=["fqtofa"],
                 raw_suffix=".custom_suffix",
                 verbose=False,
             )
@@ -295,22 +298,27 @@ class TestBioPipeline:
     def test_setup_stages_fqtofa_suffix_handling(self, tmp_dirs):
         in_dir, out_dir = tmp_dirs
 
-        input_file = os.path.join(in_dir, "test_R1_trimmed.fastq")
+        input_file = os.path.join(in_dir, "test.fastq")
         with open(input_file, "w") as f:
             f.write("test")
 
+        def mock_add_config(self):
+            self.config = Mock()
+            self.config.logger = Mock()
+            self.config.logger.handlers = []
+
         with (
             patch.object(BioPipeline, "run_stages_files"),
+            patch.object(BioPipeline, "add_config", mock_add_config),
             patch("ednabp.bp.step_exec.fqtofa.FqToFaStage"),
         ):
             pipeline = BioPipeline(
                 in_dir,
                 out_dir,
                 enabled_stages=["fqtofa"],
-                raw_suffix="_trimmed.fastq",
             )
 
-            expected_fqtofa_suffix = "_trimmed.fasta"
+            expected_fqtofa_suffix = ".fasta"
             assert pipeline.stage_suffix["fqtofa"] == expected_fqtofa_suffix
 
     def test_setup_stages_fqtofa_invalid_suffix(self, tmp_dirs):
@@ -418,9 +426,13 @@ class TestBioPipeline:
     def test_run_stages_files(self, sample_fastq_files, tmp_dirs):
         in_dir, out_dir = tmp_dirs
 
+        def mock_add_config(self):
+            self.config = Mock()
+            self.config.logger = Mock()
+            self.config.logger.handlers = []
+
         with (
-            patch.object(BioPipeline, "add_config"),
-            patch.object(BioPipeline, "determine_raw_suffix"),
+            patch.object(BioPipeline, "add_config", mock_add_config),
             patch.object(BioPipeline, "setup_stages"),
             patch.object(BioPipeline, "run_one_file") as mock_run_one_file,
             patch.object(BioPipeline, "close_file_handler"),
@@ -430,7 +442,6 @@ class TestBioPipeline:
                 out_dir,
                 verbose=True,
                 dry=True,
-                raw_suffix="_R1.fastq.gz",
             )
 
             expected_samples = {"sample001", "sample002"}
@@ -446,9 +457,13 @@ class TestBioPipeline:
         with open(input_file, "w") as f:
             f.write("test")
 
+        def mock_add_config(self):
+            self.config = Mock()
+            self.config.logger = Mock()
+            self.config.logger.handlers = []
+
         with (
-            patch.object(BioPipeline, "add_config"),
-            patch.object(BioPipeline, "determine_raw_suffix"),
+            patch.object(BioPipeline, "add_config", mock_add_config),
             patch.object(BioPipeline, "setup_stages"),
             patch.object(BioPipeline, "run_one_file") as mock_run_one_file,
             patch.object(BioPipeline, "close_file_handler"),
@@ -458,7 +473,6 @@ class TestBioPipeline:
                 out_dir,
                 verbose=True,
                 dry=True,
-                raw_suffix="_R1.fastq.gz",
             )
 
             mock_run_one_file.assert_called_once()
@@ -553,17 +567,12 @@ class TestBioPipeline:
                 in_dir,
                 out_dir,
                 enabled_stages=["decompress", "merge"],
-                decompress_dir_name="custom_decompress",
-                merge_dir_name="custom_merge",
                 verbose=True,
                 dry=True,
             )
-            pipeline.config = Mock()
 
-            expected_decompress_dir = os.path.join(
-                out_dir, "custom_decompress"
-            )
-            expected_merge_dir = os.path.join(out_dir, "custom_merge")
+            expected_decompress_dir = os.path.join(out_dir, "decompress")
+            expected_merge_dir = os.path.join(out_dir, "merge")
 
             assert pipeline.stage_dir["decompress"] == expected_decompress_dir
             assert pipeline.stage_dir["merge"] == expected_merge_dir

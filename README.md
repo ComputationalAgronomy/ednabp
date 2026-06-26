@@ -90,28 +90,86 @@ May remove the `phylo` and `hap_net modules` as it is somewhat redundant to use 
 - [Diversity metrics summary](#diversity-metrics-summary)
 
 ### Pipeline Processing
-```python
-from ednabp.bp import BioPipeline
+
+The BioPipeline processes sequencing data through a series of quality control and analysis stages. It expects input files in a specific format and produces organized output with intermediate results at each processing stage.
+
+#### Input Format
+
+- **Input directory**: Contains compressed FASTQ files (`.fastq.gz`)
+- **For paired-end reads**: Files must be named with `_R1` and `_R2` suffixes (e.g., `sample1_R1.fastq.gz`, `sample1_R2.fastq.gz`)
+- **For reads not requiring merge**: Files without read markers (e.g., `sample1.fastq.gz`); applicable to single-end, long-read, or already-merged data
+
+#### Output Structure
+
+```
+output_path/
+├── decompress/              # Decompressed FASTQ files
+│   ├── sample1_R1.fastq
+│   ├── sample1_R2.fastq
+│   └── ...
+├── merge/                   # Merged paired-end reads (or copies for single-end)
+│   ├── sample1.fastq
+│   └── ...
+├── cutprimer/               # Primer-trimmed and length-filtered sequences
+│   ├── sample1.fastq
+│   └── ...
+├── fqtofa/                  # Converted to FASTA format
+│   ├── sample1.fasta
+│   └── ...
+├── dereplicate/             # Deduplicated sequences
+│   ├── sample1.fasta
+│   └── ...
+├── denoise/                 # Denoised sequences (ZOTUs)
+│   ├── sample1.fasta
+│   ├── sample1_denoise_report.txt
+│   └── ...
+├── blast/                   # Taxonomic assignments
+│   ├── sample1.csv          # Enhanced with lineage (addlineage) and haplotype (addhap) info
+│   └── ...
+└── stages.log               # Processing log
 ```
 
 #### Run default pipeline
+
 ```python
+from ednabp.bp import BioPipeline
+
+# Process paired-end reads from directory containing _R1.fastq.gz and _R2.fastq.gz files
 pipeline = BioPipeline(
-    input_path="/path/to/files_folder",   # Directory containing multiple files
+    input_path="/path/to/files_folder",   # Directory containing multiple .fastq.gz files
     # input_path="/path/to/single_file",  # Alternative: single file input
     output_path="/path/to/output",
 )
 ```
 
+The pipeline automatically:
+1. Decompresses `.fastq.gz` files
+2. Merges paired-end reads (R1 + R2)
+3. Removes primer sequences and filters by read length
+4. Converts FASTQ to FASTA format
+5. Removes duplicate sequences
+6. Performs error correction (denoising)
+7. Assigns taxonomy using BLAST
+8. Adds lineage information
+9. Enriches with haplotype data
+
 #### Run custom settings
+
 ```python
 custom_settings = {
+    # Primer sequences (customize for your experiment)
     "rm_p_5": "GGACGATAAGACCCTATAAA",
     "rm_p_3": "ACTTTAGGGATAACAGCGT",
+    
+    # Length filtering parameters
     "min_read_len": 154,
     "max_read_len": 189,
+    
+    # Database paths
     "blast_db": "/path/to/custom/blast/db",
-    "lineage_db": "/path/to/custom/lineage/db"
+    "lineage_db": "/path/to/custom/lineage/db",
+    
+    # Performance settings
     "verbose": True,
     "n_cpu": 8,
 }
@@ -120,6 +178,32 @@ pipeline = BioPipeline(
     input_path="/path/to/files_folder",
     output_path="/path/to/output",
     **custom_settings
+)
+```
+
+#### Run partial pipeline
+
+You can start the pipeline at any stage by specifying `enabled_stages`:
+
+```python
+# Start from merge stage (skip decompress)
+settings = {
+    "enabled_stages": ["merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "blast", "addlineage", "addhap"],
+}
+pipeline = BioPipeline(
+    input_path="/path/to/files_with_R1_R2_fastq",  # decompressed FASTQ files
+    output_path="/path/to/output",
+    **settings
+)
+
+# Start from fqtofa stage (skip decompress and merge)
+settings = {
+    "enabled_stages": ["fqtofa", "dereplicate", "denoise", "blast", "addlineage", "addhap"],
+}
+pipeline = BioPipeline(
+    input_path="/path/to/files_with_merged_trimmed_fastq",
+    output_path="/path/to/output",
+    **settings
 )
 ```
 #### CLI

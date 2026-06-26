@@ -20,7 +20,7 @@ class TestMergeStage:
         assert stage.out_dir == out_dir
         assert stage.usearch_prog == "usearch"
         assert stage.in_suffix == "_R1.fastq"
-        assert stage.out_suffix == "_merge.fastq"
+        assert stage.out_suffix == ".fastq"
         assert stage.report_suffix == "_report.txt"
         assert stage.params == "-fastq_maxdiffs 5 -fastq_pctid 90 -threads 4"
 
@@ -58,7 +58,7 @@ class TestMergeStage:
         runner = merge_stage.runners[0]
 
         expected_infile = os.path.join(in_dir, f"{test_prefix}_R1.fastq")
-        expected_outfile = os.path.join(out_dir, f"{test_prefix}_merge.fastq")
+        expected_outfile = os.path.join(out_dir, f"{test_prefix}.fastq")
         expected_report = os.path.join(out_dir, f"{test_prefix}_report.txt")
 
         expected_command = (

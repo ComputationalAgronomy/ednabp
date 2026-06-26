@@ -12,8 +12,8 @@ class FqToFaStage(stage_builder.StageBuilder):
         heading=os.path.basename(__file__),
         in_dir="",
         out_dir="",
-        in_suffix="_cut.fastq",
-        out_suffix="_cut.fasta",
+        in_suffix=".fastq",
+        out_suffix=".fasta",
     ):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir

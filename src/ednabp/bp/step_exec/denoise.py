@@ -1,5 +1,4 @@
 import os
-import re
 
 from ...common.default_settings import SETTINGS
 from ..step_build import stage_builder
@@ -13,8 +12,8 @@ class DenoiseStage(stage_builder.StageBuilder):
         usearch_prog="usearch",
         in_dir="",
         out_dir="",
-        in_suffix="_uniq.fasta",
-        out_suffix="_denoise.fasta",
+        in_suffix=".fasta",
+        out_suffix=".fasta",
         minsize=8,
         alpha=2,
     ):
@@ -24,9 +23,7 @@ class DenoiseStage(stage_builder.StageBuilder):
         self.usearch_prog = usearch_prog
         self.in_suffix = in_suffix
         self.out_suffix = out_suffix
-        self.denoise_report_suffix = re.sub(
-            r"\.\w+", SETTINGS["suffix"]["report"], out_suffix
-        )
+        self.denoise_report_suffix = SETTINGS["suffix"]["denoise_report"]
         self.report_suffix = SETTINGS["suffix"]["report"]
         self.parse_params(minsize, alpha)
 

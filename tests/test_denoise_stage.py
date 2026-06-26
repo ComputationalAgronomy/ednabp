@@ -21,8 +21,8 @@ class TestDenoiseStage:
         assert stage.in_dir == in_dir
         assert stage.out_dir == out_dir
         assert stage.usearch_prog == "usearch"
-        assert stage.in_suffix == "_uniq.fasta"
-        assert stage.out_suffix == "_denoise.fasta"
+        assert stage.in_suffix == ".fasta"
+        assert stage.out_suffix == ".fasta"
         assert stage.denoise_report_suffix == "_denoise_report.txt"
         assert stage.report_suffix == "_report.txt"
 
@@ -49,7 +49,7 @@ class TestDenoiseStage:
         in_dir, out_dir = tmp_dirs
         test_prefix = "sample001"
 
-        input_file = os.path.join(in_dir, f"{test_prefix}_uniq.fasta")
+        input_file = os.path.join(in_dir, f"{test_prefix}.fasta")
         with open(input_file, "w") as f:
             f.write(">seq1\nACGT\n>seq2\nTGCA\n")
 
@@ -58,10 +58,8 @@ class TestDenoiseStage:
         assert len(denoise_stage.runners) == 2  # Command + output redirection
         command_runner = denoise_stage.runners[0]
 
-        expected_infile = os.path.join(in_dir, f"{test_prefix}_uniq.fasta")
-        expected_outfile = os.path.join(
-            out_dir, f"{test_prefix}_denoise.fasta"
-        )
+        expected_infile = os.path.join(in_dir, f"{test_prefix}.fasta")
+        expected_outfile = os.path.join(out_dir, f"{test_prefix}.fasta")
         expected_denoise_report = os.path.join(
             out_dir, f"{test_prefix}_denoise_report.txt"
         )

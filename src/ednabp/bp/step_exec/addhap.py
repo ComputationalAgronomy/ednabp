@@ -4,6 +4,7 @@ import re
 import pandas as pd
 from Bio import SeqIO
 
+from ...common.default_settings import SETTINGS
 from ..step_build import stage_builder
 
 
@@ -14,11 +15,11 @@ class AddHapStage(stage_builder.StageBuilder):
         heading=os.path.basename(__file__),
         in_dir="",
         out_dir="",
-        in_suffix="_taxa.csv",
-        out_suffix="_taxa.csv",
+        in_suffix=".csv",
+        out_suffix=".csv",
         denoise_dir="",
-        denoise_suffix="_zotus.fasta",
-        report_suffix="_report.txt",
+        denoise_suffix=".fasta",
+        report_suffix=None,
     ):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
@@ -27,7 +28,9 @@ class AddHapStage(stage_builder.StageBuilder):
         self.out_suffix = out_suffix
         self.denoise_dir = denoise_dir
         self.denoise_suffix = denoise_suffix
-        self.report_suffix = re.sub(r"\.\w+", report_suffix, denoise_suffix)
+        self.report_suffix = (
+            report_suffix or SETTINGS["suffix"]["denoise_report"]
+        )
 
     def check_denoise_dir(self):
         if not os.path.isdir(self.denoise_dir):

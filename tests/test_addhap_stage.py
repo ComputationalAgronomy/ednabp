@@ -32,19 +32,19 @@ class TestAddHapStage:
         assert stage.config == mock_config
         assert stage.in_dir == in_dir
         assert stage.out_dir == out_dir
-        assert stage.in_suffix == "_taxa.csv"
-        assert stage.out_suffix == "_taxa.csv"
+        assert stage.in_suffix == ".csv"
+        assert stage.out_suffix == ".csv"
         assert stage.denoise_dir == "denoise"
 
     def test_setup(self, addhap_stage, tmp_dirs):
         in_dir, out_dir = tmp_dirs
         test_prefix = "sample001"
-        taxa_file = os.path.join(in_dir, f"{test_prefix}_taxa.csv")
+        taxa_file = os.path.join(in_dir, f"{test_prefix}.csv")
         addhap_stage.denoise_file = os.path.join(
-            out_dir, "denoise", f"{test_prefix}_zotus.fasta"
+            out_dir, "denoise", f"{test_prefix}.fasta"
         )
         addhap_stage.report_file = os.path.join(
-            out_dir, "denoise", f"{test_prefix}_zotus_report.txt"
+            out_dir, "denoise", f"{test_prefix}_denoise_report.txt"
         )
 
         with open(taxa_file, "w") as f:
@@ -63,15 +63,15 @@ class TestAddHapStage:
 
     def test_add_haplotype_info(self, addhap_stage, tmp_dirs):
         in_dir, out_dir = tmp_dirs
-        taxa_file = os.path.join(in_dir, "test_taxa.csv")
-        hap_file = os.path.join(out_dir, "test_taxa.csv")
+        taxa_file = os.path.join(in_dir, "test.csv")
+        hap_file = os.path.join(out_dir, "test.csv")
         addhap_stage.infile = taxa_file
         addhap_stage.outfile = hap_file
         addhap_stage.denoise_file = os.path.join(
-            out_dir, "denoise", "test_zotus.fasta"
+            out_dir, "denoise", "test.fasta"
         )
         addhap_stage.report_file = os.path.join(
-            out_dir, "denoise", "test_zotus_report.txt"
+            out_dir, "denoise", "test_denoise_report.txt"
         )
 
         with open(taxa_file, "w") as f:
@@ -96,7 +96,7 @@ class TestAddHapStage:
 
     def test_read_denoise_report(self, addhap_stage, tmp_dirs):
         _, out_dir = tmp_dirs
-        report_file = os.path.join(out_dir, "test_zotus_report.txt")
+        report_file = os.path.join(out_dir, "test_denoise_report.txt")
 
         with open(report_file, "w") as f:
             f.write("Uniq1;size=87;\tchfilter zotu\n")
@@ -109,7 +109,7 @@ class TestAddHapStage:
 
     def test_read_fasta_sequences(self, addhap_stage, tmp_dirs):
         _, out_dir = tmp_dirs
-        fasta_file = os.path.join(out_dir, "test_zotus.fasta")
+        fasta_file = os.path.join(out_dir, "test.fasta")
 
         with open(fasta_file, "w") as f:
             f.write(">Zotu1\nACGT\n>Zotu2\nTGCA\n")

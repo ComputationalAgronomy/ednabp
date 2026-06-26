@@ -32,153 +32,15 @@ def main():
                     "default": SETTINGS["enabled_stages"],
                     "help": "Process stages to be executed in order (default [run all stages]: %(default)s).",
                 },
-            }
-        ],
-        "Directory Names": [
-            {
-                "args": ["--decompress-dir-name"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["dir_name"]["decompress"],
-                    "help": "Name of the subdirectory for the decompression stage (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["--merge-dir-name"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["dir_name"]["merge"],
-                    "help": "Name of the subdirectory for the merge stage (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["--cutprimer-dir-name"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["dir_name"]["cutprimer"],
-                    "help": "Name of the subdirectory for the cut-primer stage (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["--fqtofa-dir-name"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["dir_name"]["fqtofa"],
-                    "help": "Name of the subdirectory for FastQ to FastA conversion (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["--dereplicate-dir-name"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["dir_name"]["dereplicate"],
-                    "help": "Name of the subdirectory for the dereplication stage (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["--denoise-dir-name"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["dir_name"]["denoise"],
-                    "help": "Name of the subdirectory for the denoising stage (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["--blast-dir-name"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["dir_name"]["blast"],
-                    "help": "Name of the subdirectory for BLAST search (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["--addlineage-dir-name"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["dir_name"]["addlineage"],
-                    "help": "Name of the subdirectory for adding lineage information (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["--addhap-dir-name"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["dir_name"]["addhap"],
-                    "help": "Name of the subdirectory for adding haplotype information (default: %(default)s).",
-                },
             },
         ],
-        "File Suffixes": [
+        "Input File Suffix": [
             {
                 "args": ["--raw-suffix"],
                 "kwargs": {
                     "type": str,
                     "default": SETTINGS["suffix"]["raw"],
-                    "help": "File suffix for raw input sequences (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["--decompress-suffix"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["suffix"]["decompress"],
-                    "help": "File suffix for decompressed sequences (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["--merge-suffix"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["suffix"]["merge"],
-                    "help": "File suffix for merged sequences (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["--cutprimer-suffix"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["suffix"]["cutprimer"],
-                    "help": "File suffix for trimmed sequences (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["--dereplicate-suffix"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["suffix"]["dereplicate"],
-                    "help": "File suffix for dereplicated sequences (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["--denoise-suffix"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["suffix"]["denoise"],
-                    "help": "File suffix for denoised sequences (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["--blast-suffix"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["suffix"]["blast"],
-                    "help": "File suffix for BLAST results (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["--addlineage-suffix"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["suffix"]["addlineage"],
-                    "help": "File suffix for lineage assignment results (default: %(default)s).",
-                },
-            },
-            {
-                "args": ["--addhap-suffix"],
-                "kwargs": {
-                    "type": str,
-                    "default": SETTINGS["suffix"]["addhap"],
-                    "help": "File suffix for haplotype information results (default: %(default)s).",
+                    "help": "File suffix for raw input files. Use 'AUTO' for auto-detection based on starting stage (default: %(default)s).",
                 },
             },
         ],

@@ -65,8 +65,8 @@ class TestAddLineageStage:
         assert stage.config == mock_config
         assert stage.in_dir == in_dir
         assert stage.out_dir == out_dir
-        assert stage.in_suffix == "_blast.csv"
-        assert stage.out_suffix == "_taxa.csv"
+        assert stage.in_suffix == ".csv"
+        assert stage.out_suffix == ".csv"
         assert stage.lineage_db == "nucleotide"
 
     def test_init_custom(self, mock_config, tmp_dirs, lineage_file):
@@ -122,7 +122,7 @@ class TestAddLineageStage:
         in_dir, out_dir = tmp_dirs
         test_prefix = "sample001"
 
-        input_file = os.path.join(in_dir, f"{test_prefix}_blast.csv")
+        input_file = os.path.join(in_dir, f"{test_prefix}.csv")
         with open(input_file, "w") as f:
             f.write("sseqid,pident\nseq1|Salmo_trutta,95\n")
 
@@ -139,7 +139,7 @@ class TestAddLineageStage:
             lineage_db=None,
         )
 
-        input_file = os.path.join(in_dir, "test_blast.csv")
+        input_file = os.path.join(in_dir, "test.csv")
         with open(input_file, "w") as f:
             f.write("sseqid,pident\nseq1,95\n")
 

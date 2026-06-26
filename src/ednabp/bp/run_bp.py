@@ -1,6 +1,5 @@
 import os
 import re
-import warnings
 
 from ..common import base_logger, config
 from ..common.default_settings import SETTINGS
@@ -16,6 +15,18 @@ from .step_exec import (
     merge,
 )
 
+STAGE_INPUT_SUFFIX = {
+    "decompress": ".fastq.gz",
+    "merge": "_R1.fastq",
+    "cutprimer": ".fastq",
+    "fqtofa": ".fastq",
+    "dereplicate": ".fasta",
+    "denoise": ".fasta",
+    "blast": ".fasta",
+    "addlineage": ".csv",
+    "addhap": ".csv",
+}
+
 
 class BioPipeline:
     def __init__(self, input_path: str, output_path: str, **settings):
@@ -27,27 +38,8 @@ class BioPipeline:
         :param enabled_stages (list[str]): The process stages to be executed. The execution order will match the list order. Default:
          ["decompress", "merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "blast", "addlineage", "addhap"] (all stages will be run).
         :param settings: Additional optional arguments to configure pipeline stages and runtime behavior. These include:
-          Directory Names:
-            - decompress_dir_name (str): The name of the subdirectory for the decompression stage. Default: "decompress".
-            - merge_dir_name (str): The name of the subdirectory for the merge stage. Default: "merge".
-            - cutprimer_dir_name (str): The name of the subdirectory for the cut-primer stage. Default: "cutprimer".
-            - fqtofa_dir_name (str): The name of the subdirectory for converting FastQ to FastA. Default: "fqtofa".
-            - dereplicate_dir_nam (str): The name of the subdirectory for the dereplication stage. Default: "dereplicate".
-            - denoise_dir_name (str): The name of the subdirectory for the denoising stage. Default: "denoise".
-            - blast_dir_name (str): The name of the subdirectory for taxonomic assignment. Default: "blast".
-            - addlineage_dir_name (str): The name of the subdirectory for adding lineage information. Default: "blast".
-            - addhap_dir_name (str): The name of the subdirectory for adding haplotype information. Default: "blast".
-
-          File Suffixes:
-            - raw_suffix (str): File suffix for raw input sequences. Default: "_R1.fastq.gz".
-            - decompress_suffix (str): File suffix for sequences after decompression. Default: "_R1.fastq".
-            - merge_suffix (str): File suffix for merged sequences. Default: "_merged.fastq".
-            - cutprimer_suffix (str): File suffix for trimmed sequences after primer removal. Default: "_trimmed.fastq".
-            - dereplicate_suffix (str): File suffix for unique sequences after dereplication. Default: "_uniqs.fasta".
-            - denoise_suffix (str): File suffix for denoised sequences (ZOTUs). Default: "_zotus.fasta".
-            - blast_suffix (str): File suffix for taxonomic assignment results. Default: "_blast.csv".
-            - addlineage_suffix (str): File suffix for lineage assignment results. Default: "_blast.csv".
-            - addhap_suffix (str): File suffix for haplotype information results. Default: "_blast.csv".
+          Input File Suffix:
+            - raw_suffix (str): File suffix for raw input sequences. Default: "AUTO" (auto-detected based on starting stage).
 
           Merge Settings:
             - maxdiff (int): Maximum number of mismatches in the alignment. Default: 5.
@@ -103,6 +95,8 @@ class BioPipeline:
 
         self.add_config()
 
+        self.determine_raw_suffix()
+
         self.setup_stages()
 
         if input_is_dir:
@@ -128,18 +122,14 @@ class BioPipeline:
         self.enabled_stages = settings.get(
             "enabled_stages", SETTINGS["enabled_stages"]
         )
-        self.stage_dir_name = {
-            k: settings.get(f"{k}_dir_name", v)
-            for k, v in SETTINGS["dir_name"].items()
-        }
+        self.stage_dir_name = SETTINGS["dir_name"].copy()
         self.stage_dir = {
             k: os.path.join(self.outdir_path, v)
             for k, v in self.stage_dir_name.items()
         }
-        self.stage_suffix = {
-            k: settings.get(f"{k}_suffix", v)
-            for k, v in SETTINGS["suffix"].items()
-        }
+        self.stage_suffix = SETTINGS["suffix"].copy()
+        if "raw_suffix" in settings:
+            self.stage_suffix["raw"] = settings["raw_suffix"]
         self.merge_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["merge"].items()
         }
@@ -175,6 +165,23 @@ class BioPipeline:
             os.path.join(self.outdir_path, "stages.log")
         )
         self.config.logger.addHandler(fp_fh)
+
+    def determine_raw_suffix(self):
+        raw_suffix = self.stage_suffix["raw"]
+        if raw_suffix != SETTINGS["suffix"]["raw"]:
+            self.config.logger.info(
+                f"Using user-specified raw_suffix: {raw_suffix}"
+            )
+            print()
+            return
+
+        start_stage = self.enabled_stages[0]
+        suffix = STAGE_INPUT_SUFFIX[start_stage]
+        if "merge" in self.enabled_stages and start_stage == "decompress":
+            suffix = f"_R1{suffix}"
+        self.stage_suffix["raw"] = suffix
+        self.config.logger.info(f"Using auto-determined raw_suffix: {suffix}")
+        print()
 
     def setup_stages(self):
         self.stages = {}
@@ -245,6 +252,13 @@ class BioPipeline:
         prefixes = [
             file.replace(suffix, "") for file in files if file.endswith(suffix)
         ]
+
+        if len(prefixes) == 0:
+            self.config.logger.warning(
+                f"No input files found with suffix '{suffix}' in directory '{self.indir_path}'"
+            )
+            return
+
         for prefix in prefixes:
             self.run_one_file(prefix)
 

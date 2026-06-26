@@ -64,8 +64,8 @@ class AddLineageStage(stage_builder.StageBuilder):
         heading=os.path.basename(__file__),
         in_dir="",
         out_dir="",
-        in_suffix="_blast.csv",
-        out_suffix="_taxa.csv",
+        in_suffix=".csv",
+        out_suffix=".csv",
         lineage_db: str | Literal["nucleotide"] = "nucleotide",
         entrez_email: str = None,
     ):

@@ -13,7 +13,7 @@ class MergeStage(stage_builder.StageBuilder):
         in_dir="",
         out_dir="",
         in_suffix="_R1.fastq",
-        out_suffix="_merge.fastq",
+        out_suffix=".fastq",
         maxdiff=5,
         pctid=90,
     ):

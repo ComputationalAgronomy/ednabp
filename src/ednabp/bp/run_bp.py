@@ -1,6 +1,5 @@
 import os
 import re
-import warnings
 
 from ..common import base_logger, config
 from ..common.default_settings import SETTINGS
@@ -15,6 +14,18 @@ from .step_exec import (
     fqtofa,
     merge,
 )
+
+STAGE_INPUT_SUFFIX = {
+    "decompress": ".fastq.gz",
+    "merge": "_R1.fastq",
+    "cutprimer": ".fastq",
+    "fqtofa": ".fastq",
+    "dereplicate": ".fasta",
+    "denoise": ".fasta",
+    "blast": ".fasta",
+    "addlineage": ".csv",
+    "addhap": ".csv",
+}
 
 
 class BioPipeline:
@@ -39,7 +50,7 @@ class BioPipeline:
             - addhap_dir_name (str): The name of the subdirectory for adding haplotype information. Default: "blast".
 
           File Suffixes:
-            - raw_suffix (str): File suffix for raw input sequences. Default: "_R1.fastq.gz".
+            - raw_suffix (str): File suffix for raw input sequences. Default: "AUTO".
             - decompress_suffix (str): File suffix for sequences after decompression. Default: "_R1.fastq".
             - merge_suffix (str): File suffix for merged sequences. Default: ".fastq".
             - cutprimer_suffix (str): File suffix for trimmed sequences after primer removal. Default: ".fastq".
@@ -102,6 +113,8 @@ class BioPipeline:
         self.add_default_settings(settings)
 
         self.add_config()
+
+        self.determine_raw_suffix()
 
         self.setup_stages()
 
@@ -176,6 +189,23 @@ class BioPipeline:
         )
         self.config.logger.addHandler(fp_fh)
 
+    def determine_raw_suffix(self):
+        raw_suffix = self.stage_suffix["raw"]
+        if raw_suffix != SETTINGS["suffix"]["raw"]:
+            self.config.logger.info(
+                f"Using user-specified raw_suffix: {raw_suffix}"
+            )
+            print()
+            return
+
+        start_stage = self.enabled_stages[0]
+        suffix = STAGE_INPUT_SUFFIX[start_stage]
+        if "merge" in self.enabled_stages and start_stage == "decompress":
+            suffix = f"_R1{suffix}"
+        self.stage_suffix["raw"] = suffix
+        self.config.logger.info(f"Using auto-determined raw_suffix: {suffix}")
+        print()
+
     def setup_stages(self):
         self.stages = {}
         curr_dir = self.indir_path
@@ -245,6 +275,13 @@ class BioPipeline:
         prefixes = [
             file.replace(suffix, "") for file in files if file.endswith(suffix)
         ]
+
+        if len(prefixes) == 0:
+            self.config.logger.warning(
+                f"No input files found with suffix '{suffix}' in directory '{self.indir_path}'"
+            )
+            return
+
         for prefix in prefixes:
             self.run_one_file(prefix)
 

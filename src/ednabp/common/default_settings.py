@@ -24,7 +24,7 @@ SETTINGS = {
         "addhap": "blast",
     },
     "suffix": {
-        "raw": "_R1.fastq.gz",
+        "raw": "AUTO",
         "decompress": "_R1.fastq",
         "merge": ".fastq",
         "cutprimer": ".fastq",

@@ -148,6 +148,14 @@ def main():
                 },
             },
             {
+                "args": ["--maxhitnum"],
+                "kwargs": {
+                    "type": int,
+                    "default": SETTINGS["blast"]["maxhitnum"],
+                    "help": "Maximum number of hits to keep per query sequence (default: %(default)s).",
+                },
+            },
+            {
                 "args": ["--specifiers"],
                 "kwargs": {
                     "type": str,
@@ -182,6 +190,32 @@ def main():
                 },
             },
         ],
+        "LCA Settings": [
+            {
+                "args": ["--tol-pct"],
+                "kwargs": {
+                    "type": float,
+                    "default": SETTINGS["lca"]["tol_pct"],
+                    "help": "Percentage of the top bitscore used as the inclusion threshold before LCA. Hits with bitscore >= top * (1 - tol_pct / 100) are included in the consensus (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--score-column"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["lca"]["score_column"],
+                    "help": "Column used for score-based hit filtering (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--qseqid-column"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["lca"]["qseqid_column"],
+                    "help": "Column used to group hits by query sequence (default: %(default)s).",
+                },
+            },
+        ],
         "External Program Settings": [
             {
                 "args": ["--usearch-prog"],
@@ -196,7 +230,7 @@ def main():
                 "kwargs": {
                     "type": str,
                     "default": SETTINGS["prog"]["cutadapt"],
-                    "help": "Command to execute Cutadapt for primer trimming stage (default: %(default)s).",
+                    "help": "Command to execute Cutadapt for cutprimer stage (default: %(default)s).",
                 },
             },
             {

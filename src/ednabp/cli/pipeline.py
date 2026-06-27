@@ -40,7 +40,7 @@ def main():
                 "kwargs": {
                     "type": str,
                     "default": SETTINGS["suffix"]["raw"],
-                    "help": "File suffix for raw input files. Use 'AUTO' for auto-detection based on starting stage (default: %(default)s).",
+                    "help": "File suffix for raw input files (default: auto-detected from starting stage).",
                 },
             },
         ],
@@ -103,6 +103,24 @@ def main():
                     "help": "Maximum length of processed reads (default: %(default)s).",
                 },
             },
+            {
+                "args": ["--revcomp"],
+                "kwargs": {
+                    "action": argparse.BooleanOptionalAction,
+                    "default": SETTINGS["cutprimer"]["revcomp"],
+                    "help": "Also search the reverse complement of each read for primer matches and output reads in the matched orientation (default: %(default)s).",
+                },
+            },
+        ],
+        "Dereplicate Settings": [
+            {
+                "args": ["--strand"],
+                "kwargs": {
+                    "action": argparse.BooleanOptionalAction,
+                    "default": SETTINGS["dereplicate"]["strand"],
+                    "help": "Treat a sequence and its reverse complement as duplicates during dereplication (default: %(default)s).",
+                },
+            },
         ],
         "Denoising Settings": [
             {
@@ -148,6 +166,14 @@ def main():
                 },
             },
             {
+                "args": ["--maxhitnum"],
+                "kwargs": {
+                    "type": int,
+                    "default": SETTINGS["blast"]["maxhitnum"],
+                    "help": "Maximum number of hits to keep per query sequence (default: %(default)s).",
+                },
+            },
+            {
                 "args": ["--specifiers"],
                 "kwargs": {
                     "type": str,
@@ -182,6 +208,42 @@ def main():
                 },
             },
         ],
+        "LCA Settings": [
+            {
+                "args": ["--tol-pct"],
+                "kwargs": {
+                    "type": float,
+                    "default": SETTINGS["lca"]["tol_pct"],
+                    "help": "Percentage of the top bitscore used as the inclusion threshold before LCA. Hits with bitscore >= top * (1 - tol_pct / 100) are included in the consensus (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--score-column"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["lca"]["score_column"],
+                    "help": "Column used for score-based hit filtering (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--qseqid-column"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["lca"]["qseqid_column"],
+                    "help": "Column used to group hits by query sequence (default: %(default)s).",
+                },
+            },
+        ],
+        "Add Haplotype Settings": [
+            {
+                "args": ["--denoise-dir"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["addhap"]["denoise_dir"],
+                    "help": "Path to the denoised sequences directory used by addhap (default: pipeline denoise output directory).",
+                },
+            },
+        ],
         "External Program Settings": [
             {
                 "args": ["--usearch-prog"],
@@ -196,7 +258,7 @@ def main():
                 "kwargs": {
                     "type": str,
                     "default": SETTINGS["prog"]["cutadapt"],
-                    "help": "Command to execute Cutadapt for primer trimming stage (default: %(default)s).",
+                    "help": "Command to execute Cutadapt for cutprimer stage (default: %(default)s).",
                 },
             },
             {
@@ -212,7 +274,7 @@ def main():
             {
                 "args": ["--verbose"],
                 "kwargs": {
-                    "action": "store_true",
+                    "action": argparse.BooleanOptionalAction,
                     "default": SETTINGS["config_basic"]["verbose"],
                     "help": "Enable detailed logging output (default: %(default)s).",
                 },

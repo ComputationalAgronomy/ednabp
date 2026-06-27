@@ -12,6 +12,7 @@ from .step_exec import (
     denoise,
     dereplicate,
     fqtofa,
+    lca,
     merge,
 )
 
@@ -24,6 +25,7 @@ STAGE_INPUT_SUFFIX = {
     "denoise": ".fasta",
     "blast": ".fasta",
     "addlineage": ".csv",
+    "lca": ".csv",
     "addhap": ".csv",
 }
 
@@ -39,7 +41,7 @@ class BioPipeline:
          ["decompress", "merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "blast", "addlineage", "addhap"] (all stages will be run).
         :param settings: Additional optional arguments to configure pipeline stages and runtime behavior. These include:
           Input File Suffix:
-            - raw_suffix (str): File suffix for raw input sequences. Default: "AUTO" (auto-detected based on starting stage).
+            - raw_suffix (str): File suffix for raw input sequences. Default: auto-detected from the starting stage.
 
           Merge Settings:
             - maxdiff (int): Maximum number of mismatches in the alignment. Default: 5.
@@ -51,6 +53,10 @@ class BioPipeline:
             - error_rate (float): The maximum rate of error could be tolerated. The actual error rate is computed as the number of errors in the match divided by the length of the matching part of the primer. Default: 0.15.
             - min_read_len (int): Discard processed reads that are shorter than this parameter. Default: 204.
             - max_read_len (int): Discard processed reads that are longer than this parameter. Default: 254.
+            - revcomp (bool): If True, also search the reverse complement of each read for primer matches and output reads in the orientation where the primer was found. Default: True.
+
+          Dereplicate Settings:
+            - strand (bool): If True, treat a sequence and its reverse complement as duplicates during dereplication (-strand both). If False, only the forward strand is considered (-strand plus). Default: True.
 
           Denoise Settings:
             - minsize (int): Discard sequences with abundance that are smaller than this parameter. Default: 8.
@@ -60,6 +66,7 @@ class BioPipeline:
             - evalue (float): Expectation value (E) threshold for saving hits. Default: 0.00001.
             - qcov_hsp_perc (int): The %threshold of the query sequence that has to form an alignment against the reference to be retained. Default: 90.
             - perc_identity (int): Minimum percentage identity required for taxonomic assignment. Default: 90.
+            - maxhitnum (int): Maximum number of hits to keep per query sequence. Default: 20.
             - specifiers (str): Output format specifiers for BLAST results. Default:
               "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore".
             - blast_db (str): Path to the taxonomic database. Default: 'nt'.
@@ -68,9 +75,17 @@ class BioPipeline:
             - lineage_db (str): Path to the taxonomic lineage file. Default: 'nucleotide'.
             - entrez_email (str): The email used by NCBI to contact you in case of excessive usage or issues. Default: None
 
+          LCA Settings:
+            - tol_pct (float): Percentage of the top bitscore used as the inclusion threshold before LCA. Hits with bitscore >= top * (1 - tol_pct / 100) are included in the consensus. Default: 1.0.
+            - score_column (str): Column used for score-based filtering. Default: 'bitscore'.
+            - qseqid_column (str): Column used to group hits by query sequence. Default: 'qseqid'.
+
+          Add Haplotype Settings:
+            - denoise_dir (str): Path to the directory containing denoised FASTA and report files used by addhap. Default: the pipeline's own denoise output directory.
+
           External Program Setting:
             - usearch_prog (str): Command to execute USEARCH for merge, dereplicate, and denoise stages. Default: "usearch".
-            - cutadapt_prog (str): Command to execute Cutadapt for primer trimming stage. Default: "cutadapt".
+            - cutadapt_prog (str): Command to execute Cutadapt for cutprimer stage. Default: "cutadapt".
             - blast_prog (str): Command to execute BLAST for blast stage. Default: "blastn".
 
           Configuration Settings:
@@ -116,6 +131,7 @@ class BioPipeline:
             "denoise": denoise.DenoiseStage,
             "blast": blast.BlastStage,
             "addlineage": addlineage.AddLineageStage,
+            "lca": lca.LcaStage,
             "addhap": addhap.AddHapStage,
         }
 
@@ -136,6 +152,9 @@ class BioPipeline:
         self.cutprimer_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["cutprimer"].items()
         }
+        self.dereplicate_settings = {
+            k: settings.get(k, v) for k, v in SETTINGS["dereplicate"].items()
+        }
         self.denoise_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["denoise"].items()
         }
@@ -145,7 +164,12 @@ class BioPipeline:
         self.addlineage_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["addlineage"].items()
         }
-        self.addhap_settings = {}
+        self.lca_settings = {
+            k: settings.get(k, v) for k, v in SETTINGS["lca"].items()
+        }
+        self.addhap_settings = {
+            k: settings.get(k, v) for k, v in SETTINGS["addhap"].items()
+        }
         self.prog_settings = {
             k: settings.get(f"{k}_prog", v)
             for k, v in SETTINGS["prog"].items()
@@ -168,7 +192,7 @@ class BioPipeline:
 
     def determine_raw_suffix(self):
         raw_suffix = self.stage_suffix["raw"]
-        if raw_suffix != SETTINGS["suffix"]["raw"]:
+        if raw_suffix is not None:
             self.config.logger.info(
                 f"Using user-specified raw_suffix: {raw_suffix}"
             )
@@ -217,14 +241,19 @@ class BioPipeline:
                 stage_args["blast_prog"] = self.prog_settings["blast"]
 
             if stage == "addhap":
-                stage_args["denoise_dir"] = self.stage_dir["denoise"]
+                stage_args["denoise_dir"] = (
+                    self.addhap_settings["denoise_dir"]
+                    or self.stage_dir["denoise"]
+                )
 
             if stage in [
                 "merge",
                 "cutprimer",
+                "dereplicate",
                 "denoise",
                 "blast",
                 "addlineage",
+                "lca",
             ]:
                 stage_args.update(eval(f"self.{stage}_settings"))
 

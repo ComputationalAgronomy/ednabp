@@ -59,7 +59,10 @@ Core processing pipeline with the following stages:
 - **FASTQ to FASTA**: Format conversion
 - **Dereplicate**: Remove duplicate sequences
 - **Denoise**: Error correction
-- **Assign Taxa**: Taxonomic classification
+- **BLAST**: Taxonomic classification against a reference database
+- **Add Lineage**: Annotate BLAST hits with full taxonomic lineage
+- **LCA**: Resolve multiple hits per query to a consensus taxonomy using Lowest Common Ancestor
+- **Add Haplotype**: Enrich results with haplotype sequence and abundance data
 
 ### 2. Data Management (`data`)
 
@@ -124,7 +127,7 @@ output_path/
 │   ├── sample1_denoise_report.txt
 │   └── ...
 ├── blast/                   # Taxonomic assignments
-│   ├── sample1.csv          # Enhanced with lineage (addlineage) and haplotype (addhap) info
+│   ├── sample1.csv          # Sequentially enriched: BLAST -> lineage -> LCA -> haplotype
 │   └── ...
 └── stages.log               # Processing log
 ```
@@ -149,9 +152,10 @@ The pipeline automatically:
 4. Converts FASTQ to FASTA format
 5. Removes duplicate sequences
 6. Performs error correction (denoising)
-7. Assigns taxonomy using BLAST
-8. Adds lineage information
-9. Enriches with haplotype data
+7. Assigns taxonomy using BLAST (top 20 hits per query by default)
+8. Adds full taxonomic lineage to each BLAST hit
+9. Resolves multiple hits per query to a consensus taxonomy via LCA
+10. Enriches with haplotype sequence and abundance data
 
 #### Run custom settings
 
@@ -165,9 +169,13 @@ custom_settings = {
     "min_read_len": 154,
     "max_read_len": 189,
     
-    # Database paths
+    # Blast settings
     "blast_db": "/path/to/custom/blast/db",
     "lineage_db": "/path/to/custom/lineage/db",
+    "maxhitnum": 100,
+    
+    # LCA settings
+    "tol_pct": 1.0,
     
     # Performance settings
     "verbose": True,
@@ -188,7 +196,7 @@ You can start the pipeline at any stage by specifying `enabled_stages`:
 ```python
 # Start from merge stage (skip decompress)
 settings = {
-    "enabled_stages": ["merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "blast", "addlineage", "addhap"],
+    "enabled_stages": ["merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "blast", "addlineage", "lca", "addhap"],
 }
 pipeline = BioPipeline(
     input_path="/path/to/files_with_R1_R2_fastq",  # decompressed FASTQ files
@@ -198,7 +206,7 @@ pipeline = BioPipeline(
 
 # Start from fqtofa stage (skip decompress and merge)
 settings = {
-    "enabled_stages": ["fqtofa", "dereplicate", "denoise", "blast", "addlineage", "addhap"],
+    "enabled_stages": ["fqtofa", "dereplicate", "denoise", "blast", "addlineage", "lca", "addhap"],
 }
 pipeline = BioPipeline(
     input_path="/path/to/files_with_merged_trimmed_fastq",

@@ -75,7 +75,7 @@ class TestCutPrimerStage:
         expected_command = (
             f"cutadapt {expected_infile}"
             f" -g GTCGGTAAAACTCGTGCCAGC;max_error_rate=0.15...CAAACTGGGATTAGATACCCCACTATG;max_error_rate=0.15"
-            f" --minimum-length 163 --maximum-length 185 -j 4"
+            f" --minimum-length 163 --maximum-length 185 --revcomp -j 4"
             f" --untrimmed-output {expected_untrimmed_file}"
             f" --too-short-output {expected_tooshort_file}"
             f" --too-long-output {expected_toolong_file}"

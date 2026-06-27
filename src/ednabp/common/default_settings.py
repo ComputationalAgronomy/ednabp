@@ -10,6 +10,7 @@ SETTINGS = {
         "denoise",
         "blast",
         "addlineage",
+        "lca",
         "addhap",
     ],
     "dir_name": {
@@ -21,10 +22,11 @@ SETTINGS = {
         "denoise": "denoise",
         "blast": "blast",
         "addlineage": "blast",
+        "lca": "blast",
         "addhap": "blast",
     },
     "suffix": {
-        "raw": "AUTO",
+        "raw": None,
         "decompress": "_R1.fastq",
         "merge": ".fastq",
         "cutprimer": ".fastq",
@@ -33,6 +35,7 @@ SETTINGS = {
         "denoise": ".fasta",
         "blast": ".csv",
         "addlineage": ".csv",
+        "lca": ".csv",
         "addhap": ".csv",
         "report": "_report.txt",
         "denoise_report": "_denoise_report.txt",
@@ -47,6 +50,10 @@ SETTINGS = {
         "error_rate": 0.15,
         "min_read_len": 163,
         "max_read_len": 185,
+        "revcomp": True,
+    },
+    "dereplicate": {
+        "strand": True,
     },
     "denoise": {
         "minsize": 8,
@@ -56,12 +63,21 @@ SETTINGS = {
         "evalue": 0.00001,
         "qcov_hsp_perc": 90,
         "perc_identity": 90,
+        "maxhitnum": 20,
         "specifiers": "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
         "blast_db": "nt",
     },
     "addlineage": {
         "lineage_db": "nucleotide",
         "entrez_email": None,
+    },
+    "lca": {
+        "tol_pct": 1.0,
+        "score_column": "bitscore",
+        "qseqid_column": "qseqid",
+    },
+    "addhap": {
+        "denoise_dir": None,
     },
     "prog": {
         "usearch": "usearch",

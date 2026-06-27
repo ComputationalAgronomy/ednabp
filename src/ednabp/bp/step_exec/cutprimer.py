@@ -19,6 +19,7 @@ class CutPrimerStage(stage_builder.StageBuilder):
         error_rate=0.15,
         min_read_len=163,
         max_read_len=185,
+        revcomp: bool = True,
     ):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
@@ -28,17 +29,19 @@ class CutPrimerStage(stage_builder.StageBuilder):
         self.out_suffix = out_suffix
         self.report_suffix = SETTINGS["suffix"]["report"]
         self.parse_params(
-            rm_p_5, rm_p_3, min_read_len, max_read_len, error_rate
+            rm_p_5, rm_p_3, min_read_len, max_read_len, error_rate, revcomp
         )
 
     def parse_params(
-        self, rm_p_5, rm_p_3, min_read_len, max_read_len, error_rate
+        self, rm_p_5, rm_p_3, min_read_len, max_read_len, error_rate, revcomp
     ):
         self.params = (
             f"-g {rm_p_5};max_error_rate={error_rate}...{rm_p_3};max_error_rate={error_rate}"
             f" --minimum-length {min_read_len}"
             f" --maximum-length {max_read_len}"
         )
+        if revcomp:
+            self.params += " --revcomp"
 
     def setup(self, prefix):
         self.infile = os.path.join(self.in_dir, f"{prefix}{self.in_suffix}")

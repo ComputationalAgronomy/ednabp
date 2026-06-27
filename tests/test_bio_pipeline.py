@@ -8,6 +8,12 @@ from ednabp.bp.run_bp import BioPipeline
 from ednabp.common.config import Config
 
 
+def mock_add_config(self):
+    self.config = Mock()
+    self.config.logger = Mock()
+    self.config.logger.handlers = []
+
+
 class TestBioPipeline:
     @pytest.fixture
     def sample_fastq_files(self, tmp_dirs):
@@ -130,10 +136,6 @@ class TestBioPipeline:
         input_file = os.path.join(in_dir, "test.custom_suffix")
         with open(input_file, "w") as f:
             f.write("test")
-
-        def mock_add_config(self):
-            self.config = Mock()
-            self.config.logger = Mock()
 
         with (
             patch.object(BioPipeline, "setup_stages"),
@@ -272,10 +274,6 @@ class TestBioPipeline:
         with open(input_file, "w") as f:
             f.write("test")
 
-        def mock_add_config(self):
-            self.config = Mock()
-            self.config.logger = Mock()
-
         with (
             patch.object(BioPipeline, "run_stages_files"),
             patch.object(BioPipeline, "close_file_handler"),
@@ -302,11 +300,6 @@ class TestBioPipeline:
         with open(input_file, "w") as f:
             f.write("test")
 
-        def mock_add_config(self):
-            self.config = Mock()
-            self.config.logger = Mock()
-            self.config.logger.handlers = []
-
         with (
             patch.object(BioPipeline, "run_stages_files"),
             patch.object(BioPipeline, "add_config", mock_add_config),
@@ -330,10 +323,6 @@ class TestBioPipeline:
 
         def mock_determine_suffix(self):
             self.stage_suffix["raw"] = ".fasta"
-
-        def mock_add_config(self):
-            self.config = Mock()
-            self.config.logger = Mock()
 
         with (
             patch.object(BioPipeline, "run_stages_files"),
@@ -426,11 +415,6 @@ class TestBioPipeline:
     def test_run_stages_files(self, sample_fastq_files, tmp_dirs):
         in_dir, out_dir = tmp_dirs
 
-        def mock_add_config(self):
-            self.config = Mock()
-            self.config.logger = Mock()
-            self.config.logger.handlers = []
-
         with (
             patch.object(BioPipeline, "add_config", mock_add_config),
             patch.object(BioPipeline, "setup_stages"),
@@ -456,11 +440,6 @@ class TestBioPipeline:
         input_file = os.path.join(in_dir, "single_sample_R1.fastq.gz")
         with open(input_file, "w") as f:
             f.write("test")
-
-        def mock_add_config(self):
-            self.config = Mock()
-            self.config.logger = Mock()
-            self.config.logger.handlers = []
 
         with (
             patch.object(BioPipeline, "add_config", mock_add_config),
@@ -500,10 +479,6 @@ class TestBioPipeline:
             "cutadapt_prog": "custom_cutadapt",
             "blast_prog": "custom_blastn",
         }
-
-        def mock_add_config(self):
-            self.config = Mock()
-            self.config.logger = Mock()
 
         with (
             patch.object(BioPipeline, "run_stages_files"),
@@ -552,10 +527,6 @@ class TestBioPipeline:
         with open(input_file, "w") as f:
             f.write("test")
 
-        def mock_add_config(self):
-            self.config = Mock()
-            self.config.logger = Mock()
-
         with (
             patch.object(BioPipeline, "run_stages_files"),
             patch.object(BioPipeline, "close_file_handler"),
@@ -583,10 +554,6 @@ class TestBioPipeline:
         input_file = os.path.join(in_dir, "test_R1.fastq.gz")
         with open(input_file, "w") as f:
             f.write("test")
-
-        def mock_add_config(self):
-            self.config = Mock()
-            self.config.logger = Mock()
 
         with (
             patch.object(BioPipeline, "run_stages_files"),

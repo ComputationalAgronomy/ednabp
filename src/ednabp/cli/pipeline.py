@@ -40,7 +40,7 @@ def main():
                 "kwargs": {
                     "type": str,
                     "default": SETTINGS["suffix"]["raw"],
-                    "help": "File suffix for raw input files. Use 'AUTO' for auto-detection based on starting stage (default: %(default)s).",
+                    "help": "File suffix for raw input files (default: auto-detected from starting stage).",
                 },
             },
         ],
@@ -213,6 +213,16 @@ def main():
                     "type": str,
                     "default": SETTINGS["lca"]["qseqid_column"],
                     "help": "Column used to group hits by query sequence (default: %(default)s).",
+                },
+            },
+        ],
+        "Add Haplotype Settings": [
+            {
+                "args": ["--denoise-dir"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["addhap"]["denoise_dir"],
+                    "help": "Path to the denoised sequences directory used by addhap (default: pipeline denoise output directory).",
                 },
             },
         ],

@@ -26,7 +26,7 @@ SETTINGS = {
         "addhap": "blast",
     },
     "suffix": {
-        "raw": "AUTO",
+        "raw": None,
         "decompress": "_R1.fastq",
         "merge": ".fastq",
         "cutprimer": ".fastq",
@@ -71,6 +71,9 @@ SETTINGS = {
         "tol_pct": 1.0,
         "score_column": "bitscore",
         "qseqid_column": "qseqid",
+    },
+    "addhap": {
+        "denoise_dir": None,
     },
     "prog": {
         "usearch": "usearch",

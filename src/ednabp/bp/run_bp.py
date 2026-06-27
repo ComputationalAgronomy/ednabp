@@ -41,7 +41,7 @@ class BioPipeline:
          ["decompress", "merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "blast", "addlineage", "addhap"] (all stages will be run).
         :param settings: Additional optional arguments to configure pipeline stages and runtime behavior. These include:
           Input File Suffix:
-            - raw_suffix (str): File suffix for raw input sequences. Default: "AUTO" (auto-detected based on starting stage).
+            - raw_suffix (str): File suffix for raw input sequences. Default: auto-detected from the starting stage.
 
           Merge Settings:
             - maxdiff (int): Maximum number of mismatches in the alignment. Default: 5.
@@ -75,6 +75,9 @@ class BioPipeline:
             - tol_pct (float): Percentage of the top bitscore used as the inclusion threshold before LCA. Hits with bitscore >= top * (1 - tol_pct / 100) are included in the consensus. Default: 1.0.
             - score_column (str): Column used for score-based filtering. Default: 'bitscore'.
             - qseqid_column (str): Column used to group hits by query sequence. Default: 'qseqid'.
+
+          Add Haplotype Settings:
+            - denoise_dir (str): Path to the directory containing denoised FASTA and report files used by addhap. Default: the pipeline's own denoise output directory.
 
           External Program Setting:
             - usearch_prog (str): Command to execute USEARCH for merge, dereplicate, and denoise stages. Default: "usearch".
@@ -157,7 +160,9 @@ class BioPipeline:
         self.lca_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["lca"].items()
         }
-        self.addhap_settings = {}
+        self.addhap_settings = {
+            k: settings.get(k, v) for k, v in SETTINGS["addhap"].items()
+        }
         self.prog_settings = {
             k: settings.get(f"{k}_prog", v)
             for k, v in SETTINGS["prog"].items()
@@ -180,7 +185,7 @@ class BioPipeline:
 
     def determine_raw_suffix(self):
         raw_suffix = self.stage_suffix["raw"]
-        if raw_suffix != SETTINGS["suffix"]["raw"]:
+        if raw_suffix is not None:
             self.config.logger.info(
                 f"Using user-specified raw_suffix: {raw_suffix}"
             )
@@ -229,7 +234,10 @@ class BioPipeline:
                 stage_args["blast_prog"] = self.prog_settings["blast"]
 
             if stage == "addhap":
-                stage_args["denoise_dir"] = self.stage_dir["denoise"]
+                stage_args["denoise_dir"] = (
+                    self.addhap_settings["denoise_dir"]
+                    or self.stage_dir["denoise"]
+                )
 
             if stage in [
                 "merge",

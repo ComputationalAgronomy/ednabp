@@ -103,6 +103,24 @@ def main():
                     "help": "Maximum length of processed reads (default: %(default)s).",
                 },
             },
+            {
+                "args": ["--revcomp"],
+                "kwargs": {
+                    "action": argparse.BooleanOptionalAction,
+                    "default": SETTINGS["cutprimer"]["revcomp"],
+                    "help": "Also search the reverse complement of each read for primer matches and output reads in the matched orientation (default: %(default)s).",
+                },
+            },
+        ],
+        "Dereplicate Settings": [
+            {
+                "args": ["--strand"],
+                "kwargs": {
+                    "action": argparse.BooleanOptionalAction,
+                    "default": SETTINGS["dereplicate"]["strand"],
+                    "help": "Treat a sequence and its reverse complement as duplicates during dereplication (default: %(default)s).",
+                },
+            },
         ],
         "Denoising Settings": [
             {
@@ -256,7 +274,7 @@ def main():
             {
                 "args": ["--verbose"],
                 "kwargs": {
-                    "action": "store_true",
+                    "action": argparse.BooleanOptionalAction,
                     "default": SETTINGS["config_basic"]["verbose"],
                     "help": "Enable detailed logging output (default: %(default)s).",
                 },

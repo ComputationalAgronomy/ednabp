@@ -53,6 +53,10 @@ class BioPipeline:
             - error_rate (float): The maximum rate of error could be tolerated. The actual error rate is computed as the number of errors in the match divided by the length of the matching part of the primer. Default: 0.15.
             - min_read_len (int): Discard processed reads that are shorter than this parameter. Default: 204.
             - max_read_len (int): Discard processed reads that are longer than this parameter. Default: 254.
+            - revcomp (bool): If True, also search the reverse complement of each read for primer matches and output reads in the orientation where the primer was found. Default: True.
+
+          Dereplicate Settings:
+            - strand (bool): If True, treat a sequence and its reverse complement as duplicates during dereplication (-strand both). If False, only the forward strand is considered (-strand plus). Default: True.
 
           Denoise Settings:
             - minsize (int): Discard sequences with abundance that are smaller than this parameter. Default: 8.
@@ -148,6 +152,9 @@ class BioPipeline:
         self.cutprimer_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["cutprimer"].items()
         }
+        self.dereplicate_settings = {
+            k: settings.get(k, v) for k, v in SETTINGS["dereplicate"].items()
+        }
         self.denoise_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["denoise"].items()
         }
@@ -242,6 +249,7 @@ class BioPipeline:
             if stage in [
                 "merge",
                 "cutprimer",
+                "dereplicate",
                 "denoise",
                 "blast",
                 "addlineage",

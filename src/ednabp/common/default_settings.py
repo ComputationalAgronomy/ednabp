@@ -50,6 +50,10 @@ SETTINGS = {
         "error_rate": 0.15,
         "min_read_len": 163,
         "max_read_len": 185,
+        "revcomp": True,
+    },
+    "dereplicate": {
+        "strand": True,
     },
     "denoise": {
         "minsize": 8,

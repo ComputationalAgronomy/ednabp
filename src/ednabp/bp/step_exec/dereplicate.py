@@ -17,6 +17,7 @@ class DereplicateStage(stage_builder.StageBuilder):
         annot_size: bool = True,
         seq_label: str = "Uniq",
         write_report: bool = True,
+        strand: bool = True,
     ):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
@@ -26,13 +27,15 @@ class DereplicateStage(stage_builder.StageBuilder):
         self.out_suffix = out_suffix
         self.report_suffix = SETTINGS["suffix"]["report"]
         self.write_report = write_report
-        self.parse_params(annot_size, seq_label)
+        self.parse_params(annot_size, seq_label, strand)
 
-    def parse_params(self, annot_size, seq_label):
+    def parse_params(self, annot_size, seq_label, strand):
         sizeout = "-sizeout" if annot_size else ""
         self.params = f"{sizeout}"
         if seq_label:
             self.params += f" -relabel {seq_label}"
+        if strand:
+            self.params += " -strand both"
 
     def setup(self, prefix):
         self.infile = os.path.join(self.in_dir, f"{prefix}{self.in_suffix}")

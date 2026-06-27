@@ -127,7 +127,7 @@ output_path/
 │   ├── sample1_denoise_report.txt
 │   └── ...
 ├── blast/                   # Taxonomic assignments
-│   ├── sample1.csv          # Sequentially enriched: BLAST → lineage → LCA → haplotype
+│   ├── sample1.csv          # Sequentially enriched: BLAST -> lineage -> LCA -> haplotype
 │   └── ...
 └── stages.log               # Processing log
 ```

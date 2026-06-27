@@ -67,7 +67,7 @@ class TestDereplicateStage:
 
         expected_command = (
             f"usearch -fastx_uniques {expected_infile} "
-            f"-sizeout -relabel Uniq -threads 4 "
+            f"-sizeout -relabel Uniq -strand both -threads 4 "
             f"-fastaout {expected_outfile}"
         )
 

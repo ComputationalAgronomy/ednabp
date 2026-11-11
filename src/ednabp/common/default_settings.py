@@ -20,6 +20,7 @@ SETTINGS = {
         "fqtofa": "fqtofa",
         "dereplicate": "dereplicate",
         "denoise": "denoise",
+        "cluster": "cluster",
         "blast": "blast",
         "addlineage": "blast",
         "lca": "blast",
@@ -27,18 +28,20 @@ SETTINGS = {
     },
     "suffix": {
         "raw": None,
-        "decompress": "_R1.fastq",
+        "decompress": ".fastq",
         "merge": ".fastq",
         "cutprimer": ".fastq",
         "fqtofa": ".fasta",
         "dereplicate": ".fasta",
         "denoise": ".fasta",
+        "cluster": ".fasta",
         "blast": ".csv",
         "addlineage": ".csv",
         "lca": ".csv",
         "addhap": ".csv",
         "report": "_report.txt",
         "denoise_report": "_denoise_report.txt",
+        "cluster_report": "_cluster_report.txt",
     },
     "merge": {
         "maxdiff": 5,
@@ -59,12 +62,15 @@ SETTINGS = {
         "minsize": 8,
         "alpha": 2,
     },
+    "cluster": {
+        "cluster_minsize": 2,
+    },
     "blast": {
         "evalue": 0.00001,
         "qcov_hsp_perc": 90,
         "perc_identity": 90,
         "maxhitnum": 20,
-        "specifiers": "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
+        "specifiers": "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs",
         "blast_db": "nt",
     },
     "addlineage": {
@@ -77,7 +83,7 @@ SETTINGS = {
         "qseqid_column": "qseqid",
     },
     "addhap": {
-        "denoise_dir": None,
+        "otu_dir": None,
     },
     "prog": {
         "usearch": "usearch",

@@ -140,6 +140,16 @@ def main():
                 },
             },
         ],
+        "Clustering Settings": [
+            {
+                "args": ["--cluster-minsize"],
+                "kwargs": {
+                    "type": int,
+                    "default": SETTINGS["cluster"]["cluster_minsize"],
+                    "help": "Minimum abundance of unique sequences to retain before UPARSE OTU clustering; used by the cluster stage, an alternative to denoise (default: %(default)s).",
+                },
+            },
+        ],
         "BLAST Settings": [
             {
                 "args": ["--evalue"],
@@ -236,11 +246,11 @@ def main():
         ],
         "Add Haplotype Settings": [
             {
-                "args": ["--denoise-dir"],
+                "args": ["--otu-dir"],
                 "kwargs": {
                     "type": str,
-                    "default": SETTINGS["addhap"]["denoise_dir"],
-                    "help": "Path to the denoised sequences directory used by addhap (default: pipeline denoise output directory).",
+                    "default": SETTINGS["addhap"]["otu_dir"],
+                    "help": "Directory with the OTU/ZOTU FASTA and OTU table used by addhap (default: output directory of the enabled denoise, cluster or cluster_ont stage).",
                 },
             },
         ],
@@ -250,7 +260,7 @@ def main():
                 "kwargs": {
                     "type": str,
                     "default": SETTINGS["prog"]["usearch"],
-                    "help": "Command to execute USEARCH for merge, dereplicate, and denoise stages (default: %(default)s).",
+                    "help": "Command to execute USEARCH for merge, dereplicate, denoise, and cluster stages (default: %(default)s).",
                 },
             },
             {

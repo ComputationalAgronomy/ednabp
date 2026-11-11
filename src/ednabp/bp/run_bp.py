@@ -7,6 +7,7 @@ from .step_exec import (
     addhap,
     addlineage,
     blast,
+    cluster,
     cutprimer,
     decompress,
     denoise,
@@ -23,6 +24,7 @@ STAGE_INPUT_SUFFIX = {
     "fqtofa": ".fastq",
     "dereplicate": ".fasta",
     "denoise": ".fasta",
+    "cluster": ".fasta",
     "blast": ".fasta",
     "addlineage": ".csv",
     "lca": ".csv",
@@ -62,6 +64,9 @@ class BioPipeline:
             - minsize (int): Discard sequences with abundance that are smaller than this parameter. Default: 8.
             - alpha (int): Denoising sensitivity parameter. See UNOISE2 paper for definition. Default: 2.
 
+          Cluster Settings (OTU clustering with UPARSE, an alternative to denoise; add "cluster" to enabled_stages in place of "denoise"):
+            - cluster_minsize (int): Discard unique sequences with abundance smaller than this parameter before clustering. Default: 2.
+
           Blast Settings:
             - evalue (float): Expectation value (E) threshold for saving hits. Default: 0.00001.
             - qcov_hsp_perc (int): The %threshold of the query sequence that has to form an alignment against the reference to be retained. Default: 90.
@@ -81,10 +86,10 @@ class BioPipeline:
             - qseqid_column (str): Column used to group hits by query sequence. Default: 'qseqid'.
 
           Add Haplotype Settings:
-            - denoise_dir (str): Path to the directory containing denoised FASTA and report files used by addhap. Default: the pipeline's own denoise output directory.
+            - otu_dir (str): Path to the directory containing the OTU/ZOTU FASTA (<prefix>.fasta) and OTU table (<prefix>_otu_table.txt) used by addhap. Default: the output directory of the enabled denoise, cluster or cluster_ont stage (denoise if none is enabled).
 
           External Program Setting:
-            - usearch_prog (str): Command to execute USEARCH for merge, dereplicate, and denoise stages. Default: "usearch".
+            - usearch_prog (str): Command to execute USEARCH for merge, dereplicate, denoise, and cluster stages. Default: "usearch".
             - cutadapt_prog (str): Command to execute Cutadapt for cutprimer stage. Default: "cutadapt".
             - blast_prog (str): Command to execute BLAST for blast stage. Default: "blastn".
 
@@ -129,6 +134,7 @@ class BioPipeline:
             "fqtofa": fqtofa.FqToFaStage,
             "dereplicate": dereplicate.DereplicateStage,
             "denoise": denoise.DenoiseStage,
+            "cluster": cluster.ClusterStage,
             "blast": blast.BlastStage,
             "addlineage": addlineage.AddLineageStage,
             "lca": lca.LcaStage,
@@ -157,6 +163,9 @@ class BioPipeline:
         }
         self.denoise_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["denoise"].items()
+        }
+        self.cluster_settings = {
+            k: settings.get(k, v) for k, v in SETTINGS["cluster"].items()
         }
         self.blast_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["blast"].items()
@@ -212,7 +221,18 @@ class BioPipeline:
         curr_dir = self.indir_path
         curr_suffix = self.stage_suffix["raw"]
         for stage in self.enabled_stages:
-            if stage == "fqtofa":
+            if stage == "decompress":
+                m = re.match(r".*(\.gz)$", curr_suffix)
+                if m is not None:
+                    self.stage_suffix["decompress"] = curr_suffix.replace(
+                        ".gz", ""
+                    )
+                else:
+                    self.config.logger.warning(
+                        f"The in_suffix '{curr_suffix}' does not match the expected format (.gz) for the 'decompress' stage."
+                        "Skipping the stage"
+                    )
+            elif stage == "fqtofa":
                 m = re.match(r".*\.(fastq|fq)$", curr_suffix)
                 if m is not None:
                     self.stage_suffix["fqtofa"] = curr_suffix.replace(
@@ -233,7 +253,12 @@ class BioPipeline:
                 "out_suffix": self.stage_suffix[stage],
             }
 
-            if stage in ["merge", "dereplicate", "denoise"]:
+            if stage in [
+                "merge",
+                "dereplicate",
+                "denoise",
+                "cluster",
+            ]:
                 stage_args["usearch_prog"] = self.prog_settings["usearch"]
             elif stage == "cutprimer":
                 stage_args["cutadapt_prog"] = self.prog_settings["cutadapt"]
@@ -241,9 +266,9 @@ class BioPipeline:
                 stage_args["blast_prog"] = self.prog_settings["blast"]
 
             if stage == "addhap":
-                stage_args["denoise_dir"] = (
-                    self.addhap_settings["denoise_dir"]
-                    or self.stage_dir["denoise"]
+                stage_args["otu_dir"] = (
+                    self.addhap_settings["otu_dir"]
+                    or self.stage_dir[self.otu_stage()]
                 )
 
             if stage in [
@@ -256,11 +281,33 @@ class BioPipeline:
                 "lca",
             ]:
                 stage_args.update(eval(f"self.{stage}_settings"))
+            if stage == "cluster":
+                stage_args["minsize"] = self.cluster_settings[
+                    "cluster_minsize"
+                ]
+            if stage in ["denoise", "cluster"]:
+                stage_args.update(
+                    {
+                        k: v
+                        for k, v in self.otutab_settings.items()
+                        if v is not None
+                    }
+                )
 
             self.stages[stage] = self.stage_class[stage](**stage_args)
 
             curr_dir = self.stage_dir[stage]
             curr_suffix = self.stage_suffix[stage]
+
+    def otu_stage(self):
+        """
+        The stage whose OTU sequences and table addhap reads: the last
+        enabled of denoise, cluster and cluster_ont (denoise if none).
+        """
+        otu_stages = [
+            s for s in self.enabled_stages if s in ["denoise", "cluster"]
+        ]
+        return otu_stages[-1] if otu_stages else "denoise"
 
     def run_one_file(self, prefix):
         base_logger.logger.info(f"Sample ID: {prefix}")

@@ -520,6 +520,38 @@ class TestBioPipeline:
             assert assigntaxa_call_kwargs["blast_db"] == "/custom/db/path"
             assert assigntaxa_call_kwargs["blast_prog"] == "custom_blastn"
 
+    def test_cluster_stage_parameter_passing(self, tmp_dirs):
+        in_dir, out_dir = tmp_dirs
+
+        with open(os.path.join(in_dir, "test.fasta"), "w") as f:
+            f.write(">seq1;size=10\nACGT\n")
+
+        with (
+            patch.object(BioPipeline, "run_stages_files"),
+            patch.object(BioPipeline, "close_file_handler"),
+            patch.object(BioPipeline, "add_config", mock_add_config),
+            patch("ednabp.bp.step_exec.denoise.DenoiseStage") as mock_denoise,
+            patch("ednabp.bp.step_exec.cluster.ClusterStage") as mock_cluster,
+        ):
+            BioPipeline(
+                in_dir,
+                out_dir,
+                enabled_stages=["cluster"],
+                minsize=10,
+                cluster_minsize=4,
+                usearch_prog="custom_usearch",
+            )
+
+            mock_denoise.assert_not_called()
+            cluster_call_kwargs = mock_cluster.call_args[1]
+            assert cluster_call_kwargs["minsize"] == 4
+            assert "cluster_minsize" not in cluster_call_kwargs
+            assert cluster_call_kwargs["usearch_prog"] == "custom_usearch"
+            assert cluster_call_kwargs["in_suffix"] == ".fasta"
+            assert cluster_call_kwargs["out_dir"] == os.path.join(
+                out_dir, "cluster"
+            )
+
     def test_stage_directory_creation(self, tmp_dirs):
         in_dir, out_dir = tmp_dirs
 

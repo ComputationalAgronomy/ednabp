@@ -564,16 +564,19 @@ class TestBioPipeline:
             patch.object(BioPipeline, "add_config", mock_add_config),
             patch("ednabp.bp.step_exec.denoise.DenoiseStage") as mock_denoise,
             patch("ednabp.bp.step_exec.cluster.ClusterStage") as mock_cluster,
+            patch(
+                "ednabp.bp.step_exec.cluster_ont.ClusterOntStage"
+            ) as mock_ont,
         ):
             BioPipeline(
                 in_dir,
                 out_dir,
-                enabled_stages=["denoise", "cluster"],
+                enabled_stages=["denoise", "cluster", "cluster_ont"],
                 otutab_id=0.99,
                 otutab_strand=False,
             )
 
-            for mock_stage in (mock_denoise, mock_cluster):
+            for mock_stage in (mock_denoise, mock_cluster, mock_ont):
                 kwargs = mock_stage.call_args[1]
                 assert kwargs["otutab_id"] == 0.99
                 assert kwargs["otutab_strand"] is False
@@ -590,13 +593,77 @@ class TestBioPipeline:
             patch.object(BioPipeline, "add_config", mock_add_config),
         ):
             pipeline = BioPipeline(
-                in_dir,
-                out_dir,
-                enabled_stages=["denoise", "cluster"],
+                in_dir, out_dir, enabled_stages=["denoise", "cluster_ont"]
             )
 
         assert pipeline.stages["denoise"].otutab_id == 0.97
-        assert pipeline.stages["cluster"].otutab_id == 0.97
+        assert pipeline.stages["cluster_ont"].otutab_id == 0.90
+
+    def test_cluster_ont_parameter_passing(self, tmp_dirs):
+        in_dir, out_dir = tmp_dirs
+
+        with open(os.path.join(in_dir, "test.fasta"), "w") as f:
+            f.write(">read1\nACGT\n")
+
+        with (
+            patch.object(BioPipeline, "run_stages_files"),
+            patch.object(BioPipeline, "close_file_handler"),
+            patch.object(BioPipeline, "add_config", mock_add_config),
+            patch(
+                "ednabp.bp.step_exec.cluster_ont.ClusterOntStage"
+            ) as mock_stage,
+        ):
+            BioPipeline(
+                in_dir,
+                out_dir,
+                enabled_stages=["cluster_ont"],
+                cluster_id=0.88,
+                medaka=True,
+                medaka_model="r1041_e82_400bps_sup_v5.0.0",
+                cluster_strand=True,
+                strand=False,
+                racon_prog="/opt/racon",
+                usearch_prog="/opt/usearch",
+            )
+
+            kwargs = mock_stage.call_args[1]
+            assert kwargs["cluster_id"] == 0.88
+            assert kwargs["medaka"] is True
+            assert kwargs["medaka_model"] == "r1041_e82_400bps_sup_v5.0.0"
+            assert kwargs["cluster_strand"] is True
+            assert "strand" not in kwargs
+            assert "otutab_id" not in kwargs
+            assert kwargs["otutab_strand"] is True
+            assert kwargs["racon_prog"] == "/opt/racon"
+            assert kwargs["usearch_prog"] == "/opt/usearch"
+            assert kwargs["out_dir"] == os.path.join(out_dir, "cluster_ont")
+
+    @pytest.mark.parametrize(
+        "stages, expected",
+        [
+            (["denoise", "blast", "addhap"], "denoise"),
+            (["cluster", "blast", "addhap"], "cluster"),
+            (["cluster_ont", "blast", "addhap"], "cluster_ont"),
+            (["blast", "addhap"], "denoise"),
+        ],
+    )
+    def test_addhap_reads_enabled_otu_stage(self, tmp_dirs, stages, expected):
+        in_dir, out_dir = tmp_dirs
+
+        with open(os.path.join(in_dir, "test.fasta"), "w") as f:
+            f.write(">seq1;size=10\nACGT\n")
+
+        with (
+            patch.object(BioPipeline, "run_stages_files"),
+            patch.object(BioPipeline, "close_file_handler"),
+            patch.object(BioPipeline, "add_config", mock_add_config),
+            patch("ednabp.bp.step_exec.addhap.AddHapStage") as mock_addhap,
+        ):
+            BioPipeline(in_dir, out_dir, enabled_stages=stages)
+
+            assert mock_addhap.call_args[1]["otu_dir"] == os.path.join(
+                out_dir, expected
+            )
 
     def test_stage_directory_creation(self, tmp_dirs):
         in_dir, out_dir = tmp_dirs

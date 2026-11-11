@@ -8,6 +8,7 @@ from .step_exec import (
     addlineage,
     blast,
     cluster,
+    cluster_ont,
     cutprimer,
     decompress,
     denoise,
@@ -25,6 +26,7 @@ STAGE_INPUT_SUFFIX = {
     "dereplicate": ".fasta",
     "denoise": ".fasta",
     "cluster": ".fasta",
+    "cluster_ont": ".fasta",
     "blast": ".fasta",
     "addlineage": ".csv",
     "lca": ".csv",
@@ -57,17 +59,28 @@ class BioPipeline:
             - max_read_len (int): Discard processed reads that are longer than this parameter. Default: 254.
             - revcomp (bool): If True, also search the reverse complement of each read for primer matches and output reads in the orientation where the primer was found. Default: True.
 
-          Dereplicate Settings:
+          Dereplicate Setting:
             - strand (bool): If True, treat a sequence and its reverse complement as duplicates during dereplication (-strand both). If False, only the forward strand is considered (-strand plus). Default: True.
 
           Denoise Settings:
             - minsize (int): Discard sequences with abundance that are smaller than this parameter. Default: 8.
             - alpha (int): Denoising sensitivity parameter. See UNOISE2 paper for definition. Default: 2.
 
-          Cluster Settings (OTU clustering with UPARSE, an alternative to denoise; add "cluster" to enabled_stages in place of "denoise"):
+          Cluster Setting:
             - cluster_minsize (int): Discard unique sequences with abundance smaller than this parameter before clustering. Default: 2.
 
-          OTU Table Settings (abundance table built by usearch -otutab at the end of the denoise and cluster):
+          Cluster (ONT) Settings:
+            - cluster_id (float): Identity for the initial vsearch clustering of raw reads. Default: 0.90.
+            - min_cluster_size (int): Minimum reads in a cluster for it to be polished. Default: 10.
+            - max_reads (int): Maximum reads per cluster used for polishing. Default: 200.
+            - racon_rounds (int): Rounds of minimap2 + racon polishing. Default: 2.
+            - medaka (bool): If True, polish with medaka after racon. Default: False.
+            - medaka_model (str): Medaka model matching the basecaller (e.g. "r1041_e82_400bps_sup_v5.0.0"). Default: None (medaka's default).
+            - consensus_id (float): Identity at which polished consensuses are merged into one OTU. Default: 0.99.
+            - cluster_strand (bool): If True, cluster reads and merge consensuses on both strands. Default: False (reads are oriented by cutprimer).
+            - keep_tmp (bool): If True, keep per-cluster intermediate files. Default: False.
+
+          OTU Table Settings:
             - otutab_id (float): Minimum fractional identity for mapping sequences to OTUs/ZOTUs. Default: None (0.97 for denoise and cluster, 0.90 for cluster_ont, whose raw reads carry more errors).
             - otutab_strand (bool): If True, search both strands when mapping (-strand both). If False, only the plus strand is searched. Default: True.
 
@@ -89,13 +102,14 @@ class BioPipeline:
             - score_column (str): Column used for score-based filtering. Default: 'bitscore'.
             - qseqid_column (str): Column used to group hits by query sequence. Default: 'qseqid'.
 
-          Add Haplotype Settings:
+          Add Haplotype Setting:
             - otu_dir (str): Path to the directory containing the OTU/ZOTU FASTA (<prefix>.fasta) and OTU table (<prefix>_otu_table.txt) used by addhap. Default: the output directory of the enabled denoise, cluster or cluster_ont stage (denoise if none is enabled).
 
           External Program Setting:
             - usearch_prog (str): Command to execute USEARCH for merge, dereplicate, denoise, and cluster stages, and the OTU table of cluster_ont. Default: "usearch".
             - cutadapt_prog (str): Command to execute Cutadapt for cutprimer stage. Default: "cutadapt".
             - blast_prog (str): Command to execute BLAST for blast stage. Default: "blastn".
+            - vsearch_prog, minimap2_prog, racon_prog, medaka_prog (str): Commands for the cluster_ont stage. Defaults: "vsearch", "minimap2", "racon", "medaka_consensus".
 
           Configuration Settings:
             - verbose (bool): Whether to enable verbose logging. Default: True.
@@ -139,6 +153,7 @@ class BioPipeline:
             "dereplicate": dereplicate.DereplicateStage,
             "denoise": denoise.DenoiseStage,
             "cluster": cluster.ClusterStage,
+            "cluster_ont": cluster_ont.ClusterOntStage,
             "blast": blast.BlastStage,
             "addlineage": addlineage.AddLineageStage,
             "lca": lca.LcaStage,
@@ -170,6 +185,9 @@ class BioPipeline:
         }
         self.cluster_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["cluster"].items()
+        }
+        self.cluster_ont_settings = {
+            k: settings.get(k, v) for k, v in SETTINGS["cluster_ont"].items()
         }
         self.otutab_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["otutab"].items()
@@ -265,6 +283,7 @@ class BioPipeline:
                 "dereplicate",
                 "denoise",
                 "cluster",
+                "cluster_ont",
             ]:
                 stage_args["usearch_prog"] = self.prog_settings["usearch"]
             elif stage == "cutprimer":
@@ -286,13 +305,14 @@ class BioPipeline:
                 "blast",
                 "addlineage",
                 "lca",
+                "cluster_ont",
             ]:
                 stage_args.update(eval(f"self.{stage}_settings"))
             if stage == "cluster":
                 stage_args["minsize"] = self.cluster_settings[
                     "cluster_minsize"
                 ]
-            if stage in ["denoise", "cluster"]:
+            if stage in ["denoise", "cluster", "cluster_ont"]:
                 stage_args.update(
                     {
                         k: v
@@ -300,6 +320,14 @@ class BioPipeline:
                         if v is not None
                     }
                 )
+            if stage == "cluster_ont":
+                for prog in [
+                    "vsearch",
+                    "minimap2",
+                    "racon",
+                    "medaka",
+                ]:
+                    stage_args[f"{prog}_prog"] = self.prog_settings[prog]
 
             self.stages[stage] = self.stage_class[stage](**stage_args)
 
@@ -308,7 +336,9 @@ class BioPipeline:
 
     def otu_stage(self):
         otu_stages = [
-            s for s in self.enabled_stages if s in ["denoise", "cluster"]
+            s
+            for s in self.enabled_stages
+            if s in ["denoise", "cluster", "cluster_ont"]
         ]
         return otu_stages[-1] if otu_stages else "denoise"
 

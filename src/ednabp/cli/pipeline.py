@@ -112,7 +112,7 @@ def main():
                 },
             },
         ],
-        "Dereplicate Settings": [
+        "Dereplicate Setting": [
             {
                 "args": ["--strand"],
                 "kwargs": {
@@ -122,7 +122,7 @@ def main():
                 },
             },
         ],
-        "Denoising Settings": [
+        "Denoise Settings": [
             {
                 "args": ["--minsize"],
                 "kwargs": {
@@ -140,13 +140,87 @@ def main():
                 },
             },
         ],
-        "Clustering Settings": [
+        "Cluster Setting": [
             {
                 "args": ["--cluster-minsize"],
                 "kwargs": {
                     "type": int,
                     "default": SETTINGS["cluster"]["cluster_minsize"],
                     "help": "Minimum abundance of unique sequences to retain before UPARSE OTU clustering; used by the cluster stage, an alternative to denoise (default: %(default)s).",
+                },
+            },
+        ],
+        "Cluster (ONT) Settings": [
+            {
+                "args": ["--cluster-id"],
+                "kwargs": {
+                    "type": float,
+                    "default": SETTINGS["cluster_ont"]["cluster_id"],
+                    "help": "Identity for the initial vsearch clustering of raw ONT reads in the cluster_ont stage (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--min-cluster-size"],
+                "kwargs": {
+                    "type": int,
+                    "default": SETTINGS["cluster_ont"]["min_cluster_size"],
+                    "help": "Minimum reads in a cluster for it to be polished (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--max-reads"],
+                "kwargs": {
+                    "type": int,
+                    "default": SETTINGS["cluster_ont"]["max_reads"],
+                    "help": "Maximum reads per cluster used for polishing (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--racon-rounds"],
+                "kwargs": {
+                    "type": int,
+                    "default": SETTINGS["cluster_ont"]["racon_rounds"],
+                    "help": "Rounds of minimap2 + racon polishing (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--medaka"],
+                "kwargs": {
+                    "action": argparse.BooleanOptionalAction,
+                    "default": SETTINGS["cluster_ont"]["medaka"],
+                    "help": "Polish with medaka after racon (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--medaka-model"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["cluster_ont"]["medaka_model"],
+                    "help": "Medaka model matching the basecaller, e.g. r1041_e82_400bps_sup_v5.0.0 (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--consensus-id"],
+                "kwargs": {
+                    "type": float,
+                    "default": SETTINGS["cluster_ont"]["consensus_id"],
+                    "help": "Identity at which polished consensus sequences are merged into one OTU (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--cluster-strand"],
+                "kwargs": {
+                    "action": argparse.BooleanOptionalAction,
+                    "default": SETTINGS["cluster_ont"]["cluster_strand"],
+                    "help": "Cluster reads and merge consensus sequences on both strands in the cluster_ont stage; the abundance table uses --otutab-strand (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--keep-tmp"],
+                "kwargs": {
+                    "action": argparse.BooleanOptionalAction,
+                    "default": SETTINGS["cluster_ont"]["keep_tmp"],
+                    "help": "Keep per-cluster intermediate files (default: %(default)s).",
                 },
             },
         ],
@@ -262,7 +336,7 @@ def main():
                 },
             },
         ],
-        "Add Haplotype Settings": [
+        "Add Haplotype Setting": [
             {
                 "args": ["--otu-dir"],
                 "kwargs": {
@@ -295,6 +369,38 @@ def main():
                     "type": str,
                     "default": SETTINGS["prog"]["blast"],
                     "help": "Command to execute BLAST for blast stage (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--vsearch-prog"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["prog"]["vsearch"],
+                    "help": "Command to execute VSEARCH for cluster_ont stage (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--minimap2-prog"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["prog"]["minimap2"],
+                    "help": "Command to execute minimap2 for cluster_ont stage (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--racon-prog"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["prog"]["racon"],
+                    "help": "Command to execute Racon for cluster_ont stage (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--medaka-prog"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["prog"]["medaka"],
+                    "help": "Command to execute medaka_consensus for cluster_ont stage (default: %(default)s).",
                 },
             },
         ],

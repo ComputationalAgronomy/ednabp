@@ -55,7 +55,8 @@ class TestDenoiseStage:
 
         denoise_stage.setup(test_prefix)
 
-        assert len(denoise_stage.runners) == 2  # Command + output redirection
+        # Command + output redirection, otutab + report, row summing
+        assert len(denoise_stage.runners) == 5
         command_runner = denoise_stage.runners[0]
 
         expected_infile = os.path.join(in_dir, f"{test_prefix}.fasta")
@@ -72,3 +73,14 @@ class TestDenoiseStage:
 
         assert command_runner.command == expected_command
         assert command_runner.prog_name == "Denoise unique sequences"
+
+        otutab_runner = denoise_stage.runners[2]
+        expected_otutab_command = (
+            f"usearch -otutab "
+            f"{input_file} "
+            f"-zotus {expected_outfile} -id 0.97 -strand both -threads 4 "
+            f"-otutabout {os.path.join(out_dir, f'{test_prefix}_otu_table.txt')} "
+            f"-mapout {os.path.join(out_dir, f'{test_prefix}_otu_mapping.txt')} "
+            f"-notmatched {os.path.join(out_dir, f'{test_prefix}_otu_notmatched.fasta')}"
+        )
+        assert otutab_runner.command == expected_otutab_command

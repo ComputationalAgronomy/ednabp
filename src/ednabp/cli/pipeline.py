@@ -150,6 +150,24 @@ def main():
                 },
             },
         ],
+        "OTU Table Settings": [
+            {
+                "args": ["--otutab-id"],
+                "kwargs": {
+                    "type": float,
+                    "default": SETTINGS["otutab"]["otutab_id"],
+                    "help": "Minimum fractional identity for mapping sequences to OTUs/ZOTUs when building the abundance table (default: 0.97 for denoise and cluster, 0.90 for cluster_ont).",
+                },
+            },
+            {
+                "args": ["--otutab-strand"],
+                "kwargs": {
+                    "action": argparse.BooleanOptionalAction,
+                    "default": SETTINGS["otutab"]["otutab_strand"],
+                    "help": "Search both strands when mapping sequences to OTUs/ZOTUs for the abundance table in the denoise, cluster and cluster_ont stages (default: %(default)s).",
+                },
+            },
+        ],
         "BLAST Settings": [
             {
                 "args": ["--evalue"],
@@ -260,7 +278,7 @@ def main():
                 "kwargs": {
                     "type": str,
                     "default": SETTINGS["prog"]["usearch"],
-                    "help": "Command to execute USEARCH for merge, dereplicate, denoise, and cluster stages (default: %(default)s).",
+                    "help": "Command to execute USEARCH for merge, dereplicate, denoise, and cluster stages, and the OTU table of cluster_ont (default: %(default)s).",
                 },
             },
             {

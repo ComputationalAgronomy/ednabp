@@ -58,7 +58,7 @@ class TestClusterStage:
         cluster_stage.setup(test_prefix)
 
         # Command + output redirection, otutab + report, row summing
-        assert len(cluster_stage.runners) == 2
+        assert len(cluster_stage.runners) == 5
         command_runner = cluster_stage.runners[0]
 
         expected_outfile = os.path.join(out_dir, f"{test_prefix}.fasta")
@@ -73,6 +73,17 @@ class TestClusterStage:
 
         assert command_runner.command == expected_command
         assert command_runner.prog_name == "Cluster unique sequences into OTUs"
+
+        otutab_runner = cluster_stage.runners[2]
+        expected_otutab_command = (
+            f"usearch -otutab "
+            f"{input_file} "
+            f"-otus {expected_outfile} -id 0.97 -strand both -threads 4 "
+            f"-otutabout {os.path.join(out_dir, f'{test_prefix}_otu_table.txt')} "
+            f"-mapout {os.path.join(out_dir, f'{test_prefix}_otu_mapping.txt')} "
+            f"-notmatched {os.path.join(out_dir, f'{test_prefix}_otu_notmatched.fasta')}"
+        )
+        assert otutab_runner.command == expected_otutab_command
 
     def test_setup_missing_infile(self, cluster_stage):
         with pytest.raises(FileNotFoundError):

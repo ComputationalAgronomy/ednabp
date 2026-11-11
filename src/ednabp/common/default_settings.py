@@ -42,6 +42,10 @@ SETTINGS = {
         "report": "_report.txt",
         "denoise_report": "_denoise_report.txt",
         "cluster_report": "_cluster_report.txt",
+        "otutab": "_otu_table.txt",
+        "otu_mapping": "_otu_mapping.txt",
+        "otu_notmatched": "_otu_notmatched.fasta",
+        "otutab_report": "_otutab_report.txt",
     },
     "merge": {
         "maxdiff": 5,
@@ -64,6 +68,10 @@ SETTINGS = {
     },
     "cluster": {
         "cluster_minsize": 2,
+    },
+    "otutab": {
+        "otutab_id": None,
+        "otutab_strand": True,
     },
     "blast": {
         "evalue": 0.00001,

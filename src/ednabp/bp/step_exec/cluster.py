@@ -2,6 +2,7 @@ import os
 
 from ...common.default_settings import SETTINGS
 from ..step_build import stage_builder
+from .otutab import add_otutab_stages
 
 
 class ClusterStage(stage_builder.StageBuilder):
@@ -16,6 +17,8 @@ class ClusterStage(stage_builder.StageBuilder):
         out_suffix=".fasta",
         minsize: int = 2,
         seq_label: str = "Otu",
+        otutab_id: float = 0.97,
+        otutab_strand: bool = True,
     ):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
@@ -26,6 +29,8 @@ class ClusterStage(stage_builder.StageBuilder):
         self.cluster_report_suffix = SETTINGS["suffix"]["cluster_report"]
         self.report_suffix = SETTINGS["suffix"]["report"]
         self.parse_params(minsize, seq_label)
+        self.otutab_id = otutab_id
+        self.otutab_strand = otutab_strand
 
     def parse_params(self, minsize, seq_label):
         self.params = f"-minsize {minsize}"
@@ -50,6 +55,15 @@ class ClusterStage(stage_builder.StageBuilder):
         super().add_stage("Cluster unique sequences into OTUs", cmd)
         super().add_stage_output_to_file(
             "Write usearch report", 0, report, report
+        )
+        add_otutab_stages(
+            self,
+            prefix,
+            self.infile,
+            cluster_outfile,
+            zotus=False,
+            identity=self.otutab_id,
+            strand=self.otutab_strand,
         )
 
     def run(self):

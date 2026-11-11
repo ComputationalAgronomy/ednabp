@@ -552,6 +552,52 @@ class TestBioPipeline:
                 out_dir, "cluster"
             )
 
+    def test_otutab_parameter_passing(self, tmp_dirs):
+        in_dir, out_dir = tmp_dirs
+
+        with open(os.path.join(in_dir, "test.fasta"), "w") as f:
+            f.write(">seq1;size=10\nACGT\n")
+
+        with (
+            patch.object(BioPipeline, "run_stages_files"),
+            patch.object(BioPipeline, "close_file_handler"),
+            patch.object(BioPipeline, "add_config", mock_add_config),
+            patch("ednabp.bp.step_exec.denoise.DenoiseStage") as mock_denoise,
+            patch("ednabp.bp.step_exec.cluster.ClusterStage") as mock_cluster,
+        ):
+            BioPipeline(
+                in_dir,
+                out_dir,
+                enabled_stages=["denoise", "cluster"],
+                otutab_id=0.99,
+                otutab_strand=False,
+            )
+
+            for mock_stage in (mock_denoise, mock_cluster):
+                kwargs = mock_stage.call_args[1]
+                assert kwargs["otutab_id"] == 0.99
+                assert kwargs["otutab_strand"] is False
+
+    def test_otutab_id_unset_uses_stage_defaults(self, tmp_dirs):
+        in_dir, out_dir = tmp_dirs
+
+        with open(os.path.join(in_dir, "test.fasta"), "w") as f:
+            f.write(">seq1;size=10\nACGT\n")
+
+        with (
+            patch.object(BioPipeline, "run_stages_files"),
+            patch.object(BioPipeline, "close_file_handler"),
+            patch.object(BioPipeline, "add_config", mock_add_config),
+        ):
+            pipeline = BioPipeline(
+                in_dir,
+                out_dir,
+                enabled_stages=["denoise", "cluster"],
+            )
+
+        assert pipeline.stages["denoise"].otutab_id == 0.97
+        assert pipeline.stages["cluster"].otutab_id == 0.97
+
     def test_stage_directory_creation(self, tmp_dirs):
         in_dir, out_dir = tmp_dirs
 

@@ -67,6 +67,10 @@ class BioPipeline:
           Cluster Settings (OTU clustering with UPARSE, an alternative to denoise; add "cluster" to enabled_stages in place of "denoise"):
             - cluster_minsize (int): Discard unique sequences with abundance smaller than this parameter before clustering. Default: 2.
 
+          OTU Table Settings (abundance table built by usearch -otutab at the end of the denoise and cluster):
+            - otutab_id (float): Minimum fractional identity for mapping sequences to OTUs/ZOTUs. Default: None (0.97 for denoise and cluster, 0.90 for cluster_ont, whose raw reads carry more errors).
+            - otutab_strand (bool): If True, search both strands when mapping (-strand both). If False, only the plus strand is searched. Default: True.
+
           Blast Settings:
             - evalue (float): Expectation value (E) threshold for saving hits. Default: 0.00001.
             - qcov_hsp_perc (int): The %threshold of the query sequence that has to form an alignment against the reference to be retained. Default: 90.
@@ -89,7 +93,7 @@ class BioPipeline:
             - otu_dir (str): Path to the directory containing the OTU/ZOTU FASTA (<prefix>.fasta) and OTU table (<prefix>_otu_table.txt) used by addhap. Default: the output directory of the enabled denoise, cluster or cluster_ont stage (denoise if none is enabled).
 
           External Program Setting:
-            - usearch_prog (str): Command to execute USEARCH for merge, dereplicate, denoise, and cluster stages. Default: "usearch".
+            - usearch_prog (str): Command to execute USEARCH for merge, dereplicate, denoise, and cluster stages, and the OTU table of cluster_ont. Default: "usearch".
             - cutadapt_prog (str): Command to execute Cutadapt for cutprimer stage. Default: "cutadapt".
             - blast_prog (str): Command to execute BLAST for blast stage. Default: "blastn".
 
@@ -166,6 +170,9 @@ class BioPipeline:
         }
         self.cluster_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["cluster"].items()
+        }
+        self.otutab_settings = {
+            k: settings.get(k, v) for k, v in SETTINGS["otutab"].items()
         }
         self.blast_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["blast"].items()
@@ -300,10 +307,6 @@ class BioPipeline:
             curr_suffix = self.stage_suffix[stage]
 
     def otu_stage(self):
-        """
-        The stage whose OTU sequences and table addhap reads: the last
-        enabled of denoise, cluster and cluster_ont (denoise if none).
-        """
         otu_stages = [
             s for s in self.enabled_stages if s in ["denoise", "cluster"]
         ]

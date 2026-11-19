@@ -10,6 +10,7 @@ from Bio import Entrez
 from ..step_build import stage_builder
 
 RANKS = [
+    "domain",
     "kingdom",
     "phylum",
     "class",
@@ -18,10 +19,47 @@ RANKS = [
     "genus",
     "species",
 ]
+CUSTOM_RANKS = RANKS[1:]
+TAXID_COLUMN = "taxid"
+DOMAIN_ALIASES = {"superkingdom", "acellular root"}
+
+
+def is_taxid_lineage_table(path):
+    try:
+        with open(path) as f:
+            header = f.readline().rstrip("\r\n").split("\t")
+    except (OSError, UnicodeDecodeError):
+        return False
+    return len(header) > 1 and header[0].strip().lower() == TAXID_COLUMN
+
+
+def read_taxid_lineage(path, taxids=None):
+    wanted = None if taxids is None else {str(t) for t in taxids}
+    lineages = {}
+    with open(path) as f:
+        ranks = [r.strip() for r in f.readline().rstrip("\r\n").split("\t")]
+        ranks = ranks[1:]
+        for line in f:
+            fields = line.rstrip("\r\n").split("\t")
+            taxid = fields[0].strip()
+            if wanted is not None and taxid not in wanted:
+                continue
+            names = fields[1:] + [""] * (len(ranks) - len(fields) + 1)
+            lineages[taxid] = dict(zip(ranks, names, strict=False))
+            if wanted is not None and len(lineages) == len(wanted):
+                break
+    return lineages
 
 
 def get_empty_rank():
     return dict.fromkeys(RANKS, "")
+
+
+def first_taxid(staxids):
+    if pd.isna(staxids):
+        return ""
+    value = str(staxids).split(";")[0].strip()
+    return value.removesuffix(".0")
 
 
 def get_lineage_from_entrez(taxid, logger):
@@ -38,6 +76,8 @@ def get_lineage_from_entrez(taxid, logger):
 
         for tax_level in lineage_ex:
             rank = tax_level.get("Rank")
+            if rank in DOMAIN_ALIASES:
+                rank = "domain"
             name = tax_level.get("ScientificName")
             if rank and name and (RANKS is None or rank in RANKS):
                 rank_info[rank] = name
@@ -79,10 +119,12 @@ class AddLineageStage(stage_builder.StageBuilder):
 
     def parse_genus2otherlv(self, lineage_path: str):
         self.genus2otherlv = {}
+        self.genus2domain = {}
         with open(lineage_path) as in_handle:
             reader = csv.DictReader(in_handle)
             for row in reader:
                 genus_name = row["genus_name"]
+                self.genus2domain[genus_name] = row.get("domain_name") or ""
                 otherlv = [
                     row["kingdom_name"],
                     row["phylum_name"],
@@ -95,6 +137,10 @@ class AddLineageStage(stage_builder.StageBuilder):
     def parse_lineage_db(self, entrez_email):
         if self.lineage_db is None:
             pass
+        elif os.path.isfile(self.lineage_db) and is_taxid_lineage_table(
+            self.lineage_db
+        ):
+            self.get_lineage_func = self.get_lineage_from_taxid_table
         elif os.path.isfile(self.lineage_db):
             self.parse_genus2otherlv(self.lineage_db)
             self.get_lineage_func = self.get_lineage_from_custom_db
@@ -121,6 +167,33 @@ class AddLineageStage(stage_builder.StageBuilder):
                 "Add taxonomy to BLAST result",
                 self.get_lineage_func,
             )
+
+    def get_lineage_from_taxid_table(self):
+        blast_result = pd.read_csv(self.infile)
+
+        if "staxids" not in blast_result.columns:
+            raise ValueError(
+                f"{self.infile} has no 'staxids' column, needed to look up"
+                " lineages in a taxid table. Add 'staxids' to the BLAST"
+                " specifiers and re-run BLAST."
+            )
+        taxids = blast_result["staxids"].map(first_taxid)
+
+        lineages = read_taxid_lineage(self.lineage_db, set(taxids) - {""})
+        missing = sorted(set(taxids) - set(lineages) - {""})
+        if missing:
+            self.config.logger.warning(
+                f"{len(missing)} taxids not found in {self.lineage_db}:"
+                f" {', '.join(missing[:10])}"
+            )
+
+        blast_result["taxid"] = taxids
+        for rank in RANKS:
+            blast_result[rank] = [
+                lineages.get(t, {}).get(rank, "") for t in taxids
+            ]
+        blast_result.to_csv(self.outfile, index=False)
+        return True
 
     def get_lineage_from_custom_db(self):
         if not hasattr(self, "genus2otherlv"):
@@ -157,8 +230,9 @@ class AddLineageStage(stage_builder.StageBuilder):
                 taxonomy_levels = [""] * 5 + [genus, species]
 
             lineage_record.update(
-                dict(zip(RANKS, taxonomy_levels, strict=False))
+                dict(zip(CUSTOM_RANKS, taxonomy_levels, strict=False))
             )
+            lineage_record["domain"] = self.genus2domain.get(genus, "")
             lineage_data.append(lineage_record)
 
         lineage_df = pd.DataFrame(lineage_data)

@@ -5,6 +5,8 @@ import pandas as pd
 from ..step_build import stage_builder
 from .addlineage import RANKS
 
+MERGED_SEP = "; "
+
 
 def normalize_species_names(name):
     if pd.isna(name) or name == "":
@@ -26,7 +28,21 @@ def filter_by_score(group, score_column, tol_pct):
     return group[group[score_column] >= highest * (1 - tol_pct / 100)]
 
 
+def merged_names(lineages, i):
+    names = sorted(
+        {lin[i] for lin in lineages if isinstance(lin[i], str) and lin[i]}
+    )
+    return MERGED_SEP.join(names)
+
+
 def lca_of_lineages(lineages):
+    result, lca_rank, stop = _lca(lineages)
+    for i in range(stop, len(RANKS)):
+        result[i] = merged_names(lineages, i)
+    return result, lca_rank
+
+
+def _lca(lineages):
     result = [""] * len(RANKS)
     lca_rank = "NA"
     last_i = len(RANKS) - 1
@@ -43,11 +59,11 @@ def lca_of_lineages(lineages):
 
         if any_missing:
             if i == last_i:
-                break
+                return result, lca_rank, i
             continue
 
         if not per_hit:
-            break
+            return result, lca_rank, i
 
         common = per_hit[0].copy()
         for s in per_hit[1:]:
@@ -57,9 +73,9 @@ def lca_of_lineages(lineages):
             result[i] = max(common, key=len)
             lca_rank = col
         else:
-            break
+            return result, lca_rank, i
 
-    return result, lca_rank
+    return result, lca_rank, len(RANKS)
 
 
 class LcaStage(stage_builder.StageBuilder):
@@ -97,7 +113,7 @@ class LcaStage(stage_builder.StageBuilder):
             non_tax_cols = [c for c in df.columns if c not in RANKS]
             results = []
 
-            for seq_name, group in df.groupby(self.qseqid_column, sort=False):
+            for _, group in df.groupby(self.qseqid_column, sort=False):
                 filtered = filter_by_score(
                     group, self.score_column, self.tol_pct
                 )

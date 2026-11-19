@@ -30,7 +30,7 @@ class TestAddHapStage:
             config=mock_config,
             in_dir=in_dir,
             out_dir=out_dir,
-            denoise_dir=denoise_dir,
+            otu_dir=denoise_dir,
         )
 
     def test_init(self, mock_config, tmp_dirs):
@@ -39,7 +39,7 @@ class TestAddHapStage:
             config=mock_config,
             in_dir=in_dir,
             out_dir=out_dir,
-            denoise_dir="denoise",
+            otu_dir="denoise",
         )
 
         assert stage.config == mock_config
@@ -47,7 +47,7 @@ class TestAddHapStage:
         assert stage.out_dir == out_dir
         assert stage.in_suffix == ".csv"
         assert stage.out_suffix == ".csv"
-        assert stage.denoise_dir == "denoise"
+        assert stage.otu_dir == "denoise"
         assert stage.otutab_suffix == "_otu_table.txt"
 
     def test_setup(self, addhap_stage, tmp_dirs, denoise_dir):
@@ -96,9 +96,12 @@ class TestAddHapStage:
 
         output_df = pd.read_csv(os.path.join(out_dir, "test.csv"))
         assert output_df["qseqid"].tolist() == ["Zotu1", "Zotu2"]
-        assert output_df["zotu"].tolist() == ["ACGT", "ACGG"]
-        assert output_df["size"].tolist() == [87, 42]
-        assert output_df["size"].dtype == "int64"
+        assert output_df["sequence"].tolist() == ["ACGT", "ACGG"]
+        # One count column per sample, named after it, right after "sequence"
+        assert list(output_df.columns[-2:]) == ["sequence", "test"]
+        assert "size" not in output_df.columns
+        assert output_df["test"].tolist() == [87, 42]
+        assert output_df["test"].dtype == "int64"
 
     def test_add_haplotype_info_cluster_otus(
         self, addhap_stage, tmp_dirs, denoise_dir
@@ -119,7 +122,7 @@ class TestAddHapStage:
         output_df = pd.read_csv(os.path.join(out_dir, "s1.csv"))
         # Row with a BLAST hit first, then the others by OTU number
         assert output_df["qseqid"].tolist() == ["Otu2", "Otu1", "Otu10"]
-        assert output_df["size"].tolist() == [59, 120, 3]
+        assert output_df["s1"].tolist() == [59, 120, 3]
 
     def test_read_otu_table(self, addhap_stage, tmp_dirs):
         _, out_dir = tmp_dirs
@@ -127,7 +130,10 @@ class TestAddHapStage:
         with open(path, "w") as f:
             f.write("#OTU ID\ts1\ts2\nZotu1\t87\t3\nZotu2\t0\t2\n")
 
-        assert addhap_stage.read_otu_table(path) == {"Zotu1": 90, "Zotu2": 2}
+        assert addhap_stage.read_otu_table(path) == (
+            ["s1", "s2"],
+            {"Zotu1": {"s1": 87, "s2": 3}, "Zotu2": {"s1": 0, "s2": 2}},
+        )
 
     def test_read_otu_table_bad_header(self, addhap_stage, tmp_dirs):
         _, out_dir = tmp_dirs
@@ -148,3 +154,37 @@ class TestAddHapStage:
         sequences = addhap_stage.read_fasta_sequences(fasta_file)
 
         assert sequences == {"Zotu1": "ACGT", "Zotu2": "TGCA"}
+
+    def test_pooled_sample_columns(self, addhap_stage, tmp_dirs, denoise_dir):
+        """A pooled table: every sample keeps its own column, zeros
+        included, in the table's order."""
+        in_dir, out_dir = tmp_dirs
+        write_inputs(
+            in_dir,
+            denoise_dir,
+            "_pooled",
+            "qseqid,sseqid,species\nZotu1,hit1,Homo sapiens\n",
+            ">Zotu1\nAAAA\n>Zotu2\nCCCC\n",
+            "#OTU ID\tB\tA\nZotu1\t5\t0\nZotu2\t0\t9\n",
+        )
+        addhap_stage.setup("_pooled")
+        addhap_stage.add_haplotype_info()
+
+        df = pd.read_csv(os.path.join(out_dir, "_pooled.csv"))
+        assert list(df.columns[-3:]) == ["sequence", "B", "A"]
+        assert df["B"].tolist() == [5, 0]
+        assert df["A"].tolist() == [0, 9]
+
+    def test_sample_name_clash(self, addhap_stage, tmp_dirs, denoise_dir):
+        in_dir, _ = tmp_dirs
+        write_inputs(
+            in_dir,
+            denoise_dir,
+            "p",
+            "qseqid,species\nZotu1,x\n",
+            ">Zotu1\nAAAA\n",
+            "#OTU ID\tspecies\nZotu1\t5\n",
+        )
+        addhap_stage.setup("p")
+        with pytest.raises(ValueError, match="clash"):
+            addhap_stage.add_haplotype_info()

@@ -325,8 +325,7 @@ class BioPipeline:
 
             if stage == "addhap":
                 stage_args["otu_dir"] = (
-                    self.addhap_settings["otu_dir"]
-                    or self.stage_dir[self.otu_stage()]
+                    self.addhap_settings["otu_dir"] or self.get_otu_dir()
                 )
 
             if stage in [
@@ -369,7 +368,7 @@ class BioPipeline:
             curr_dir = self.stage_dir[stage]
             curr_suffix = self.stage_suffix[stage]
 
-    def otu_dir(self):
+    def get_otu_dir(self):
         if "blast" in self.stage_in_dir:
             return self.stage_in_dir["blast"]
         otu_stages = [

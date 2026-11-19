@@ -7,6 +7,7 @@ SETTINGS = {
         "cutprimer",
         "qfilter",
         "dereplicate",
+        "pool",
         "denoise",
         "blast",
         "addlineage",
@@ -23,6 +24,7 @@ SETTINGS = {
         "denoise": "denoise",
         "cluster": "cluster",
         "cluster_ont": "cluster_ont",
+        "pool": "pool",
         "blast": "blast",
         "addlineage": "blast",
         "lca": "blast",
@@ -40,6 +42,7 @@ SETTINGS = {
         "denoise": ".fasta",
         "cluster": ".fasta",
         "cluster_ont": ".fasta",
+        "pool": ".fasta",
         "blast": ".csv",
         "addlineage": ".csv",
         "lca": ".csv",
@@ -54,6 +57,9 @@ SETTINGS = {
         "otutab_report": "_otutab_report.txt",
         "members": "_members.fasta",
         "otutab_query": "_otutab_query.fasta",
+    },
+    "pool": {
+        "pool_name": "_pooled",
     },
     "merge": {
         "maxdiff": 5,

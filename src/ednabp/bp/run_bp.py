@@ -16,6 +16,7 @@ from .step_exec import (
     fqtofa,
     lca,
     merge,
+    pool,
     qfilter,
 )
 
@@ -29,6 +30,7 @@ STAGE_INPUT_SUFFIX = {
     "denoise": ".fasta",
     "cluster": ".fasta",
     "cluster_ont": ".fasta",
+    "pool": ".fasta",
     "blast": ".fasta",
     "addlineage": ".csv",
     "lca": ".csv",
@@ -52,6 +54,7 @@ class BioPipeline:
         :param enabled_stages (list[str]): The process stages to be executed. The execution order will match the list order; each stage runs for all samples before the next one. Default:
          ["decompress", "merge", "cutprimer", "qfilter", "dereplicate", "denoise", "blast", "addlineage", "lca", "addhap"].
          "fqtofa" converts FASTQ to FASTA without filtering and can replace "qfilter".
+         Add "pool" to pool all samples into one: after "dereplicate" to generate OTUs from all samples' sequences together, or after "denoise"/"cluster"/"cluster_ont" to pool the samples' OTUs. The stages after "pool" run once, on the pooled sample.
         :param settings: Additional optional arguments to configure pipeline stages and runtime behavior. These include:
           Input File Suffix:
             - raw_suffix (str): File suffix for raw input sequences. Default: auto-detected from the starting stage.
@@ -96,6 +99,9 @@ class BioPipeline:
             - cluster_strand (bool): If True, cluster reads and merge consensuses on both strands. Default: False (reads are oriented by cutprimer).
             - keep_tmp (bool): If True, keep per-cluster intermediate files. Default: False.
 
+          Pool Setting:
+            - pool_name (str): Name of the pooled sample written by the pool stage (<pool_name>.fasta, <pool_name>_otu_table.txt). Default: "_pooled".
+
           OTU Table Settings:
             - otutab_id (float): Minimum fractional identity for mapping sequences to OTUs/ZOTUs. Default: None (0.97 for denoise and cluster, 0.90 for cluster_ont, whose raw reads carry more errors).
             - otutab_strand (bool): If True, search both strands when mapping (-strand both). If False, only the plus strand is searched. Default: True.
@@ -119,7 +125,7 @@ class BioPipeline:
             - qseqid_column (str): Column used to group hits by query sequence. Default: 'qseqid'.
 
           Add Haplotype Setting:
-            - otu_dir (str): Path to the directory containing the OTU/ZOTU FASTA (<prefix>.fasta) and OTU table (<prefix>_otu_table.txt) used by addhap. Default: the output directory of the enabled denoise, cluster or cluster_ont stage (denoise if none is enabled).
+            - otu_dir (str): Path to the directory containing the OTU/ZOTU FASTA (<prefix>.fasta) and OTU table (<prefix>_otu_table.txt) used by addhap. Default: the directory the blast stage reads from (else the last enabled denoise, cluster, cluster_ont or pool stage, else the input directory).
 
           External Program Setting:
             - usearch_prog (str): Command to execute USEARCH for merge, qfilter, dereplicate, denoise, and cluster stages, and the OTU table of cluster_ont. Default: "usearch".
@@ -170,6 +176,7 @@ class BioPipeline:
             "denoise": denoise.DenoiseStage,
             "cluster": cluster.ClusterStage,
             "cluster_ont": cluster_ont.ClusterOntStage,
+            "pool": pool.PoolStage,
             "blast": blast.BlastStage,
             "addlineage": addlineage.AddLineageStage,
             "lca": lca.LcaStage,
@@ -207,6 +214,9 @@ class BioPipeline:
         }
         self.cluster_ont_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["cluster_ont"].items()
+        }
+        self.pool_settings = {
+            k: settings.get(k, v) for k, v in SETTINGS["pool"].items()
         }
         self.otutab_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["otutab"].items()
@@ -305,6 +315,7 @@ class BioPipeline:
                 "denoise",
                 "cluster",
                 "cluster_ont",
+                "pool",
             ]:
                 stage_args["usearch_prog"] = self.prog_settings["usearch"]
             elif stage == "cutprimer":
@@ -328,6 +339,7 @@ class BioPipeline:
                 "addlineage",
                 "lca",
                 "cluster_ont",
+                "pool",
             ]:
                 stage_args.update(eval(f"self.{stage}_settings"))
             if stage == "cluster":
@@ -357,13 +369,17 @@ class BioPipeline:
             curr_dir = self.stage_dir[stage]
             curr_suffix = self.stage_suffix[stage]
 
-    def otu_stage(self):
+    def otu_dir(self):
+        if "blast" in self.stage_in_dir:
+            return self.stage_in_dir["blast"]
         otu_stages = [
             s
-            for s in self.enabled_stages
-            if s in ["denoise", "cluster", "cluster_ont"]
+            for s in self.stage_in_dir
+            if s in ["denoise", "cluster", "cluster_ont", "pool"]
         ]
-        return otu_stages[-1] if otu_stages else "denoise"
+        return (
+            self.stage_dir[otu_stages[-1]] if otu_stages else self.indir_path
+        )
 
     def run_stages(self, prefixes):
         for name, stage in self.stages.items():

@@ -1,5 +1,4 @@
 import os
-import re
 
 import pandas as pd
 from Bio import SeqIO
@@ -9,6 +8,15 @@ from ..step_build import stage_builder
 
 
 class AddHapStage(stage_builder.StageBuilder):
+    """
+    Add each OTU/ZOTU's sequence and abundance to the taxonomy table.
+
+    Sequences come from `<prefix><denoise_suffix>` and abundances from the
+    OTU table `<prefix><otutab_suffix>` in `denoise_dir`. The table is
+    written by the denoise, cluster and cluster_ont stages, so
+    `denoise_dir` can be the output directory of any of them.
+    """
+
     def __init__(
         self,
         config,
@@ -19,7 +27,7 @@ class AddHapStage(stage_builder.StageBuilder):
         out_suffix=".csv",
         denoise_dir="",
         denoise_suffix=".fasta",
-        report_suffix=None,
+        otutab_suffix=None,
     ):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
@@ -28,9 +36,7 @@ class AddHapStage(stage_builder.StageBuilder):
         self.out_suffix = out_suffix
         self.denoise_dir = denoise_dir
         self.denoise_suffix = denoise_suffix
-        self.report_suffix = (
-            report_suffix or SETTINGS["suffix"]["denoise_report"]
-        )
+        self.otutab_suffix = otutab_suffix or SETTINGS["suffix"]["otutab"]
 
     def check_denoise_dir(self):
         if not os.path.isdir(self.denoise_dir):
@@ -42,8 +48,8 @@ class AddHapStage(stage_builder.StageBuilder):
         self.denoise_file = os.path.join(
             self.denoise_dir, f"{prefix}{self.denoise_suffix}"
         )
-        self.report_file = os.path.join(
-            self.denoise_dir, f"{prefix}{self.report_suffix}"
+        self.otutab_file = os.path.join(
+            self.denoise_dir, f"{prefix}{self.otutab_suffix}"
         )
         self.check_infile()
         self.check_denoise_files()
@@ -54,27 +60,26 @@ class AddHapStage(stage_builder.StageBuilder):
     def check_denoise_files(self):
         if not os.path.exists(self.denoise_file):
             raise FileNotFoundError(f"{self.denoise_file} not found")
-        if not os.path.exists(self.report_file):
-            raise FileNotFoundError(f"{self.report_file} not found")
+        if not os.path.exists(self.otutab_file):
+            raise FileNotFoundError(f"{self.otutab_file} not found")
 
-    def read_denoise_report(self, report_path):
-        zotu_sizes = {}
-        re_pattern = re.compile(r"size=(\d*)|(zotu)|(chimera)")
-
-        zotus_count = 1
-        with open(report_path) as file:
+    def read_otu_table(self, otutab_path):
+        """
+        Read a usearch OTU table into {otu: abundance}, summing over all
+        sample columns.
+        """
+        otu_sizes = {}
+        with open(otutab_path) as file:
+            header = file.readline()
+            if not header.startswith("#OTU ID"):
+                raise ValueError(
+                    f"Unexpected OTU table header in {otutab_path}"
+                )
             for line in file:
-                if "chfilter" in line and "zotu" in line:
-                    matches = ["".join(t) for t in re_pattern.findall(line)]
-                    if len(matches) >= 2:
-                        size, assigned_type = (
-                            matches[0],
-                            matches[1],
-                        )
-                        if assigned_type == "zotu":
-                            zotu_sizes[f"Zotu{zotus_count}"] = int(size)
-                            zotus_count += 1
-        return zotu_sizes
+                fields = line.rstrip("\r\n").split("\t")
+                if fields[0]:
+                    otu_sizes[fields[0]] = sum(int(x) for x in fields[1:] if x)
+        return otu_sizes
 
     def read_fasta_sequences(self, fasta_path):
         sequences = {}
@@ -89,8 +94,8 @@ class AddHapStage(stage_builder.StageBuilder):
             sequences = self.read_fasta_sequences(self.denoise_file)
 
         zotu_sizes = {}
-        if os.path.exists(self.report_file):
-            zotu_sizes = self.read_denoise_report(self.report_file)
+        if os.path.exists(self.otutab_file):
+            zotu_sizes = self.read_otu_table(self.otutab_file)
 
         all_zotus = set(sequences.keys()) | set(zotu_sizes.keys())
 
@@ -112,15 +117,18 @@ class AddHapStage(stage_builder.StageBuilder):
 
         if zotu_rows:
             new_df = pd.DataFrame(zotu_rows)
-            new_df["zotu_num"] = (
-                new_df["qseqid"].str.extract(r"Zotu(\d+)").astype(int)
+            # Order added rows by the trailing number (Zotu2, Otu10, ...)
+            new_df["zotu_num"] = pd.to_numeric(
+                new_df["qseqid"].str.extract(r"(\d+)$")[0]
             )
-            new_df = new_df.sort_values(by="zotu_num")
+            new_df = new_df.sort_values(by=["zotu_num", "qseqid"])
             new_df = new_df.drop(columns=["zotu_num"])
             blast_df = pd.concat([blast_df, new_df], ignore_index=True)
 
         blast_df["zotu"] = blast_df["qseqid"].map(sequences).fillna("")
-        blast_df["size"] = blast_df["qseqid"].map(zotu_sizes).fillna(0)
+        blast_df["size"] = (
+            blast_df["qseqid"].map(zotu_sizes).fillna(0).astype(int)
+        )
 
         blast_df.to_csv(self.outfile, index=False)
         return True

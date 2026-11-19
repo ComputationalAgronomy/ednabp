@@ -2,6 +2,7 @@ import os
 
 from ...common.default_settings import SETTINGS
 from ..step_build import stage_builder
+from .otutab import add_otutab_stages
 
 
 class DenoiseStage(stage_builder.StageBuilder):
@@ -16,6 +17,8 @@ class DenoiseStage(stage_builder.StageBuilder):
         out_suffix=".fasta",
         minsize=8,
         alpha=2,
+        otutab_id: float = 0.97,
+        otutab_strand: bool = True,
     ):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
@@ -26,6 +29,8 @@ class DenoiseStage(stage_builder.StageBuilder):
         self.denoise_report_suffix = SETTINGS["suffix"]["denoise_report"]
         self.report_suffix = SETTINGS["suffix"]["report"]
         self.parse_params(minsize, alpha)
+        self.otutab_id = otutab_id
+        self.otutab_strand = otutab_strand
 
     def parse_params(self, minsize, alpha):
         self.params = f"-minsize {minsize} -unoise_alpha {alpha}"
@@ -50,13 +55,22 @@ class DenoiseStage(stage_builder.StageBuilder):
         super().add_stage_output_to_file(
             "Write usearch report", 0, report, report
         )
+        add_otutab_stages(
+            self,
+            prefix,
+            self.infile,
+            denoise_outfile,
+            zotus=True,
+            identity=self.otutab_id,
+            strand=self.otutab_strand,
+        )
 
     def run(self):
         super().run()
         return all(self.output)
 
 
-def fq_to_fa_demo(config, prefix, derep_dir="", save_dir=""):
+def denoise_demo(config, prefix, derep_dir="", save_dir=""):
     stage = DenoiseStage(config, in_dir=derep_dir, out_dir=save_dir)
     stage.setup(prefix)
     is_complete = stage.run()

@@ -112,7 +112,7 @@ def main():
                 },
             },
         ],
-        "Dereplicate Settings": [
+        "Dereplicate Setting": [
             {
                 "args": ["--strand"],
                 "kwargs": {
@@ -122,7 +122,7 @@ def main():
                 },
             },
         ],
-        "Denoising Settings": [
+        "Denoise Settings": [
             {
                 "args": ["--minsize"],
                 "kwargs": {
@@ -137,6 +137,108 @@ def main():
                     "type": int,
                     "default": SETTINGS["denoise"]["alpha"],
                     "help": "Denoising sensitivity parameter (default: %(default)s).",
+                },
+            },
+        ],
+        "Cluster Setting": [
+            {
+                "args": ["--cluster-minsize"],
+                "kwargs": {
+                    "type": int,
+                    "default": SETTINGS["cluster"]["cluster_minsize"],
+                    "help": "Minimum abundance of unique sequences to retain before UPARSE OTU clustering; used by the cluster stage, an alternative to denoise (default: %(default)s).",
+                },
+            },
+        ],
+        "Cluster (ONT) Settings": [
+            {
+                "args": ["--cluster-id"],
+                "kwargs": {
+                    "type": float,
+                    "default": SETTINGS["cluster_ont"]["cluster_id"],
+                    "help": "Identity for the initial vsearch clustering of raw ONT reads in the cluster_ont stage (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--min-cluster-size"],
+                "kwargs": {
+                    "type": int,
+                    "default": SETTINGS["cluster_ont"]["min_cluster_size"],
+                    "help": "Minimum reads in a cluster for it to be polished (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--max-reads"],
+                "kwargs": {
+                    "type": int,
+                    "default": SETTINGS["cluster_ont"]["max_reads"],
+                    "help": "Maximum reads per cluster used for polishing (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--racon-rounds"],
+                "kwargs": {
+                    "type": int,
+                    "default": SETTINGS["cluster_ont"]["racon_rounds"],
+                    "help": "Rounds of minimap2 + racon polishing (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--medaka"],
+                "kwargs": {
+                    "action": argparse.BooleanOptionalAction,
+                    "default": SETTINGS["cluster_ont"]["medaka"],
+                    "help": "Polish with medaka after racon (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--medaka-model"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["cluster_ont"]["medaka_model"],
+                    "help": "Medaka model matching the basecaller, e.g. r1041_e82_400bps_sup_v5.0.0 (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--consensus-id"],
+                "kwargs": {
+                    "type": float,
+                    "default": SETTINGS["cluster_ont"]["consensus_id"],
+                    "help": "Identity at which polished consensus sequences are merged into one OTU (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--cluster-strand"],
+                "kwargs": {
+                    "action": argparse.BooleanOptionalAction,
+                    "default": SETTINGS["cluster_ont"]["cluster_strand"],
+                    "help": "Cluster reads and merge consensus sequences on both strands in the cluster_ont stage; the abundance table uses --otutab-strand (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--keep-tmp"],
+                "kwargs": {
+                    "action": argparse.BooleanOptionalAction,
+                    "default": SETTINGS["cluster_ont"]["keep_tmp"],
+                    "help": "Keep per-cluster intermediate files (default: %(default)s).",
+                },
+            },
+        ],
+        "OTU Table Settings": [
+            {
+                "args": ["--otutab-id"],
+                "kwargs": {
+                    "type": float,
+                    "default": SETTINGS["otutab"]["otutab_id"],
+                    "help": "Minimum fractional identity for mapping sequences to OTUs/ZOTUs when building the abundance table (default: 0.97 for denoise and cluster, 0.90 for cluster_ont).",
+                },
+            },
+            {
+                "args": ["--otutab-strand"],
+                "kwargs": {
+                    "action": argparse.BooleanOptionalAction,
+                    "default": SETTINGS["otutab"]["otutab_strand"],
+                    "help": "Search both strands when mapping sequences to OTUs/ZOTUs for the abundance table in the denoise, cluster and cluster_ont stages (default: %(default)s).",
                 },
             },
         ],
@@ -234,13 +336,13 @@ def main():
                 },
             },
         ],
-        "Add Haplotype Settings": [
+        "Add Haplotype Setting": [
             {
-                "args": ["--denoise-dir"],
+                "args": ["--otu-dir"],
                 "kwargs": {
                     "type": str,
-                    "default": SETTINGS["addhap"]["denoise_dir"],
-                    "help": "Path to the denoised sequences directory used by addhap (default: pipeline denoise output directory).",
+                    "default": SETTINGS["addhap"]["otu_dir"],
+                    "help": "Directory with the OTU/ZOTU FASTA and OTU table used by addhap (default: output directory of the enabled denoise, cluster or cluster_ont stage).",
                 },
             },
         ],
@@ -250,7 +352,7 @@ def main():
                 "kwargs": {
                     "type": str,
                     "default": SETTINGS["prog"]["usearch"],
-                    "help": "Command to execute USEARCH for merge, dereplicate, and denoise stages (default: %(default)s).",
+                    "help": "Command to execute USEARCH for merge, dereplicate, denoise, and cluster stages, and the OTU table of cluster_ont (default: %(default)s).",
                 },
             },
             {
@@ -267,6 +369,38 @@ def main():
                     "type": str,
                     "default": SETTINGS["prog"]["blast"],
                     "help": "Command to execute BLAST for blast stage (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--vsearch-prog"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["prog"]["vsearch"],
+                    "help": "Command to execute VSEARCH for cluster_ont stage (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--minimap2-prog"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["prog"]["minimap2"],
+                    "help": "Command to execute minimap2 for cluster_ont stage (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--racon-prog"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["prog"]["racon"],
+                    "help": "Command to execute Racon for cluster_ont stage (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--medaka-prog"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["prog"]["medaka"],
+                    "help": "Command to execute medaka_consensus for cluster_ont stage (default: %(default)s).",
                 },
             },
         ],

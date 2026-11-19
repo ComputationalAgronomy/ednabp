@@ -16,6 +16,7 @@ from .step_exec import (
     fqtofa,
     lca,
     merge,
+    pool,
     qfilter,
 )
 
@@ -29,6 +30,7 @@ STAGE_INPUT_SUFFIX = {
     "denoise": ".fasta",
     "cluster": ".fasta",
     "cluster_ont": ".fasta",
+    "pool": ".fasta",
     "blast": ".fasta",
     "addlineage": ".csv",
     "lca": ".csv",
@@ -52,6 +54,7 @@ class BioPipeline:
         :param enabled_stages (list[str]): The process stages to be executed. The execution order will match the list order; each stage runs for all samples before the next one. Default:
          ["decompress", "merge", "cutprimer", "qfilter", "dereplicate", "denoise", "blast", "addlineage", "lca", "addhap"].
          "fqtofa" converts FASTQ to FASTA without filtering and can replace "qfilter".
+         Add "pool" to pool all samples into one: after "dereplicate" to generate OTUs from all samples' sequences together, or after "denoise"/"cluster"/"cluster_ont" to pool the samples' OTUs. The stages after "pool" run once, on the pooled sample.
         :param settings: Additional optional arguments to configure pipeline stages and runtime behavior. These include:
           Input File Suffix:
             - raw_suffix (str): File suffix for raw input sequences. Default: auto-detected from the starting stage.
@@ -59,13 +62,15 @@ class BioPipeline:
           Merge Settings:
             - maxdiff (int): Maximum number of mismatches in the alignment. Default: 5.
             - pctid (int): Minimum %id of alignment. Default: 90.
+            - min_merged_read_len (int): Discard merged reads shorter than this (-fastq_minmergelen). Default: None (no limit).
+            - max_merged_read_len (int): Discard merged reads longer than this (-fastq_maxmergelen). Default: None (no limit).
 
           Cut Primer Settings:
             - rm_p_5 (str): Non-internal 5’ primer. Default: "GTCGGTAAAACTCGTGCCAGC" (MiFish-UF).
             - rm_p_3 (str): Non-internal 3’ primer. Default: "CAAACTGGGATTAGATACCCCACTATG" (reverse-complement MiFish-UR).
             - error_rate (float): The maximum rate of error could be tolerated. The actual error rate is computed as the number of errors in the match divided by the length of the matching part of the primer. Default: 0.15.
-            - min_read_len (int): Discard processed reads that are shorter than this parameter. Default: 204.
-            - max_read_len (int): Discard processed reads that are longer than this parameter. Default: 254.
+            - min_trimmed_read_len (int): Discard primer-trimmed reads shorter than this (written to cutprimer/discarded/<prefix>_too_short.fastq). Default: None (no limit; only empty reads are dropped).
+            - max_trimmed_read_len (int): Discard primer-trimmed reads longer than this (written to cutprimer/discarded/<prefix>_too_long.fastq). Default: None (no limit).
             - revcomp (bool): If True, also search the reverse complement of each read for primer matches and output reads in the orientation where the primer was found. Default: True.
 
           Quality Filter Settings:
@@ -94,6 +99,9 @@ class BioPipeline:
             - cluster_strand (bool): If True, cluster reads and merge consensuses on both strands. Default: False (reads are oriented by cutprimer).
             - keep_tmp (bool): If True, keep per-cluster intermediate files. Default: False.
 
+          Pool Setting:
+            - pool_name (str): Name of the pooled sample written by the pool stage (<pool_name>.fasta, <pool_name>_otu_table.txt). Default: "_pooled".
+
           OTU Table Settings:
             - otutab_id (float): Minimum fractional identity for mapping sequences to OTUs/ZOTUs. Default: None (0.97 for denoise and cluster, 0.90 for cluster_ont, whose raw reads carry more errors).
             - otutab_strand (bool): If True, search both strands when mapping (-strand both). If False, only the plus strand is searched. Default: True.
@@ -104,8 +112,10 @@ class BioPipeline:
             - perc_identity (int): Minimum percentage identity required for taxonomic assignment. Default: 90.
             - maxhitnum (int): Maximum number of hits to keep per query sequence. Default: 20.
             - specifiers (str): Output format specifiers for BLAST results. Default:
-              "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore".
+              "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs staxids".
             - blast_db (str): Path to the taxonomic database. Default: 'nt'.
+            - task (str): BLAST search task: "megablast", "dc-megablast", "blastn" or "blastn-short". Default: "megablast".
+            - taxids (str): Comma-separated NCBI taxids to limit a local BLAST search to (blastn -taxids), including their child taxa, e.g. "2759" for eukaryotes. Needs taxonomy4blast.sqlite3 next to the database; ignored for a remote search. Default: None (all taxa).
 
           Add lineage Settings:
             - lineage_db (str): Path to the taxonomic lineage file. Default: 'nucleotide'.
@@ -117,7 +127,7 @@ class BioPipeline:
             - qseqid_column (str): Column used to group hits by query sequence. Default: 'qseqid'.
 
           Add Haplotype Setting:
-            - otu_dir (str): Path to the directory containing the OTU/ZOTU FASTA (<prefix>.fasta) and OTU table (<prefix>_otu_table.txt) used by addhap. Default: the output directory of the enabled denoise, cluster or cluster_ont stage (denoise if none is enabled).
+            - otu_dir (str): Path to the directory containing the OTU/ZOTU FASTA (<prefix>.fasta) and OTU table (<prefix>_otu_table.txt) used by addhap. Default: the directory the blast stage reads from (else the last enabled denoise, cluster, cluster_ont or pool stage, else the input directory).
 
           External Program Setting:
             - usearch_prog (str): Command to execute USEARCH for merge, qfilter, dereplicate, denoise, and cluster stages, and the OTU table of cluster_ont. Default: "usearch".
@@ -126,15 +136,14 @@ class BioPipeline:
             - vsearch_prog, minimap2_prog, racon_prog, medaka_prog (str): Commands for the cluster_ont stage. Defaults: "vsearch", "minimap2", "racon", "medaka_consensus".
 
           Configuration Settings:
-            - verbose (bool): Whether to enable verbose logging. Default: True.
-            - dry (bool): If True, perform a dry run without executing commands. Default: False.
+            - verbose (bool): Whether to enable verbose logging. Default: False.
+            - dry (bool): If True, log every command ("DRY RUN: ...") without running it or writing output files; all stages are still set up for all samples. Default: False.
             - logger (Logger): Logger object for pipeline logging. Default: base_logger.logger.
             - n_cpu (int): Number of CPU cores to be used for processing. Default: 1.
             - memory (int): Maximum memory (in GB) allowed for processing. Default: 8.
         """
-        assert os.path.exists(input_path), (
-            f"Error: input path does not exist: {input_path}"
-        )
+        if not os.path.exists(input_path):
+            raise FileNotFoundError(f"input path does not exist: {input_path}")
         os.makedirs(output_path, exist_ok=True)
         input_is_dir = True if os.path.isdir(input_path) else False
 
@@ -169,6 +178,7 @@ class BioPipeline:
             "denoise": denoise.DenoiseStage,
             "cluster": cluster.ClusterStage,
             "cluster_ont": cluster_ont.ClusterOntStage,
+            "pool": pool.PoolStage,
             "blast": blast.BlastStage,
             "addlineage": addlineage.AddLineageStage,
             "lca": lca.LcaStage,
@@ -206,6 +216,9 @@ class BioPipeline:
         }
         self.cluster_ont_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["cluster_ont"].items()
+        }
+        self.pool_settings = {
+            k: settings.get(k, v) for k, v in SETTINGS["pool"].items()
         }
         self.otutab_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["otutab"].items()
@@ -304,6 +317,7 @@ class BioPipeline:
                 "denoise",
                 "cluster",
                 "cluster_ont",
+                "pool",
             ]:
                 stage_args["usearch_prog"] = self.prog_settings["usearch"]
             elif stage == "cutprimer":
@@ -313,8 +327,7 @@ class BioPipeline:
 
             if stage == "addhap":
                 stage_args["otu_dir"] = (
-                    self.addhap_settings["otu_dir"]
-                    or self.stage_dir[self.otu_stage()]
+                    self.addhap_settings["otu_dir"] or self.get_otu_dir()
                 )
 
             if stage in [
@@ -327,6 +340,7 @@ class BioPipeline:
                 "addlineage",
                 "lca",
                 "cluster_ont",
+                "pool",
             ]:
                 stage_args.update(eval(f"self.{stage}_settings"))
             if stage == "cluster":
@@ -356,26 +370,54 @@ class BioPipeline:
             curr_dir = self.stage_dir[stage]
             curr_suffix = self.stage_suffix[stage]
 
-    def otu_stage(self):
+    def get_otu_dir(self):
+        if "blast" in self.stage_in_dir:
+            return self.stage_in_dir["blast"]
         otu_stages = [
             s
-            for s in self.enabled_stages
-            if s in ["denoise", "cluster", "cluster_ont"]
+            for s in self.stage_in_dir
+            if s in ["denoise", "cluster", "cluster_ont", "pool"]
         ]
-        return otu_stages[-1] if otu_stages else "denoise"
+        return (
+            self.stage_dir[otu_stages[-1]] if otu_stages else self.indir_path
+        )
 
-    def run_one_file(self, prefix):
-        base_logger.logger.info(f"Sample ID: {prefix}")
-        for k, s in self.stages.items():
-            s.setup(prefix)
-            is_complete = s.run()
-            if not is_complete:
-                self.config.logger.error(
-                    f"Error: process errors at stage: {k}\n"
+    def run_stages(self, prefixes):
+        for name, stage in self.stages.items():
+            if not prefixes:
+                self.config.logger.warning(
+                    f"No samples left to run at stage: {name}"
                 )
-                break
-            if self.config.verbose:
-                print()
+                return
+            if getattr(stage, "pools_samples", False) is True:
+                done = stage.run_all(prefixes)
+                if self.config.verbose:
+                    print()
+                failed = [] if done else prefixes
+            else:
+                done = []
+                for prefix in prefixes:
+                    if self.run_stage(name, stage, prefix):
+                        done.append(prefix)
+                failed = [p for p in prefixes if p not in done]
+            for prefix in failed:
+                self.config.logger.error(
+                    f"Error: process errors at stage: {name} ({prefix})\n"
+                )
+            prefixes = done
+
+    def run_stage(self, name, stage, prefix):
+        base_logger.logger.info(f"Sample ID: {prefix}")
+        try:
+            stage.setup(prefix)
+        except (FileNotFoundError, ValueError) as e:
+            self.config.logger.error(f"FAIL: setup of stage {name}: {e}")
+            stage.runners = []
+            return False
+        is_complete = stage.run()
+        if self.config.verbose:
+            print()
+        return is_complete
 
     def run_stages_files(self):
         suffix = self.stage_suffix["raw"]
@@ -395,14 +437,13 @@ class BioPipeline:
             )
             return
 
-        for prefix in prefixes:
-            self.run_one_file(prefix)
+        self.run_stages(prefixes)
 
     def run_stages_one_file(self, input_path):
         prefix = os.path.basename(input_path).replace(
             self.stage_suffix["raw"], ""
         )
-        self.run_one_file(prefix)
+        self.run_stages([prefix])
 
     def close_file_handler(self):
         base_logger.close_file_handler(self.config.logger)

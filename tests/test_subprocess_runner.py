@@ -85,8 +85,11 @@ class TestSubprocessRunner:
 
         result = runner.run()
 
-        assert result is None
-        dry_config.logger.info.assert_called_with("Program: test_subprocess.")
+        # Counted as done, so later steps are set up too; the command is
+        # shown instead of run
+        assert result is True
+        assert runner.capture_output is None
+        dry_config.logger.info.assert_called_with("DRY RUN: echo test")
 
     @patch("subprocess.run")
     def test_run_called_process_error(
@@ -289,7 +292,7 @@ class TestRedirectOutputRunner:
 
         result = runner.run()
 
-        assert result is None
+        assert result is True
         dry_config.logger.info.assert_called_with(
             "RedirectOutput: test_redirect."
         )
@@ -359,7 +362,23 @@ class TestRedirectOutputRunner:
         assert result is False
         mock_config.logger.error.assert_called()
         error_call = mock_config.logger.error.call_args[0][0]
-        assert "FAIL: test_redirect. Error:" in error_call
+        assert "FAIL: test_redirect. No output to write" in error_call
+        assert not os.path.exists(stdout_file) or not open(stdout_file).read()
+
+    def test_failed_command_output_is_written(self, mock_config, tmp_files):
+        """A failing command keeps its output, so the report shows why."""
+        stdout_file, stderr_file = tmp_files
+        command = SubprocessRunner(
+            "fail", "ls /no_such_dir_for_ednabp_test", mock_config
+        )
+        assert command.run() is False
+
+        report = RedirectOutputRunner(
+            "report", command, stdout_file, stderr_file, mock_config
+        )
+        assert report.run() is True
+        with open(stderr_file) as f:
+            assert "no_such_dir_for_ednabp_test" in f.read()
 
     def test_file_creation(self, mock_config, mock_subprocess_runner):
         with tempfile.TemporaryDirectory() as temp_dir:

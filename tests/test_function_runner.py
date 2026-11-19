@@ -54,7 +54,7 @@ class TestFunctionRunner:
         runner = FunctionRunner("dry_function", test_function, dry_config)
         result = runner.run()
 
-        assert result is None
+        assert result is True
         assert execution_tracker == []
         dry_config.logger.info.assert_called_with("Program: dry_function.")
 

@@ -67,7 +67,9 @@ class TestBioPipeline:
         _in_dir, out_dir = tmp_dirs
         nonexistent_path = "/nonexistent/path"
 
-        with pytest.raises(AssertionError, match="input path does not exist"):
+        with pytest.raises(
+            FileNotFoundError, match="input path does not exist"
+        ):
             BioPipeline(nonexistent_path, out_dir)
 
     def test_add_default_settings(self, tmp_dirs):
@@ -398,7 +400,7 @@ class TestBioPipeline:
 
             pipeline.stages = {"stage1": mock_stage1, "stage2": mock_stage2}
 
-            pipeline.run_one_file("test_prefix")
+            pipeline.run_stages(["test_prefix"])
 
             mock_stage1.setup.assert_called_once_with("test_prefix")
             mock_stage1.run.assert_called_once()
@@ -437,7 +439,7 @@ class TestBioPipeline:
                 "stage3": mock_stage3,
             }
 
-            pipeline.run_one_file("test_prefix")
+            pipeline.run_stages(["test_prefix"])
 
             mock_stage1.run.assert_called_once()
             mock_stage2.run.assert_called_once()
@@ -451,7 +453,7 @@ class TestBioPipeline:
         with (
             patch.object(BioPipeline, "add_config", mock_add_config),
             patch.object(BioPipeline, "setup_stages"),
-            patch.object(BioPipeline, "run_one_file") as mock_run_one_file,
+            patch.object(BioPipeline, "run_stages") as mock_run_stages,
             patch.object(BioPipeline, "close_file_handler"),
         ):
             _pipeline = BioPipeline(
@@ -461,11 +463,8 @@ class TestBioPipeline:
                 dry=True,
             )
 
-            expected_samples = {"sample001", "sample002"}
-
-            actual_calls = mock_run_one_file.call_args_list[:2]
-            actual_samples = {call[0][0] for call in actual_calls}
-            assert actual_samples == expected_samples
+            # All samples go to the stages together, in sorted order
+            mock_run_stages.assert_called_once_with(["sample001", "sample002"])
 
     def test_run_stages_one_file(self, tmp_dirs):
         in_dir, out_dir = tmp_dirs
@@ -477,7 +476,7 @@ class TestBioPipeline:
         with (
             patch.object(BioPipeline, "add_config", mock_add_config),
             patch.object(BioPipeline, "setup_stages"),
-            patch.object(BioPipeline, "run_one_file") as mock_run_one_file,
+            patch.object(BioPipeline, "run_stages") as mock_run_stages,
             patch.object(BioPipeline, "close_file_handler"),
         ):
             _pipeline = BioPipeline(
@@ -487,9 +486,7 @@ class TestBioPipeline:
                 dry=True,
             )
 
-            mock_run_one_file.assert_called_once()
-            call_args = mock_run_one_file.call_args[0]
-            assert call_args[0] == "single_sample"
+            mock_run_stages.assert_called_once_with(["single_sample"])
 
     def test_stage_parameter_passing(self, tmp_dirs):
         in_dir, out_dir = tmp_dirs
@@ -677,10 +674,12 @@ class TestBioPipeline:
             (["denoise", "blast", "addhap"], "denoise"),
             (["cluster", "blast", "addhap"], "cluster"),
             (["cluster_ont", "blast", "addhap"], "cluster_ont"),
-            (["blast", "addhap"], "denoise"),
+            (["blast", "addhap"], None),
         ],
     )
     def test_addhap_reads_enabled_otu_stage(self, tmp_dirs, stages, expected):
+        """Without an OTU stage, a run starting at blast reads the OTU
+        files from its input directory (expected=None)."""
         in_dir, out_dir = tmp_dirs
 
         with open(os.path.join(in_dir, "test.fasta"), "w") as f:
@@ -694,9 +693,10 @@ class TestBioPipeline:
         ):
             BioPipeline(in_dir, out_dir, enabled_stages=stages)
 
-            assert mock_addhap.call_args[1]["otu_dir"] == os.path.join(
-                out_dir, expected
+            expected_dir = (
+                in_dir if expected is None else os.path.join(out_dir, expected)
             )
+            assert mock_addhap.call_args[1]["otu_dir"] == expected_dir
 
     def test_stage_directory_creation(self, tmp_dirs):
         in_dir, out_dir = tmp_dirs
@@ -739,7 +739,7 @@ class TestBioPipeline:
             patch.object(BioPipeline, "add_config", mock_add_config),
             patch("ednabp.bp.step_exec.merge.MergeStage") as mock_merge,
         ):
-            pipeline = BioPipeline(
+            BioPipeline(
                 in_dir,
                 out_dir,
                 enabled_stages=["merge"],
@@ -771,3 +771,199 @@ class TestBioPipeline:
                 BioPipeline(in_dir, new_out_dir, verbose=True, dry=True)
 
                 assert os.path.exists(new_out_dir)
+
+
+class FakeStage:
+    """Records setup calls; fails for the (stage, sample) pairs in `fail`."""
+
+    def __init__(self, name, calls, fail=()):
+        self.name, self.calls, self.fail = name, calls, fail
+        self.runners = []
+
+    def setup(self, prefix):
+        self.prefix = prefix
+        self.calls.append((self.name, prefix))
+
+    def run(self):
+        return (self.name, self.prefix) not in self.fail
+
+
+class FakePool(FakeStage):
+    pools_samples = True
+
+    def run_all(self, prefixes):
+        self.calls.append((self.name, tuple(prefixes)))
+        return ["_pooled"]
+
+
+class TestPooling:
+    def make_pipeline(self, tmp_dirs, **settings):
+        in_dir, out_dir = tmp_dirs
+        for name in ["B.fasta", "A.fasta", "A_otutab_query.fasta"]:
+            with open(os.path.join(in_dir, name), "w") as f:
+                f.write(">Uniq1;size=10;\nACGT\n")
+        with (
+            patch.object(BioPipeline, "run_stages_files"),
+            patch.object(BioPipeline, "close_file_handler"),
+            patch.object(BioPipeline, "add_config", mock_add_config),
+        ):
+            return BioPipeline(in_dir, out_dir, **settings)
+
+    def fake_stages(self, pipeline, fail=()):
+        calls = []
+        pipeline.stages = {
+            k: (FakePool if k == "pool" else FakeStage)(k, calls, fail)
+            for k in pipeline.stages
+        }
+        return calls
+
+    def test_stage_by_stage(self, tmp_dirs):
+        """Each stage runs for all samples before the next; OTU side files
+        in the input folder are not samples."""
+        pipeline = self.make_pipeline(
+            tmp_dirs, enabled_stages=["dereplicate", "denoise", "blast"]
+        )
+        calls = self.fake_stages(pipeline)
+
+        pipeline.run_stages_files()
+
+        assert calls == [
+            ("dereplicate", "A"),
+            ("dereplicate", "B"),
+            ("denoise", "A"),
+            ("denoise", "B"),
+            ("blast", "A"),
+            ("blast", "B"),
+        ]
+
+    @pytest.mark.parametrize(
+        "stages",
+        [
+            ["dereplicate", "pool", "denoise", "blast", "addhap"],
+            ["dereplicate", "denoise", "pool", "blast", "addhap"],
+        ],
+    )
+    def test_pool_before_or_after_denoise(self, tmp_dirs, stages):
+        pipeline = self.make_pipeline(tmp_dirs, enabled_stages=stages)
+        calls = self.fake_stages(pipeline)
+
+        pipeline.run_stages_files()
+
+        at = stages.index("pool")
+        before = [(s, p) for s in stages[:at] for p in ("A", "B")]
+        after = [(s, "_pooled") for s in stages[at + 1 :]]
+        assert calls == before + [("pool", ("A", "B"))] + after
+
+    def test_failed_sample_not_pooled(self, tmp_dirs):
+        pipeline = self.make_pipeline(
+            tmp_dirs,
+            enabled_stages=["dereplicate", "denoise", "pool", "blast"],
+        )
+        calls = self.fake_stages(pipeline, fail={("denoise", "B")})
+
+        pipeline.run_stages_files()
+
+        assert ("pool", ("A",)) in calls
+        assert ("blast", "_pooled") in calls
+        pipeline.config.logger.error.assert_called()
+
+    def test_setup_error_drops_sample(self, tmp_dirs):
+        pipeline = self.make_pipeline(
+            tmp_dirs, enabled_stages=["dereplicate", "denoise"]
+        )
+        calls = self.fake_stages(pipeline)
+
+        def missing(prefix):
+            calls.append(("dereplicate", prefix))
+            if prefix == "A":
+                raise FileNotFoundError("A.fasta not found")
+
+        pipeline.stages["dereplicate"].setup = missing
+        pipeline.stages["dereplicate"].prefix = "B"
+
+        pipeline.run_stages(["A", "B"])
+
+        assert ("denoise", "A") not in calls
+        assert ("denoise", "B") in calls
+
+    @pytest.mark.parametrize(
+        "stages, expected",
+        [
+            (["dereplicate", "pool", "denoise", "blast", "addhap"], "denoise"),
+            (["dereplicate", "denoise", "pool", "blast", "addhap"], "pool"),
+        ],
+    )
+    def test_addhap_reads_blast_input(self, tmp_dirs, stages, expected):
+        pipeline = self.make_pipeline(tmp_dirs, enabled_stages=stages)
+        _, out_dir = tmp_dirs
+        assert pipeline.stages["addhap"].otu_dir == os.path.join(
+            out_dir, expected
+        )
+
+    def test_pool_name_setting(self, tmp_dirs):
+        pipeline = self.make_pipeline(
+            tmp_dirs,
+            enabled_stages=["dereplicate", "pool", "denoise"],
+            pool_name="farm",
+        )
+        assert pipeline.stages["pool"].pool_name == "farm"
+        _, out_dir = tmp_dirs
+        assert pipeline.stages["denoise"].in_dir == os.path.join(
+            out_dir, "pool"
+        )
+
+
+def test_dry_run_sets_up_every_stage(tmp_dirs):
+    """A dry run writes no files, yet every stage is set up for every
+    sample and each command is logged instead of run."""
+    from unittest.mock import Mock
+
+    from ednabp.common.config import Config
+
+    in_dir, out_dir = tmp_dirs
+    for s in ["A", "B"]:
+        for r in ["R1", "R2"]:
+            with open(os.path.join(in_dir, f"{s}_{r}.fastq"), "w") as f:
+                f.write("@r\nACGT\n+\nIIII\n")
+    logger = Mock()
+
+    def add_config(self):
+        self.config = Config(logger=logger, verbose=True, dry=True)
+        self.config.add_machine_config(n_cpu=1, memory=1)
+
+    with (
+        patch.object(BioPipeline, "add_config", add_config),
+        patch.object(BioPipeline, "close_file_handler"),
+    ):
+        BioPipeline(
+            in_dir,
+            out_dir,
+            enabled_stages=[
+                "merge",
+                "cutprimer",
+                "qfilter",
+                "dereplicate",
+                "pool",
+                "denoise",
+                "blast",
+                "addlineage",
+                "lca",
+                "addhap",
+            ],
+            lineage_db=None,
+            dry=True,
+        )
+    logged = [c.args[0] for c in logger.info.call_args_list]
+    dry_runs = [m for m in logged if m.startswith("DRY RUN: ")]
+    assert not logger.error.called, logger.error.call_args_list
+    # one merge per sample, then the pool and the stages on the pool
+    assert sum("-fastq_mergepairs" in m for m in dry_runs) == 2
+    assert any("-unoise3" in m and "_pooled" in m for m in dry_runs)
+    assert any(m.startswith("DRY RUN: blastn") for m in dry_runs)
+    written = [
+        f
+        for _, _, files in os.walk(out_dir)
+        for f in files
+        if f != "stages.log"
+    ]
+    assert written == []

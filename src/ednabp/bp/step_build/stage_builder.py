@@ -77,6 +77,8 @@ class StageBuilder(ABC):
         self.runners.append(func_stage)
 
     def check_infile(self):
+        if self.config.dry:
+            return
         if not os.path.exists(self.infile):
             raise FileNotFoundError(f"{self.infile} not found")
 

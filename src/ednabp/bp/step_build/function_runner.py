@@ -16,13 +16,12 @@ class FunctionRunner(base_runner.Runner):
         if self.config.verbose:
             self.config.logger.info(self.message)
 
-        if not self.config.dry:
-            try:
-                self.capture_output = self.function()
-                self.config.logger.info(f"COMPLETE: {self.prog_name}.")
-                return True
-            except Exception as e:
-                self.config.logger.error(
-                    f"FAIL: {self.prog_name}. Exception: {e}"
-                )
-                return False
+        if self.config.dry:
+            return True
+        try:
+            self.capture_output = self.function()
+            self.config.logger.info(f"COMPLETE: {self.prog_name}.")
+            return True
+        except Exception as e:
+            self.config.logger.error(f"FAIL: {self.prog_name}. Exception: {e}")
+            return False

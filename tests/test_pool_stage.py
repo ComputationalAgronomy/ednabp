@@ -136,10 +136,7 @@ def test_pipeline_runs_pool_once_for_all_samples(tmp_dirs):
     in_dir, out_dir = tmp_dirs
     for name in ["A", "B"]:
         write(os.path.join(in_dir, f"{name}.fasta"), ">Uniq1;size=3;\nACGT\n")
-    with (
-        patch.object(BioPipeline, "run_stages_files"),
-        patch.object(BioPipeline, "close_file_handler"),
-    ):
+    with patch.object(BioPipeline, "run_stages_files"):
         pipeline = BioPipeline(
             in_dir, out_dir, enabled_stages=["pool", "denoise"]
         )

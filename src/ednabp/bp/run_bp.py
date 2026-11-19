@@ -112,8 +112,10 @@ class BioPipeline:
             - perc_identity (int): Minimum percentage identity required for taxonomic assignment. Default: 90.
             - maxhitnum (int): Maximum number of hits to keep per query sequence. Default: 20.
             - specifiers (str): Output format specifiers for BLAST results. Default:
-              "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore".
+              "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs staxids".
             - blast_db (str): Path to the taxonomic database. Default: 'nt'.
+            - task (str): BLAST search task: "megablast", "dc-megablast", "blastn" or "blastn-short". Default: "megablast".
+            - taxids (str): Comma-separated NCBI taxids to limit a local BLAST search to (blastn -taxids), including their child taxa, e.g. "2759" for eukaryotes. Needs taxonomy4blast.sqlite3 next to the database; ignored for a remote search. Default: None (all taxa).
 
           Add lineage Settings:
             - lineage_db (str): Path to the taxonomic lineage file. Default: 'nucleotide'.

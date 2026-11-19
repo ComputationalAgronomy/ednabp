@@ -9,7 +9,7 @@ authors = [
   { name="Shan-En Chen", email="shawn.for.office@gmail.com" },
   { name="Steven Wu", email="stevenwu@ntu.edu.tw" },
 ]
-description = "Analysis metagenomic data from the ocean"
+description = "Processing and analysis pipeline for eDNA metabarcoding data"
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
@@ -22,7 +22,7 @@ dynamic = ["dependencies"]
 dependencies = {file = ["requirements.txt"]}
 
 [project.scripts]
-eDNAbp = "ednabp.cli.pipeline:main"
+ednabp = "ednabp.cli.pipeline:main"
 
 [project.urls]
 "Homepage" = "https://github.com/ComputationalAgronomy/ednabp.git"
@@ -30,7 +30,7 @@ eDNAbp = "ednabp.cli.pipeline:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]  # ["."] by default
-include = ["*"]  # ["*"] by defaultgit 
+include = ["*"]  # ["*"] by default
 ## cause it trigger error, i disable it before i fixed it.
 ## Getting requirements to build editable ... error ...
 # addopts = [
@@ -42,7 +42,7 @@ per-file-ignores = "tests/*: E501"  # E501 line too long
 
 [tool.ruff]
 line-length = 79
-target-version = "py311"
+target-version = "py310"
 extend-include = ["*.ipynb"]
 
 [tool.ruff.lint]

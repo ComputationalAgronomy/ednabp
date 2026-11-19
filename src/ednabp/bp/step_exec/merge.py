@@ -16,7 +16,18 @@ class MergeStage(stage_builder.StageBuilder):
         out_suffix=".fastq",
         maxdiff=5,
         pctid=90,
+        min_merged_read_len: int | None = None,
+        max_merged_read_len: int | None = None,
     ):
+        if (
+            min_merged_read_len is not None
+            and max_merged_read_len is not None
+            and min_merged_read_len > max_merged_read_len
+        ):
+            raise ValueError(
+                f"min_merged_read_len ({min_merged_read_len}) is larger than"
+                f" max_merged_read_len ({max_merged_read_len})."
+            )
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
         )
@@ -24,10 +35,17 @@ class MergeStage(stage_builder.StageBuilder):
         self.in_suffix = in_suffix
         self.out_suffix = out_suffix
         self.report_suffix = SETTINGS["suffix"]["report"]
-        self.parse_params(maxdiff, pctid)
+        self.parse_params(
+            maxdiff, pctid, min_merged_read_len, max_merged_read_len
+        )
 
-    def parse_params(self, maxdiff, pctid):
-        self.params = f"-fastq_maxdiffs {maxdiff} -fastq_pctid {pctid} -threads {self.config.n_cpu}"
+    def parse_params(self, maxdiff, pctid, min_len=None, max_len=None):
+        self.params = f"-fastq_maxdiffs {maxdiff} -fastq_pctid {pctid}"
+        if min_len is not None:
+            self.params += f" -fastq_minmergelen {min_len}"
+        if max_len is not None:
+            self.params += f" -fastq_maxmergelen {max_len}"
+        self.params += f" -threads {self.config.n_cpu}"
 
     def setup(self, prefix):
         self.infile = os.path.join(self.in_dir, f"{prefix}{self.in_suffix}")

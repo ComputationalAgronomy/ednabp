@@ -70,3 +70,30 @@ class TestMergeStage:
 
         assert runner.command == expected_command
         assert runner.prog_name == "Merge paired-end sequences"
+
+
+def test_merged_length_range(mock_config, tmp_dirs):
+    in_dir, out_dir = tmp_dirs
+    stage = MergeStage(
+        config=mock_config,
+        in_dir=in_dir,
+        out_dir=out_dir,
+        min_merged_read_len=160,
+        max_merged_read_len=240,
+    )
+    assert stage.params == (
+        "-fastq_maxdiffs 5 -fastq_pctid 90"
+        " -fastq_minmergelen 160 -fastq_maxmergelen 240 -threads 4"
+    )
+
+
+def test_merged_min_above_max(mock_config, tmp_dirs):
+    in_dir, out_dir = tmp_dirs
+    with pytest.raises(ValueError, match="larger than"):
+        MergeStage(
+            config=mock_config,
+            in_dir=in_dir,
+            out_dir=out_dir,
+            min_merged_read_len=300,
+            max_merged_read_len=200,
+        )

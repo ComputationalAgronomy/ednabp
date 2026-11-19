@@ -54,9 +54,9 @@ If you will run the `seq` module, ensure the following external tools are instal
 Core processing pipeline with the following stages:
 
 - **Decompress**: Extract compressed FASTQ files
-- **Merge**: Combine paired-end reads
-- **Cut Primer**: Remove primer sequences and length filtering
-- **FASTQ to FASTA**: Format conversion
+- **Merge**: Combine paired-end reads, with optional length filtering
+- **Cut Primer**: Remove primer sequences, with optional length filtering
+- **Quality Filter**: Discard low-quality reads (expected error rate) and convert FASTQ to FASTA
 - **Dereplicate**: Remove duplicate sequences
 - **Denoise**: Error correction
 - **BLAST**: Taxonomic classification against a reference database
@@ -113,10 +113,14 @@ output_path/
 ├── merge/                   # Merged paired-end reads (or copies for single-end)
 │   ├── sample1.fastq
 │   └── ...
-├── cutprimer/               # Primer-trimmed and length-filtered sequences
+├── cutprimer/               # Primer-trimmed (and optionally length-filtered) sequences
 │   ├── sample1.fastq
+│   ├── discarded/           # Reads cutadapt discarded
+│   │   ├── sample1_untrimmed.fastq   # No primer found
+│   │   ├── sample1_too_short.fastq   # Only with min_trimmed_read_len
+│   │   └── sample1_too_long.fastq    # Only with max_trimmed_read_len
 │   └── ...
-├── fqtofa/                  # Converted to FASTA format
+├── qfilter/                 # Quality-filtered reads in FASTA format
 │   ├── sample1.fasta
 │   └── ...
 ├── dereplicate/             # Deduplicated sequences
@@ -147,9 +151,9 @@ pipeline = BioPipeline(
 
 The pipeline automatically:
 1. Decompresses `.fastq.gz` files
-2. Merges paired-end reads (R1 + R2)
-3. Removes primer sequences and filters by read length
-4. Converts FASTQ to FASTA format
+2. Merges paired-end reads (R1 + R2), optionally within a length range
+3. Removes primer sequences, optionally keeping reads within a length range
+4. Discards low-quality reads (expected error rate worse than Q20 by default) and converts FASTQ to FASTA
 5. Removes duplicate sequences
 6. Performs error correction (denoising)
 7. Assigns taxonomy using BLAST (top 20 hits per query by default)
@@ -166,8 +170,10 @@ custom_settings = {
     "rm_p_3": "ACTTTAGGGATAACAGCGT",
     
     # Length filtering parameters
-    "min_read_len": 154,
-    "max_read_len": 189,
+    "min_merged_read_len": 160,
+    "max_merged_read_len": 240,
+    "min_trimmed_read_len": 154,
+    "max_trimmed_read_len": 189,
     
     # Blast settings
     "blast_db": "/path/to/custom/blast/db",
@@ -196,7 +202,7 @@ You can start the pipeline at any stage by specifying `enabled_stages`:
 ```python
 # Start from merge stage (skip decompress)
 settings = {
-    "enabled_stages": ["merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "blast", "addlineage", "lca", "addhap"],
+    "enabled_stages": ["merge", "cutprimer", "qfilter", "dereplicate", "denoise", "blast", "addlineage", "lca", "addhap"],
 }
 pipeline = BioPipeline(
     input_path="/path/to/files_with_R1_R2_fastq",  # decompressed FASTQ files
@@ -204,9 +210,9 @@ pipeline = BioPipeline(
     **settings
 )
 
-# Start from fqtofa stage (skip decompress and merge)
+# Start from qfilter stage (skip decompress, merge and cutprimer)
 settings = {
-    "enabled_stages": ["fqtofa", "dereplicate", "denoise", "blast", "addlineage", "lca", "addhap"],
+    "enabled_stages": ["qfilter", "dereplicate", "denoise", "blast", "addlineage", "lca", "addhap"],
 }
 pipeline = BioPipeline(
     input_path="/path/to/files_with_merged_trimmed_fastq",

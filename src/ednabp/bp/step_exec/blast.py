@@ -21,8 +21,12 @@ class BlastStage(stage_builder.StageBuilder):
         qcov_hsp_perc: int = 90,
         perc_identity: int = 90,
         outfmt: str = "10",
-        specifiers: str = "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
+        specifiers: str = "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs staxids",
         blast_db: str | Literal["nt"] = "nt",
+        task: Literal[
+            "megablast", "dc-megablast", "blastn", "blastn-short"
+        ] = "megablast",
+        taxids: str | None = None,
     ):
         super().__init__(
             heading=heading, config=config, in_dir=in_dir, out_dir=out_dir
@@ -39,6 +43,8 @@ class BlastStage(stage_builder.StageBuilder):
             perc_identity,
             outfmt,
             blast_db,
+            task,
+            taxids,
         )
 
     def parse_params(
@@ -49,18 +55,29 @@ class BlastStage(stage_builder.StageBuilder):
         perc_identity,
         outfmt,
         blast_db,
+        task="megablast",
+        taxids=None,
     ):
-        if blast_db == "nt":
+        self.remote = blast_db == "nt"
+        if self.remote:
             blast_db = "nt -remote"
         self.params = (
-            f"-max_target_seqs {maxhitnum}"
+            f"-task {task}"
+            f" -max_target_seqs {maxhitnum}"
             f" -evalue {evalue}"
             f" -qcov_hsp_perc {qcov_hsp_perc}"
             f" -perc_identity {perc_identity}"
             f' -outfmt "{outfmt} {self.specifiers}"'
             f" -db {blast_db}"
         )
-        if "remote" not in self.params:
+        if taxids:
+            if self.remote:
+                self.config.logger.warning(
+                    "taxids is ignored for a remote BLAST search."
+                )
+            else:
+                self.params += f" -taxids {taxids}"
+        if not self.remote:
             self.params += f" -num_threads {self.config.n_cpu}"
 
     def setup(self, prefix):
@@ -84,6 +101,7 @@ class BlastStage(stage_builder.StageBuilder):
             try:
                 blast_result = pd.read_csv(self.blast_outfile, header=None)
                 blast_result.columns = self.specifiers.split(" ")
+                blast_result = blast_result.drop_duplicates()
                 blast_result.to_csv(self.blast_outfile, index=False)
             except pd.errors.EmptyDataError:
                 self.config.logger.warning(

@@ -505,6 +505,7 @@ class TestBioPipeline:
             "alpha": 3,
             "evalue": 1e-10,
             "blast_db": "/custom/db/path",
+            "task": "dc-megablast",
             "usearch_prog": "custom_usearch",
             "cutadapt_prog": "custom_cutadapt",
             "blast_prog": "custom_blastn",
@@ -548,6 +549,7 @@ class TestBioPipeline:
             assigntaxa_call_kwargs = mock_assigntaxa.call_args[1]
             assert assigntaxa_call_kwargs["evalue"] == 1e-10
             assert assigntaxa_call_kwargs["blast_db"] == "/custom/db/path"
+            assert assigntaxa_call_kwargs["task"] == "dc-megablast"
             assert assigntaxa_call_kwargs["blast_prog"] == "custom_blastn"
 
     def test_cluster_stage_parameter_passing(self, tmp_dirs):

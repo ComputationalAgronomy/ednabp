@@ -6,6 +6,7 @@ import pytest
 
 from ednabp.bp.run_bp import BioPipeline
 from ednabp.common.config import Config
+from ednabp.common.default_settings import SETTINGS
 
 
 def mock_add_config(self):
@@ -313,6 +314,38 @@ class TestBioPipeline:
 
             expected_fqtofa_suffix = ".fasta"
             assert pipeline.stage_suffix["fqtofa"] == expected_fqtofa_suffix
+
+    def test_default_stages_use_qfilter(self):
+        stages = SETTINGS["enabled_stages"]
+        assert "qfilter" in stages and "fqtofa" not in stages
+        assert stages.index("cutprimer") < stages.index("qfilter")
+        assert stages.index("qfilter") < stages.index("dereplicate")
+
+    def test_setup_stages_qfilter(self, tmp_dirs):
+        in_dir, out_dir = tmp_dirs
+        with open(os.path.join(in_dir, "test.fq"), "w") as f:
+            f.write("test")
+
+        with (
+            patch.object(BioPipeline, "run_stages_files"),
+            patch.object(BioPipeline, "add_config", mock_add_config),
+        ):
+            pipeline = BioPipeline(
+                in_dir,
+                out_dir,
+                enabled_stages=["qfilter", "dereplicate"],
+                raw_suffix=".fq",
+                min_qscore=30,
+                max_qscore=50,
+                usearch_prog="usearch12",
+            )
+
+        stage = pipeline.stages["qfilter"]
+        assert pipeline.stage_suffix["qfilter"] == ".fasta"
+        assert stage.in_suffix == ".fq" and stage.out_suffix == ".fasta"
+        assert stage.params == "-fastq_maxee_rate 0.001 -fastq_qmax 50"
+        assert stage.usearch_prog == "usearch12"
+        assert pipeline.stages["dereplicate"].in_suffix == ".fasta"
 
     def test_setup_stages_fqtofa_invalid_suffix(self, tmp_dirs):
         in_dir, out_dir = tmp_dirs

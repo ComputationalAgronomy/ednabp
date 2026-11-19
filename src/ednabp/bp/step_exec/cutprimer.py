@@ -17,8 +17,8 @@ class CutPrimerStage(stage_builder.StageBuilder):
         rm_p_5="GTCGGTAAAACTCGTGCCAGC",
         rm_p_3="CAAACTGGGATTAGATACCCCACTATG",
         error_rate=0.15,
-        min_read_len=163,
-        max_read_len=185,
+        min_trimmed_read_len: int | None = None,
+        max_trimmed_read_len: int | None = None,
         revcomp: bool = True,
     ):
         super().__init__(
@@ -28,18 +28,24 @@ class CutPrimerStage(stage_builder.StageBuilder):
         self.in_suffix = in_suffix
         self.out_suffix = out_suffix
         self.report_suffix = SETTINGS["suffix"]["report"]
+        self.min_len = min_trimmed_read_len
+        self.max_len = max_trimmed_read_len
         self.parse_params(
-            rm_p_5, rm_p_3, min_read_len, max_read_len, error_rate, revcomp
+            rm_p_5,
+            rm_p_3,
+            min_trimmed_read_len,
+            max_trimmed_read_len,
+            error_rate,
+            revcomp,
         )
 
     def parse_params(
-        self, rm_p_5, rm_p_3, min_read_len, max_read_len, error_rate, revcomp
+        self, rm_p_5, rm_p_3, min_len, max_len, error_rate, revcomp
     ):
-        self.params = (
-            f"-g {rm_p_5};max_error_rate={error_rate}...{rm_p_3};max_error_rate={error_rate}"
-            f" --minimum-length {min_read_len}"
-            f" --maximum-length {max_read_len}"
-        )
+        self.params = f"-g {rm_p_5};max_error_rate={error_rate}...{rm_p_3};max_error_rate={error_rate}"
+        self.params += f" --minimum-length {min_len if min_len else 1}"
+        if max_len is not None:
+            self.params += f" --maximum-length {max_len}"
         if revcomp:
             self.params += " --revcomp"
 
@@ -50,14 +56,20 @@ class CutPrimerStage(stage_builder.StageBuilder):
         )
         report = os.path.join(self.out_dir, f"{prefix}{self.report_suffix}")
         self.check_infile()
+        discarded_dir = os.path.join(self.out_dir, SETTINGS["discarded_dir"])
+        os.makedirs(discarded_dir, exist_ok=True)
+        discarded = os.path.join(discarded_dir, prefix)
+        ext = self.out_suffix
         cmd = (
             f"{self.cutadapt_prog} {self.infile}"
             f" {self.params}"
             f" -j {self.config.n_cpu}"
-            f" --untrimmed-output {os.path.join(self.out_dir, prefix + '_untrimmed.fastq')}"
-            f" --too-short-output {os.path.join(self.out_dir, prefix + '_too_short.fastq')}"
-            f" --too-long-output {os.path.join(self.out_dir, prefix + '_too_long.fastq')}"
+            f" --untrimmed-output {discarded}_untrimmed{ext}"
         )
+        if self.min_len is not None:
+            cmd += f" --too-short-output {discarded}_too_short{ext}"
+        if self.max_len is not None:
+            cmd += f" --too-long-output {discarded}_too_long{ext}"
         super().add_stage("Cut primers for merged sequences", cmd)
         super().add_stage_output_to_file(
             "Write cutadapt output, report", 0, cutprimer_outfile, report

@@ -67,7 +67,9 @@ class TestBioPipeline:
         _in_dir, out_dir = tmp_dirs
         nonexistent_path = "/nonexistent/path"
 
-        with pytest.raises(AssertionError, match="input path does not exist"):
+        with pytest.raises(
+            FileNotFoundError, match="input path does not exist"
+        ):
             BioPipeline(nonexistent_path, out_dir)
 
     def test_add_default_settings(self, tmp_dirs):
@@ -398,7 +400,7 @@ class TestBioPipeline:
 
             pipeline.stages = {"stage1": mock_stage1, "stage2": mock_stage2}
 
-            pipeline.run_one_file("test_prefix")
+            pipeline.run_stages(["test_prefix"])
 
             mock_stage1.setup.assert_called_once_with("test_prefix")
             mock_stage1.run.assert_called_once()
@@ -437,7 +439,7 @@ class TestBioPipeline:
                 "stage3": mock_stage3,
             }
 
-            pipeline.run_one_file("test_prefix")
+            pipeline.run_stages(["test_prefix"])
 
             mock_stage1.run.assert_called_once()
             mock_stage2.run.assert_called_once()
@@ -451,7 +453,7 @@ class TestBioPipeline:
         with (
             patch.object(BioPipeline, "add_config", mock_add_config),
             patch.object(BioPipeline, "setup_stages"),
-            patch.object(BioPipeline, "run_one_file") as mock_run_one_file,
+            patch.object(BioPipeline, "run_stages") as mock_run_stages,
             patch.object(BioPipeline, "close_file_handler"),
         ):
             _pipeline = BioPipeline(
@@ -461,11 +463,8 @@ class TestBioPipeline:
                 dry=True,
             )
 
-            expected_samples = {"sample001", "sample002"}
-
-            actual_calls = mock_run_one_file.call_args_list[:2]
-            actual_samples = {call[0][0] for call in actual_calls}
-            assert actual_samples == expected_samples
+            # All samples go to the stages together, in sorted order
+            mock_run_stages.assert_called_once_with(["sample001", "sample002"])
 
     def test_run_stages_one_file(self, tmp_dirs):
         in_dir, out_dir = tmp_dirs
@@ -477,7 +476,7 @@ class TestBioPipeline:
         with (
             patch.object(BioPipeline, "add_config", mock_add_config),
             patch.object(BioPipeline, "setup_stages"),
-            patch.object(BioPipeline, "run_one_file") as mock_run_one_file,
+            patch.object(BioPipeline, "run_stages") as mock_run_stages,
             patch.object(BioPipeline, "close_file_handler"),
         ):
             _pipeline = BioPipeline(
@@ -487,9 +486,7 @@ class TestBioPipeline:
                 dry=True,
             )
 
-            mock_run_one_file.assert_called_once()
-            call_args = mock_run_one_file.call_args[0]
-            assert call_args[0] == "single_sample"
+            mock_run_stages.assert_called_once_with(["single_sample"])
 
     def test_stage_parameter_passing(self, tmp_dirs):
         in_dir, out_dir = tmp_dirs
@@ -739,7 +736,7 @@ class TestBioPipeline:
             patch.object(BioPipeline, "add_config", mock_add_config),
             patch("ednabp.bp.step_exec.merge.MergeStage") as mock_merge,
         ):
-            pipeline = BioPipeline(
+            BioPipeline(
                 in_dir,
                 out_dir,
                 enabled_stages=["merge"],

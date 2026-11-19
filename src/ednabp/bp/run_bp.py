@@ -59,13 +59,15 @@ class BioPipeline:
           Merge Settings:
             - maxdiff (int): Maximum number of mismatches in the alignment. Default: 5.
             - pctid (int): Minimum %id of alignment. Default: 90.
+            - min_merged_read_len (int): Discard merged reads shorter than this (-fastq_minmergelen). Default: None (no limit).
+            - max_merged_read_len (int): Discard merged reads longer than this (-fastq_maxmergelen). Default: None (no limit).
 
           Cut Primer Settings:
             - rm_p_5 (str): Non-internal 5’ primer. Default: "GTCGGTAAAACTCGTGCCAGC" (MiFish-UF).
             - rm_p_3 (str): Non-internal 3’ primer. Default: "CAAACTGGGATTAGATACCCCACTATG" (reverse-complement MiFish-UR).
             - error_rate (float): The maximum rate of error could be tolerated. The actual error rate is computed as the number of errors in the match divided by the length of the matching part of the primer. Default: 0.15.
-            - min_read_len (int): Discard processed reads that are shorter than this parameter. Default: 204.
-            - max_read_len (int): Discard processed reads that are longer than this parameter. Default: 254.
+            - min_trimmed_read_len (int): Discard primer-trimmed reads shorter than this (written to cutprimer/discarded/<prefix>_too_short.fastq). Default: None (no limit; only empty reads are dropped).
+            - max_trimmed_read_len (int): Discard primer-trimmed reads longer than this (written to cutprimer/discarded/<prefix>_too_long.fastq). Default: None (no limit).
             - revcomp (bool): If True, also search the reverse complement of each read for primer matches and output reads in the orientation where the primer was found. Default: True.
 
           Quality Filter Settings:
@@ -126,15 +128,14 @@ class BioPipeline:
             - vsearch_prog, minimap2_prog, racon_prog, medaka_prog (str): Commands for the cluster_ont stage. Defaults: "vsearch", "minimap2", "racon", "medaka_consensus".
 
           Configuration Settings:
-            - verbose (bool): Whether to enable verbose logging. Default: True.
-            - dry (bool): If True, perform a dry run without executing commands. Default: False.
+            - verbose (bool): Whether to enable verbose logging. Default: False.
+            - dry (bool): If True, log every command ("DRY RUN: ...") without running it or writing output files; all stages are still set up for all samples. Default: False.
             - logger (Logger): Logger object for pipeline logging. Default: base_logger.logger.
             - n_cpu (int): Number of CPU cores to be used for processing. Default: 1.
             - memory (int): Maximum memory (in GB) allowed for processing. Default: 8.
         """
-        assert os.path.exists(input_path), (
-            f"Error: input path does not exist: {input_path}"
-        )
+        if not os.path.exists(input_path):
+            raise FileNotFoundError(f"input path does not exist: {input_path}")
         os.makedirs(output_path, exist_ok=True)
         input_is_dir = True if os.path.isdir(input_path) else False
 
@@ -364,18 +365,42 @@ class BioPipeline:
         ]
         return otu_stages[-1] if otu_stages else "denoise"
 
-    def run_one_file(self, prefix):
-        base_logger.logger.info(f"Sample ID: {prefix}")
-        for k, s in self.stages.items():
-            s.setup(prefix)
-            is_complete = s.run()
-            if not is_complete:
-                self.config.logger.error(
-                    f"Error: process errors at stage: {k}\n"
+    def run_stages(self, prefixes):
+        for name, stage in self.stages.items():
+            if not prefixes:
+                self.config.logger.warning(
+                    f"No samples left to run at stage: {name}"
                 )
-                break
-            if self.config.verbose:
-                print()
+                return
+            if getattr(stage, "pools_samples", False) is True:
+                done = stage.run_all(prefixes)
+                if self.config.verbose:
+                    print()
+                failed = [] if done else prefixes
+            else:
+                done = []
+                for prefix in prefixes:
+                    if self.run_stage(name, stage, prefix):
+                        done.append(prefix)
+                failed = [p for p in prefixes if p not in done]
+            for prefix in failed:
+                self.config.logger.error(
+                    f"Error: process errors at stage: {name} ({prefix})\n"
+                )
+            prefixes = done
+
+    def run_stage(self, name, stage, prefix):
+        base_logger.logger.info(f"Sample ID: {prefix}")
+        try:
+            stage.setup(prefix)
+        except (FileNotFoundError, ValueError) as e:
+            self.config.logger.error(f"FAIL: setup of stage {name}: {e}")
+            stage.runners = []
+            return False
+        is_complete = stage.run()
+        if self.config.verbose:
+            print()
+        return is_complete
 
     def run_stages_files(self):
         suffix = self.stage_suffix["raw"]
@@ -395,14 +420,13 @@ class BioPipeline:
             )
             return
 
-        for prefix in prefixes:
-            self.run_one_file(prefix)
+        self.run_stages(prefixes)
 
     def run_stages_one_file(self, input_path):
         prefix = os.path.basename(input_path).replace(
             self.stage_suffix["raw"], ""
         )
-        self.run_one_file(prefix)
+        self.run_stages([prefix])
 
     def close_file_handler(self):
         base_logger.close_file_handler(self.config.logger)

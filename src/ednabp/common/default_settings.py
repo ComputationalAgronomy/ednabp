@@ -58,13 +58,15 @@ SETTINGS = {
     "merge": {
         "maxdiff": 5,
         "pctid": 90,
+        "min_merged_read_len": None,
+        "max_merged_read_len": None,
     },
     "cutprimer": {
         "rm_p_5": "GTCGGTAAAACTCGTGCCAGC",
         "rm_p_3": "CAAACTGGGATTAGATACCCCACTATG",
         "error_rate": 0.15,
-        "min_read_len": 163,
-        "max_read_len": 185,
+        "min_trimmed_read_len": None,
+        "max_trimmed_read_len": None,
         "revcomp": True,
     },
     "qfilter": {

@@ -6,14 +6,6 @@ from . import base_runner
 
 
 class SubprocessRunner(base_runner.Runner):
-    """
-    Runner class for executing a command as a subprocess.
-
-    Attributes:
-        command (str): The command to execute.
-        shell (bool): Whether to execute the command through the shell.
-    """
-
     def __init__(
         self, prog_name: str, command: str, config, shell: bool = False
     ):
@@ -21,6 +13,7 @@ class SubprocessRunner(base_runner.Runner):
 
         self.command = command
         self.shell = shell
+        self.capture_output = None
 
     def run(self) -> bool:
         """
@@ -37,32 +30,35 @@ class SubprocessRunner(base_runner.Runner):
             args = shlex.split(self.command, posix="win" not in sys.platform)
             args = [arg.replace('"', "") for arg in args]
 
-        if not self.config.dry:
-            try:
-                self.capture_output = subprocess.run(
-                    args,
-                    capture_output=True,
-                    shell=self.shell,
-                    check=True,
-                    text=True,
-                )
-                self.config.logger.info(f"COMPLETE: {self.prog_name}.")
-                return True
-            except subprocess.CalledProcessError as e:
-                self.config.logger.error(
-                    f"FAIL: {self.prog_name}. SubprocessError: {e.stderr}."
-                )
-                return False
-            except FileNotFoundError as e:
-                self.config.logger.error(
-                    f"FAIL: {self.prog_name}. FileNotFoundError: {e.strerror}."
-                )
-                return False
-            except Exception as e:
-                self.config.logger.error(
-                    f"FAIL: {self.prog_name}. Other Exception: {e}."
-                )
-                return False
+        if self.config.dry:
+            self.config.logger.info(f"DRY RUN: {self.command}")
+            return True
+        try:
+            self.capture_output = subprocess.run(
+                args,
+                capture_output=True,
+                shell=self.shell,
+                check=True,
+                text=True,
+            )
+            self.config.logger.info(f"COMPLETE: {self.prog_name}.")
+            return True
+        except subprocess.CalledProcessError as e:
+            self.capture_output = e
+            self.config.logger.error(
+                f"FAIL: {self.prog_name}. SubprocessError: {e.stderr}."
+            )
+            return False
+        except FileNotFoundError as e:
+            self.config.logger.error(
+                f"FAIL: {self.prog_name}. FileNotFoundError: {e.strerror}."
+            )
+            return False
+        except Exception as e:
+            self.config.logger.error(
+                f"FAIL: {self.prog_name}. Other Exception: {e}."
+            )
+            return False
 
 
 class RedirectOutputRunner(base_runner.Runner):
@@ -102,23 +98,28 @@ class RedirectOutputRunner(base_runner.Runner):
         if self.config.verbose:
             self.config.logger.info(self.message)
 
-        if not self.config.dry:
-            try:
-                with (
-                    open(self.stdout_file, "w") as out_f,
-                    open(self.stderr_file, "w") as err_f,
-                ):
-                    pass
-                if self.runner.capture_output.stdout:
-                    with open(self.stdout_file, "a") as out_f:
-                        out_f.write(self.runner.capture_output.stdout)
-                if self.runner.capture_output.stderr:
-                    with open(self.stderr_file, "a") as err_f:
-                        err_f.write(self.runner.capture_output.stderr)
-                self.config.logger.info(f"COMPLETE: {self.prog_name}.")
-                return True
-            except AttributeError as e:
-                self.config.logger.error(
-                    f"FAIL: {self.prog_name}. Error: {e}."
-                )
-                return False
+        if self.config.dry:
+            return True
+        if self.runner.capture_output is None:
+            self.config.logger.error(
+                f"FAIL: {self.prog_name}. No output to write:"
+                " the command did not run."
+            )
+            return False
+        try:
+            with (
+                open(self.stdout_file, "w") as out_f,
+                open(self.stderr_file, "w") as err_f,
+            ):
+                pass
+            if self.runner.capture_output.stdout:
+                with open(self.stdout_file, "a") as out_f:
+                    out_f.write(self.runner.capture_output.stdout)
+            if self.runner.capture_output.stderr:
+                with open(self.stderr_file, "a") as err_f:
+                    err_f.write(self.runner.capture_output.stderr)
+            self.config.logger.info(f"COMPLETE: {self.prog_name}.")
+            return True
+        except AttributeError as e:
+            self.config.logger.error(f"FAIL: {self.prog_name}. Error: {e}.")
+            return False

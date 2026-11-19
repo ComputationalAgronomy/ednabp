@@ -34,6 +34,12 @@ STAGE_INPUT_SUFFIX = {
 }
 
 
+SIDE_FILE_SUFFIXES = [
+    SETTINGS["suffix"]["members"],
+    SETTINGS["suffix"]["otutab_query"],
+]
+
+
 class BioPipeline:
     def __init__(self, input_path: str, output_path: str, **settings):
         """
@@ -357,10 +363,15 @@ class BioPipeline:
 
     def run_stages_files(self):
         suffix = self.stage_suffix["raw"]
-        files = os.listdir(self.indir_path)
-        prefixes = [
-            file.replace(suffix, "") for file in files if file.endswith(suffix)
+        side_suffixes = [
+            s for s in SIDE_FILE_SUFFIXES if s.endswith(suffix) and s != suffix
         ]
+        prefixes = sorted(
+            file[: -len(suffix)]
+            for file in os.listdir(self.indir_path)
+            if file.endswith(suffix)
+            and not any(file.endswith(s) for s in side_suffixes)
+        )
 
         if len(prefixes) == 0:
             self.config.logger.warning(

@@ -5,27 +5,7 @@ import subprocess
 from ...common.default_settings import SETTINGS
 from ..step_build import stage_builder
 from .otutab import add_otutab_stages
-
-
-def read_fasta(path):
-    label, chunks = None, []
-    with open(path) as f:
-        for line in f:
-            line = line.rstrip("\r\n")
-            if line.startswith(">"):
-                if label is not None:
-                    yield label, "".join(chunks)
-                label, chunks = line[1:], []
-            elif line:
-                chunks.append(line)
-    if label is not None:
-        yield label, "".join(chunks)
-
-
-def write_fasta(records, path):
-    with open(path, "w") as f:
-        for label, seq in records:
-            f.write(f">{label}\n{seq}\n")
+from .utils import read_fasta, write_fasta
 
 
 def parse_uc(uc_file):
@@ -48,10 +28,9 @@ def size_of(label):
 def parse_consensus_labels(consout_file):
     drafts = {}
     for label, seq in read_fasta(consout_file):
-        fields = dict(
-            part.split("=", 1) for part in label.split(";") if "=" in part
-        )
-        drafts[fields["centroid"]] = seq
+        centroid = label.removeprefix("centroid=")
+        end = centroid.rfind(";seqs=")
+        drafts[centroid[:end] if end >= 0 else centroid] = seq
     return drafts
 
 

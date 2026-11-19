@@ -8,8 +8,8 @@ from ednabp.bp.step_exec.cluster_ont import (
     ClusterOntStage,
     parse_consensus_labels,
     parse_uc,
-    read_fasta,
 )
+from ednabp.bp.step_exec.utils import read_fasta
 
 
 def test_parse_uc(tmp_dirs):
@@ -33,6 +33,16 @@ def test_parse_consensus_labels(tmp_dirs):
     with open(fa, "w") as f:
         f.write(">centroid=r1;seqs=3\nACGT\nAC\n>centroid=r3;seqs=1\nTTTT\n")
     assert parse_consensus_labels(fa) == {"r1": "ACGTAC", "r3": "TTTT"}
+
+
+def test_parse_consensus_labels_annotated(tmp_dirs):
+    """Centroid labels with size/sample annotations, as vsearch writes
+    them: "centroid=<full label>;seqs=N"."""
+    _, out_dir = tmp_dirs
+    fa = os.path.join(out_dir, "cons.fasta")
+    with open(fa, "w") as f:
+        f.write(">centroid=S2:Uniq1;size=7;sample=S2;;seqs=2\nACGT\n")
+    assert parse_consensus_labels(fa) == {"S2:Uniq1;size=7;sample=S2;": "ACGT"}
 
 
 def test_read_fasta_multiline(tmp_dirs):
@@ -74,12 +84,22 @@ class TestClusterOntStage:
         assert stage.runners[2].prog_name == (
             "Polish cluster consensus sequences"
         )
-        otutab_cmd = stage.runners[3].command
-        assert otutab_cmd.startswith(f"usearch -otutab {infile} -otus ")
+        assert stage.runners[3].prog_name == (
+            "Tag sequences with the sample name"
+        )
+        query = os.path.join(out_dir, "s1_otutab_query.fasta")
+        otutab_cmd = stage.runners[4].command
+        assert otutab_cmd.startswith(f"usearch -otutab {query} -otus ")
         assert "-otus " + os.path.join(out_dir, "s1.fasta") in otutab_cmd
         # clustering defaults to plus strand, the OTU table to both
         assert "-id 0.9 -strand both" in otutab_cmd
-        # vsearch + report, polish, otutab + report + row sum, tmp cleanup
+        # reads that match no OTU go to the discarded subfolder
+        notmatched = os.path.join(
+            out_dir, "discarded", "s1_otu_notmatched.fasta"
+        )
+        assert otutab_cmd.endswith(f" -notmatched {notmatched}")
+        assert os.path.isdir(os.path.join(out_dir, "discarded"))
+        # vsearch + report, polish, tag + otutab + report, tmp cleanup
         assert len(stage.runners) == 7
 
     def test_setup_separate_strands(self, mock_config, tmp_dirs):
@@ -95,7 +115,7 @@ class TestClusterOntStage:
         )
         stage.setup("s1")
         assert "--strand both" in stage.runners[0].command
-        assert "-strand plus" in stage.runners[3].command
+        assert "-strand plus" in stage.runners[4].command
 
     def test_setup_keep_tmp(self, mock_config, tmp_dirs):
         in_dir, out_dir = tmp_dirs

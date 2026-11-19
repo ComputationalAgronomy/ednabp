@@ -27,6 +27,7 @@ SETTINGS = {
         "lca": "blast",
         "addhap": "blast",
     },
+    "discarded_dir": "discarded",
     "suffix": {
         "raw": None,
         "decompress": ".fastq",
@@ -49,6 +50,8 @@ SETTINGS = {
         "otu_mapping": "_otu_mapping.txt",
         "otu_notmatched": "_otu_notmatched.fasta",
         "otutab_report": "_otutab_report.txt",
+        "members": "_members.fasta",
+        "otutab_query": "_otutab_query.fasta",
     },
     "merge": {
         "maxdiff": 5,

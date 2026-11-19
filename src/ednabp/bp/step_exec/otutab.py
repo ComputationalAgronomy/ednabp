@@ -2,23 +2,7 @@ import os
 
 from ...common.default_settings import SETTINGS
 from ..step_build import stage_builder
-
-
-def sum_row(otutab_file, sample):
-    rows = []
-    with open(otutab_file) as f:
-        header = f.readline()
-        if not header.startswith("#OTU ID"):
-            raise ValueError(f"Unexpected OTU table header in {otutab_file}")
-        for line in f:
-            fields = line.rstrip("\r\n").split("\t")
-            if fields[0]:
-                rows.append((fields[0], sum(int(x) for x in fields[1:] if x)))
-
-    with open(otutab_file, "w") as f:
-        f.write(f"#OTU ID\t{sample}\n")
-        for otu, count in rows:
-            f.write(f"{otu}\t{count}\n")
+from .utils import members, write_fasta
 
 
 def add_otutab_stages(
@@ -31,35 +15,45 @@ def add_otutab_stages(
     strand: bool = True,
 ):
     suffix = SETTINGS["suffix"]
-    otutab_file = os.path.join(stage.out_dir, f"{prefix}{suffix['otutab']}")
-    mapping_file = os.path.join(
-        stage.out_dir, f"{prefix}{suffix['otu_mapping']}"
+    out = {
+        key: os.path.join(stage.out_dir, f"{prefix}{suffix[key]}")
+        for key in [
+            "otutab",
+            "otu_mapping",
+            "otu_notmatched",
+            "otutab_report",
+            "otutab_query",
+        ]
+    }
+
+    discarded_dir = os.path.join(stage.out_dir, SETTINGS["discarded_dir"])
+    os.makedirs(discarded_dir, exist_ok=True)
+    out["otu_notmatched"] = os.path.join(
+        discarded_dir, f"{prefix}{suffix['otu_notmatched']}"
     )
-    notmatched_file = os.path.join(
-        stage.out_dir, f"{prefix}{suffix['otu_notmatched']}"
-    )
-    otutab_report = os.path.join(
-        stage.out_dir, f"{prefix}{suffix['otutab_report']}"
-    )
+
+    query = os.path.join(stage.in_dir, f"{prefix}{suffix['members']}")
+    if not os.path.exists(query):
+        query = out["otutab_query"]
+        stage.add_stage_function(
+            "Tag sequences with the sample name",
+            lambda: write_fasta(members(uniq_file, prefix), query),
+        )
 
     db_option = "-zotus" if zotus else "-otus"
     strand_option = "both" if strand else "plus"
     cmd = (
-        f"{stage.usearch_prog} -otutab {uniq_file}"
+        f"{stage.usearch_prog} -otutab {query}"
         f" {db_option} {otu_file}"
         f" -id {identity} -strand {strand_option}"
         f" -threads {stage.config.n_cpu}"
-        f" -otutabout {otutab_file} -mapout {mapping_file}"
-        f" -notmatched {notmatched_file}"
+        f" -otutabout {out['otutab']} -mapout {out['otu_mapping']}"
+        f" -notmatched {out['otu_notmatched']}"
     )
-    stage.add_stage("Generate OTU abundance table", cmd)
+    stage.add_stage("Map sequences to OTUs", cmd)
     stage.add_stage_output_to_file(
         "Write otutab report",
         len(stage.runners) - 1,
-        otutab_report,
-        otutab_report,
-    )
-    stage.add_stage_function(
-        "Sum OTU table rows into one sample column",
-        lambda: sum_row(otutab_file, prefix),
+        out["otutab_report"],
+        out["otutab_report"],
     )

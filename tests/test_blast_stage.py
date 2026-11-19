@@ -34,9 +34,9 @@ class TestBlastStage:
         assert stage.out_suffix == ".csv"
 
         expected_params = (
-            "-max_target_seqs 1 -evalue 1e-05 "
+            "-task megablast -max_target_seqs 1 -evalue 1e-05 "
             "-qcov_hsp_perc 90 -perc_identity 90 "
-            '-outfmt "10 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore" '
+            '-outfmt "10 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs staxids" '
             "-db nt -remote"
         )
         assert stage.params == expected_params
@@ -58,6 +58,7 @@ class TestBlastStage:
             outfmt="6",
             specifiers="qseqid sseqid pident",
             blast_db="/path/to/blast_db",
+            task="blastn",
         )
 
         assert stage.heading == "custom_blast"
@@ -66,7 +67,7 @@ class TestBlastStage:
         assert stage.out_suffix == "_blast_results.csv"
 
         expected_params = (
-            "-max_target_seqs 5 -evalue 1e-10 "
+            "-task blastn -max_target_seqs 5 -evalue 1e-10 "
             "-qcov_hsp_perc 95 -perc_identity 97 "
             '-outfmt "6 qseqid sseqid pident" '
             "-db /path/to/blast_db "
@@ -104,9 +105,9 @@ class TestBlastStage:
 
         expected_command = (
             f"blastn -query {expected_infile} "
-            "-max_target_seqs 1 -evalue 1e-05 "
+            "-task megablast -max_target_seqs 1 -evalue 1e-05 "
             "-qcov_hsp_perc 90 -perc_identity 90 "
-            '-outfmt "10 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore" '
+            '-outfmt "10 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs staxids" '
             "-db /path/to/blast_db "
             f"-num_threads 4 -out {expected_outfile}"
         )
@@ -129,7 +130,9 @@ class TestBlastStage:
         _result = blast_stage.add_table_header()
 
         mock_read_csv.assert_called_once_with(blast_file, header=None)
-        mock_blast_df.to_csv.assert_called_once_with(blast_file, index=False)
+        mock_blast_df.drop_duplicates.return_value.to_csv.assert_called_once_with(
+            blast_file, index=False
+        )
 
     @patch("pandas.read_csv")
     def test_add_table_header_empty_result(
@@ -148,3 +151,53 @@ class TestBlastStage:
 
         assert result is False
         blast_stage.config.logger.warning.assert_called()
+
+
+class TestBlastSpeedOptions:
+    def test_taxids_local(self, mock_config, tmp_dirs):
+        in_dir, out_dir = tmp_dirs
+        stage = BlastStage(
+            config=mock_config,
+            in_dir=in_dir,
+            out_dir=out_dir,
+            blast_db="/db/core_nt",
+            taxids="2759",
+        )
+        assert "-taxids 2759 -num_threads 4" in stage.params
+
+    def test_taxids_ignored_remote(self, mock_config, tmp_dirs):
+        in_dir, out_dir = tmp_dirs
+        stage = BlastStage(
+            config=mock_config, in_dir=in_dir, out_dir=out_dir, taxids="2759"
+        )
+        assert "-taxids" not in stage.params
+        mock_config.logger.warning.assert_called_once()
+
+    def test_remote_only_for_nt(self, mock_config, tmp_dirs):
+        in_dir, out_dir = tmp_dirs
+        stage = BlastStage(
+            config=mock_config,
+            in_dir=in_dir,
+            out_dir=out_dir,
+            blast_db="/data/remote_db/core_nt",
+        )
+        assert stage.remote is False
+        assert "-num_threads 4" in stage.params
+
+    def test_add_table_header_drops_duplicates(self, mock_config, tmp_dirs):
+        in_dir, out_dir = tmp_dirs
+        stage = BlastStage(
+            config=mock_config,
+            in_dir=in_dir,
+            out_dir=out_dir,
+            specifiers="qseqid sseqid bitscore",
+        )
+        stage.blast_outfile = os.path.join(out_dir, "s.csv")
+        with open(stage.blast_outfile, "w") as f:
+            f.write("Otu1,gb|A.1|,566\nOtu1,gb|A.1|,566\nOtu2,gb|B.1|,400\n")
+
+        stage.add_table_header()
+
+        df = pd.read_csv(stage.blast_outfile)
+        assert df.columns.tolist() == ["qseqid", "sseqid", "bitscore"]
+        assert df["qseqid"].tolist() == ["Otu1", "Otu2"]

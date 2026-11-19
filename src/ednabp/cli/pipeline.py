@@ -5,7 +5,7 @@ import argparse
 from ..common.default_settings import SETTINGS
 
 
-def main():
+def main(argv=None):
     argument_groups = {
         "Required Input & Output Path": [
             {
@@ -30,7 +30,7 @@ def main():
                     "nargs": "+",
                     "type": str,
                     "default": SETTINGS["enabled_stages"],
-                    "help": "Process stages to be executed in order (default [run all stages]: %(default)s).",
+                    "help": "Process stages to be executed in order; each stage runs for all samples before the next. Add 'pool' after dereplicate (pool before OTU generation) or after denoise/cluster/cluster_ont (pool the samples' OTUs); the stages after it run once on the pooled sample (default [run all stages]: %(default)s).",
                 },
             },
         ],
@@ -61,6 +61,22 @@ def main():
                     "help": "Minimum percentage identity required for merging reads (default: %(default)s).",
                 },
             },
+            {
+                "args": ["--min-merged-read-len"],
+                "kwargs": {
+                    "type": int,
+                    "default": SETTINGS["merge"]["min_merged_read_len"],
+                    "help": "Discard merged reads shorter than this length (default: no limit).",
+                },
+            },
+            {
+                "args": ["--max-merged-read-len"],
+                "kwargs": {
+                    "type": int,
+                    "default": SETTINGS["merge"]["max_merged_read_len"],
+                    "help": "Discard merged reads longer than this length (default: no limit).",
+                },
+            },
         ],
         "Primer Trimming Settings": [
             {
@@ -88,19 +104,19 @@ def main():
                 },
             },
             {
-                "args": ["--min-read-len"],
+                "args": ["--min-trimmed-read-len"],
                 "kwargs": {
                     "type": int,
-                    "default": SETTINGS["cutprimer"]["min_read_len"],
-                    "help": "Minimum length of processed reads (default: %(default)s).",
+                    "default": SETTINGS["cutprimer"]["min_trimmed_read_len"],
+                    "help": "Discard primer-trimmed reads shorter than this length (default: no limit).",
                 },
             },
             {
-                "args": ["--max-read-len"],
+                "args": ["--max-trimmed-read-len"],
                 "kwargs": {
                     "type": int,
-                    "default": SETTINGS["cutprimer"]["max_read_len"],
-                    "help": "Maximum length of processed reads (default: %(default)s).",
+                    "default": SETTINGS["cutprimer"]["max_trimmed_read_len"],
+                    "help": "Discard primer-trimmed reads longer than this length (default: no limit).",
                 },
             },
             {
@@ -109,6 +125,32 @@ def main():
                     "action": argparse.BooleanOptionalAction,
                     "default": SETTINGS["cutprimer"]["revcomp"],
                     "help": "Also search the reverse complement of each read for primer matches and output reads in the matched orientation (default: %(default)s).",
+                },
+            },
+        ],
+        "Quality Filter Settings": [
+            {
+                "args": ["--min-qscore"],
+                "kwargs": {
+                    "type": float,
+                    "default": SETTINGS["qfilter"]["min_qscore"],
+                    "help": "Keep reads whose expected errors per base are at most those of this quality score, e.g. 20 = 1 error per 100 bases (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--max-qscore"],
+                "kwargs": {
+                    "type": int,
+                    "default": SETTINGS["qfilter"]["max_qscore"],
+                    "help": "Highest quality score in the reads; any value at least that high works (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--maxns"],
+                "kwargs": {
+                    "type": int,
+                    "default": SETTINGS["qfilter"]["maxns"],
+                    "help": "Discard reads with more Ns than this value (default: no limit).",
                 },
             },
         ],
@@ -224,6 +266,16 @@ def main():
                 },
             },
         ],
+        "Pool Setting": [
+            {
+                "args": ["--pool-name"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["pool"]["pool_name"],
+                    "help": "Name of the pooled sample written by the pool stage (default: %(default)s).",
+                },
+            },
+        ],
         "OTU Table Settings": [
             {
                 "args": ["--otutab-id"],
@@ -291,6 +343,28 @@ def main():
                     "help": "Path to the BLAST database (default [NCBI remote nucleotide sequence database]: %(default)s).",
                 },
             },
+            {
+                "args": ["--task"],
+                "kwargs": {
+                    "type": str,
+                    "choices": [
+                        "megablast",
+                        "dc-megablast",
+                        "blastn",
+                        "blastn-short",
+                    ],
+                    "default": SETTINGS["blast"]["task"],
+                    "help": "BLAST search task: megablast for highly similar sequences, dc-megablast for more dissimilar ones, blastn for sensitive search, blastn-short for queries shorter than 50 bp (default: %(default)s).",
+                },
+            },
+            {
+                "args": ["--taxids"],
+                "kwargs": {
+                    "type": str,
+                    "default": SETTINGS["blast"]["taxids"],
+                    "help": "Comma-separated NCBI taxids to limit a local BLAST search to, including their child taxa, e.g. 2759 (eukaryotes) or 33208,33090 (animals, plants); needs taxonomy4blast.sqlite3 next to the database, ignored for remote nt (default: all taxa).",
+                },
+            },
         ],
         "Add Lineage Settings": [
             {
@@ -352,7 +426,7 @@ def main():
                 "kwargs": {
                     "type": str,
                     "default": SETTINGS["prog"]["usearch"],
-                    "help": "Command to execute USEARCH for merge, dereplicate, denoise, and cluster stages, and the OTU table of cluster_ont (default: %(default)s).",
+                    "help": "Command to execute USEARCH for merge, qfilter, dereplicate, denoise, and cluster stages, and the OTU table of cluster_ont (default: %(default)s).",
                 },
             },
             {
@@ -414,6 +488,14 @@ def main():
                 },
             },
             {
+                "args": ["--dry"],
+                "kwargs": {
+                    "action": argparse.BooleanOptionalAction,
+                    "default": SETTINGS["config_basic"]["dry"],
+                    "help": "Log every command ('DRY RUN: ...') without running it or writing output files, to check a run before starting it (default: %(default)s).",
+                },
+            },
+            {
                 "args": ["--n-cpu"],
                 "kwargs": {
                     "type": int,
@@ -435,11 +517,14 @@ def main():
         for arg_data in args_list:
             group.add_argument(*arg_data["args"], **arg_data["kwargs"])
 
-    options = vars(parser.parse_args())
+    options = vars(parser.parse_args(argv))
 
     from ..bp import BioPipeline
 
-    BioPipeline(**options)
+    try:
+        BioPipeline(**options)
+    except FileNotFoundError as e:
+        parser.error(str(e))
 
 
 class MyFormatter(argparse.HelpFormatter):

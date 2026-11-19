@@ -15,7 +15,8 @@ from ednabp.bp.step_exec.lca import (
 def blast_row(
     qseqid,
     bitscore,
-    kingdom="Eukaryota",
+    domain="Eukaryota",
+    kingdom="Metazoa",
     phylum="Chordata",
     cls="Actinopteri",
     order="Gadiformes",
@@ -28,6 +29,7 @@ def blast_row(
         "qseqid": qseqid,
         "bitscore": bitscore,
         "pident": pident,
+        "domain": domain,
         "kingdom": kingdom,
         "phylum": phylum,
         "class": cls,
@@ -91,6 +93,7 @@ class TestLcaStage:
     def test_lca_identical_lineages(self):
         lineage = [
             "Eukaryota",
+            "Metazoa",
             "Chordata",
             "Actinopteri",
             "Gadiformes",
@@ -105,6 +108,7 @@ class TestLcaStage:
     def test_lca_diverge_at_species(self):
         l1 = [
             "Eukaryota",
+            "Metazoa",
             "Chordata",
             "Actinopteri",
             "Gadiformes",
@@ -114,6 +118,7 @@ class TestLcaStage:
         ]
         l2 = [
             "Eukaryota",
+            "Metazoa",
             "Chordata",
             "Actinopteri",
             "Gadiformes",
@@ -123,11 +128,16 @@ class TestLcaStage:
         ]
         lca, rank = lca_of_lineages([l1, l2])
         assert rank == "genus"
-        assert lca[RANKS.index("species")] == ""
+        assert lca[RANKS.index("genus")] == "Gadus"
+        # the collapsed species are kept
+        assert (
+            lca[RANKS.index("species")] == "Gadus_chalcogrammus; Gadus_morhua"
+        )
 
     def test_lca_diverge_at_genus(self):
         l1 = [
             "Eukaryota",
+            "Metazoa",
             "Chordata",
             "Actinopteri",
             "Gadiformes",
@@ -137,6 +147,7 @@ class TestLcaStage:
         ]
         l2 = [
             "Eukaryota",
+            "Metazoa",
             "Chordata",
             "Actinopteri",
             "Gadiformes",
@@ -146,11 +157,17 @@ class TestLcaStage:
         ]
         lca, rank = lca_of_lineages([l1, l2])
         assert rank == "family"
-        assert lca[RANKS.index("genus")] == ""
+        assert lca[RANKS.index("family")] == "Gadidae"
+        assert lca[RANKS.index("genus")] == "Gadus; Melanogrammus"
+        assert (
+            lca[RANKS.index("species")]
+            == "Gadus_morhua; Melanogrammus_aeglefinus"
+        )
 
-    def test_lca_diverge_at_kingdom(self):
+    def test_lca_diverge_at_domain(self):
         l1 = [
             "Eukaryota",
+            "Metazoa",
             "Chordata",
             "Actinopteri",
             "Gadiformes",
@@ -158,10 +175,22 @@ class TestLcaStage:
             "Gadus",
             "Gadus_morhua",
         ]
-        l2 = ["Bacteria", "Proteobacteria", "", "", "", "", ""]
+        l2 = [
+            "Bacteria",
+            "Pseudomonadati",
+            "Pseudomonadota",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ]
         lca, rank = lca_of_lineages([l1, l2])
         assert rank == "NA"
-        assert all(v == "" for v in lca)
+        # nothing shared: every rank lists what the hits gave
+        assert lca[RANKS.index("domain")] == "Bacteria; Eukaryota"
+        assert lca[RANKS.index("phylum")] == "Chordata; Pseudomonadota"
+        assert lca[RANKS.index("species")] == "Gadus_morhua"
 
     def test_lca_empty(self):
         lca, rank = lca_of_lineages([])
@@ -171,6 +200,7 @@ class TestLcaStage:
     def test_lca_subspecies_with_species(self):
         l1 = [
             "Eukaryota",
+            "Metazoa",
             "Chordata",
             "Actinopteri",
             "Gadiformes",
@@ -180,6 +210,7 @@ class TestLcaStage:
         ]
         l2 = [
             "Eukaryota",
+            "Metazoa",
             "Chordata",
             "Actinopteri",
             "Gadiformes",
@@ -194,6 +225,7 @@ class TestLcaStage:
     def test_lca_single_lineage(self):
         lineage = [
             "Eukaryota",
+            "Metazoa",
             "Chordata",
             "Actinopteri",
             "Gadiformes",
@@ -205,6 +237,7 @@ class TestLcaStage:
         assert rank == "species"
         assert lca == [
             "Eukaryota",
+            "Metazoa",
             "Chordata",
             "Actinopteri",
             "Gadiformes",
@@ -216,6 +249,7 @@ class TestLcaStage:
     def test_lca_missing_middle_rank(self):
         l1 = [
             "Eukaryota",
+            "Metazoa",
             "Chordata",
             "Actinopteri",
             "",
@@ -225,6 +259,7 @@ class TestLcaStage:
         ]
         l2 = [
             "Eukaryota",
+            "Metazoa",
             "Chordata",
             "Actinopteri",
             "",
@@ -242,6 +277,7 @@ class TestLcaStage:
     def test_lca_intraspecific_assignment(self):
         lineage = [
             "Eukaryota",
+            "Metazoa",
             "Chordata",
             "Actinopteri",
             "Gadiformes",
@@ -344,7 +380,8 @@ class TestLcaStage:
         output = pd.read_csv(lca_stage.outfile)
         row = output.loc[output["qseqid"] == "Zotu1"].iloc[0]
         assert row["lca_rank"] == "genus"
-        assert pd.isna(row["species"])
+        assert row["genus"] == "Gadus"
+        assert row["species"] == "Gadus_chalcogrammus; Gadus_morhua"
 
     def test_run_lca_tight_tol_pct_excludes_low_score_hit(
         self, lca_stage, tmp_dirs
@@ -487,3 +524,41 @@ class TestLcaStage:
 
         assert result is False
         lca_stage.config.logger.error.assert_called()
+
+
+def test_lca_merges_repeated_names_once():
+    """Three hits, two genera: each collapsed name is listed once."""
+    base = [
+        "Eukaryota",
+        "Metazoa",
+        "Chordata",
+        "Actinopteri",
+        "Gadiformes",
+        "Gadidae",
+    ]
+    lineages = [
+        base + ["Gadus", "Gadus_morhua"],
+        base + ["Gadus", "Gadus_morhua"],
+        base + ["Pollachius", "Pollachius_virens"],
+    ]
+    lca, rank = lca_of_lineages(lineages)
+    assert rank == "family"
+    assert lca[RANKS.index("genus")] == "Gadus; Pollachius"
+    assert lca[RANKS.index("species")] == "Gadus_morhua; Pollachius_virens"
+
+
+def test_lca_missing_species_keeps_given_names():
+    """Species missing in one hit stops the LCA at genus; the species the
+    other hits give are kept."""
+    base = [
+        "Eukaryota",
+        "Metazoa",
+        "Chordata",
+        "Actinopteri",
+        "Gadiformes",
+        "Gadidae",
+        "Gadus",
+    ]
+    lca, rank = lca_of_lineages([base + ["Gadus_morhua"], base + [""]])
+    assert rank == "genus"
+    assert lca[RANKS.index("species")] == "Gadus_morhua"

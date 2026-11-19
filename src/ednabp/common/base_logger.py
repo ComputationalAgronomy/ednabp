@@ -23,7 +23,7 @@ def get_file_handler(log_path):
 
 
 def close_file_handler(logger):
-    for handler in logger.handlers:
+    for handler in list(logger.handlers):
         if isinstance(handler, logging.FileHandler):
             logger.removeHandler(handler)
             handler.close()

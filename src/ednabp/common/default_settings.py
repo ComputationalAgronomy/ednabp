@@ -110,8 +110,10 @@ SETTINGS = {
         "qcov_hsp_perc": 90,
         "perc_identity": 90,
         "maxhitnum": 20,
-        "specifiers": "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs",
+        "specifiers": "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs staxids",
         "blast_db": "nt",
+        "task": "megablast",
+        "taxids": None,
     },
     "addlineage": {
         "lineage_db": "nucleotide",

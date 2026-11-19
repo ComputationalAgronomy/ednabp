@@ -78,8 +78,8 @@ class TestClusterOntStage:
         tmp = os.path.join(out_dir, "s1_cluster_ont_tmp")
         assert stage.runners[0].command == (
             f"vsearch --cluster_fast {infile} --id 0.9 --strand plus"
-            f" --threads 4 --uc {tmp}/clusters.uc"
-            f" --consout {tmp}/draft_consensus.fasta"
+            f" --threads 4 --uc {os.path.join(tmp, 'clusters.uc')}"
+            f" --consout {os.path.join(tmp, 'draft_consensus.fasta')}"
         )
         assert stage.runners[2].prog_name == (
             "Polish cluster consensus sequences"

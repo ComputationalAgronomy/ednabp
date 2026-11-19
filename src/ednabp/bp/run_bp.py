@@ -16,6 +16,7 @@ from .step_exec import (
     fqtofa,
     lca,
     merge,
+    qfilter,
 )
 
 STAGE_INPUT_SUFFIX = {
@@ -23,6 +24,7 @@ STAGE_INPUT_SUFFIX = {
     "merge": "_R1.fastq",
     "cutprimer": ".fastq",
     "fqtofa": ".fastq",
+    "qfilter": ".fastq",
     "dereplicate": ".fasta",
     "denoise": ".fasta",
     "cluster": ".fasta",
@@ -47,8 +49,9 @@ class BioPipeline:
 
         :param input_path (str): The input path for raw sequences. This can be either a directory containing files or the path to a single file.
         :param output_path (str): The directory where output files will be saved.
-        :param enabled_stages (list[str]): The process stages to be executed. The execution order will match the list order. Default:
-         ["decompress", "merge", "cutprimer", "fqtofa", "dereplicate", "denoise", "blast", "addlineage", "addhap"] (all stages will be run).
+        :param enabled_stages (list[str]): The process stages to be executed. The execution order will match the list order; each stage runs for all samples before the next one. Default:
+         ["decompress", "merge", "cutprimer", "qfilter", "dereplicate", "denoise", "blast", "addlineage", "lca", "addhap"].
+         "fqtofa" converts FASTQ to FASTA without filtering and can replace "qfilter".
         :param settings: Additional optional arguments to configure pipeline stages and runtime behavior. These include:
           Input File Suffix:
             - raw_suffix (str): File suffix for raw input sequences. Default: auto-detected from the starting stage.
@@ -64,6 +67,11 @@ class BioPipeline:
             - min_read_len (int): Discard processed reads that are shorter than this parameter. Default: 204.
             - max_read_len (int): Discard processed reads that are longer than this parameter. Default: 254.
             - revcomp (bool): If True, also search the reverse complement of each read for primer matches and output reads in the orientation where the primer was found. Default: True.
+
+          Quality Filter Settings:
+            - min_qscore (float): Keep reads whose expected number of errors per base (mean Phred error probability) is at most that of this quality score; converted to usearch -fastq_maxee_rate as 10^(-min_qscore/10), e.g. Q20 -> 0.01 (1.7 expected errors in a 170 bp read), Q30 -> 0.001. Default: 30.
+            - max_qscore (int): Highest quality score in the reads (usearch -fastq_qmax); usearch stops on a higher score (93 is the highest FASTQ can store). Default: 70.
+            - maxns (int): Discard reads with more Ns than this value. Default: None (no limit).
 
           Dereplicate Setting:
             - strand (bool): If True, treat a sequence and its reverse complement as duplicates during dereplication (-strand both). If False, only the forward strand is considered (-strand plus). Default: True.
@@ -112,7 +120,7 @@ class BioPipeline:
             - otu_dir (str): Path to the directory containing the OTU/ZOTU FASTA (<prefix>.fasta) and OTU table (<prefix>_otu_table.txt) used by addhap. Default: the output directory of the enabled denoise, cluster or cluster_ont stage (denoise if none is enabled).
 
           External Program Setting:
-            - usearch_prog (str): Command to execute USEARCH for merge, dereplicate, denoise, and cluster stages, and the OTU table of cluster_ont. Default: "usearch".
+            - usearch_prog (str): Command to execute USEARCH for merge, qfilter, dereplicate, denoise, and cluster stages, and the OTU table of cluster_ont. Default: "usearch".
             - cutadapt_prog (str): Command to execute Cutadapt for cutprimer stage. Default: "cutadapt".
             - blast_prog (str): Command to execute BLAST for blast stage. Default: "blastn".
             - vsearch_prog, minimap2_prog, racon_prog, medaka_prog (str): Commands for the cluster_ont stage. Defaults: "vsearch", "minimap2", "racon", "medaka_consensus".
@@ -156,6 +164,7 @@ class BioPipeline:
             "merge": merge.MergeStage,
             "cutprimer": cutprimer.CutPrimerStage,
             "fqtofa": fqtofa.FqToFaStage,
+            "qfilter": qfilter.QFilterStage,
             "dereplicate": dereplicate.DereplicateStage,
             "denoise": denoise.DenoiseStage,
             "cluster": cluster.ClusterStage,
@@ -182,6 +191,9 @@ class BioPipeline:
         }
         self.cutprimer_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["cutprimer"].items()
+        }
+        self.qfilter_settings = {
+            k: settings.get(k, v) for k, v in SETTINGS["qfilter"].items()
         }
         self.dereplicate_settings = {
             k: settings.get(k, v) for k, v in SETTINGS["dereplicate"].items()
@@ -263,15 +275,15 @@ class BioPipeline:
                         f"The in_suffix '{curr_suffix}' does not match the expected format (.gz) for the 'decompress' stage."
                         "Skipping the stage"
                     )
-            elif stage == "fqtofa":
+            elif stage in ["fqtofa", "qfilter"]:
                 m = re.match(r".*\.(fastq|fq)$", curr_suffix)
                 if m is not None:
-                    self.stage_suffix["fqtofa"] = curr_suffix.replace(
+                    self.stage_suffix[stage] = curr_suffix.replace(
                         m.group(1), "fasta"
                     )
                 else:
                     self.config.logger.warning(
-                        f"The in_suffix '{curr_suffix}' does not match the expected format (.fq/.fastq) for the 'fqtofa' stage."
+                        f"The in_suffix '{curr_suffix}' does not match the expected format (.fq/.fastq) for the '{stage}' stage."
                         "Skipping the stage"
                     )
                     continue
@@ -286,6 +298,7 @@ class BioPipeline:
 
             if stage in [
                 "merge",
+                "qfilter",
                 "dereplicate",
                 "denoise",
                 "cluster",
@@ -306,6 +319,7 @@ class BioPipeline:
             if stage in [
                 "merge",
                 "cutprimer",
+                "qfilter",
                 "dereplicate",
                 "denoise",
                 "blast",
@@ -335,6 +349,7 @@ class BioPipeline:
                 ]:
                     stage_args[f"{prog}_prog"] = self.prog_settings[prog]
 
+            self.stage_in_dir[stage] = curr_dir
             self.stages[stage] = self.stage_class[stage](**stage_args)
 
             curr_dir = self.stage_dir[stage]

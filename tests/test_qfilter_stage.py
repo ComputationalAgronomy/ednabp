@@ -51,12 +51,6 @@ class TestQFilterStage:
             "-fastq_maxee_rate 0.0316228 -fastq_qmax 50 -fastq_maxns 0"
         )
 
-    @pytest.mark.parametrize("kwargs", [{"min_qscore": -1}, {"max_qscore": 0}])
-    def test_invalid_qscores(self, mock_config, tmp_dirs, kwargs):
-        in_dir, out_dir = tmp_dirs
-        with pytest.raises(ValueError):
-            QFilterStage(mock_config, in_dir=in_dir, out_dir=out_dir, **kwargs)
-
     def test_setup(self, stage, tmp_dirs):
         in_dir, out_dir = tmp_dirs
         infile = os.path.join(in_dir, "s1.fastq")

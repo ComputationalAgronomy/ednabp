@@ -261,6 +261,7 @@ class BioPipeline:
 
     def setup_stages(self):
         self.stages = {}
+        self.stage_in_dir = {}
         curr_dir = self.indir_path
         curr_suffix = self.stage_suffix["raw"]
         for stage in self.enabled_stages:

@@ -8,7 +8,6 @@ import duckdb
 import pandas as pd
 
 from ..common import base_logger
-from ..common.default_settings import SETTINGS as DEFAULT_SETTINGS
 
 FILL_NA = "N/A"
 
@@ -33,44 +32,66 @@ class SingleBPData:
         "class",
         "phylum",
         "kingdom",
+        "domain",
     ]
 
-    def __init__(self, taxa_csv: str):
+    def __init__(self, taxa_csv: str | None = None, sample_id=None):
+        """
+        :param taxa_csv: addhap output of one sample.
+        :param sample_id: The sample's abundance column, used if the table
+            has no "size" column (addhap names the column after the sample).
+        """
         self.hap_seq = {}
         self.hap_size = {}
         self.hap2level = {}
-        self._read_csv(taxa_csv)
+        if taxa_csv is not None:
+            self._read_csv(taxa_csv, sample_id)
+
+    @classmethod
+    def from_frame(cls, df: pd.DataFrame, size_column: str = "size"):
+        """
+        Build from a taxa table already in memory; `size_column` holds the
+        abundances (a sample's column of a pooled table).
+        """
+        data = cls()
+        data._load_frame(df, size_column)
+        return data
 
     @base_logger.prog_log(prog_name="Read Taxa CSV")
-    def _read_csv(self, taxa_csv: str):
+    def _read_csv(self, taxa_csv: str, sample_id=None):
         try:
             df = pd.read_csv(taxa_csv)
             if df.empty:
                 base_logger.logger.warning("Taxa CSV is empty")
                 return
-
-            # Read sequences if available
-            if "zotu" in df.columns:
-                self.hap_seq = dict(
-                    zip(df["qseqid"], df["zotu"], strict=False)
-                )
-
-            # Read sizes if available
-            if "size" in df.columns:
-                self.hap_size = dict(
-                    zip(df["qseqid"], df["size"], strict=False)
-                )
-
-            # Read taxonomy levels
-            available_levels = [
-                col for col in self.DESIRED_LEVELS if col in df.columns
-            ]
-            if available_levels:
-                df_indexed = df.set_index("qseqid")[available_levels]
-                self.hap2level = df_indexed.to_dict("index")
-
+            df.columns = [str(c) for c in df.columns]
+            size_column = "size"
+            if "size" not in df.columns and str(sample_id) in df.columns:
+                size_column = str(sample_id)
+            self._load_frame(df, size_column)
         except (pd.errors.EmptyDataError, FileNotFoundError) as e:
             base_logger.logger.warning(f"Error reading taxa CSV: {e}")
+
+    def _load_frame(self, df: pd.DataFrame, size_column: str = "size"):
+        # Read sequences if available
+        if "sequence" in df.columns:
+            self.hap_seq = dict(
+                zip(df["qseqid"], df["sequence"], strict=False)
+            )
+
+        # Read sizes if available
+        if size_column in df.columns:
+            self.hap_size = dict(
+                zip(df["qseqid"], df[size_column], strict=False)
+            )
+
+        # Read taxonomy levels
+        available_levels = [
+            col for col in self.DESIRED_LEVELS if col in df.columns
+        ]
+        if available_levels:
+            df_indexed = df.set_index("qseqid")[available_levels]
+            self.hap2level = df_indexed.to_dict("index")
 
 
 class BPData:
@@ -120,6 +141,70 @@ class BPData:
         self.read_sample_data(sample_id_list)
         self.sample_id_list.extend(self.import_sample_id_list)
 
+    @base_logger.prog_log(prog_name="Import pooled OTU table")
+    def import_otu_table(
+        self,
+        otu_table_path: str,
+        sample_id_list: list[str] | None = None,
+        min_count: int = 1,
+    ):
+        """
+        Import samples from one pooled taxa table (the pipeline's
+        `blast/_pooled.csv` when run with a pool stage). Each row is an
+        OTU; the columns after "sequence" are the samples' abundances.
+
+        Each sample keeps only the OTUs with at least `min_count` reads in
+        it, so that occurrence and richness count only OTUs present in the
+        sample. Raise `min_count` to drop low counts from cross-sample
+        leakage (tag jumping).
+
+        :param otu_table_path: Path to the pooled taxa table.
+        :param sample_id_list: Samples (columns) to import. If None, imports all.
+        :param min_count: Minimum abundance of an OTU in a sample. Default: 1.
+        """
+        df = pd.read_csv(otu_table_path)
+        if "sequence" not in df.columns:
+            raise ValueError(
+                f"{otu_table_path} has no 'sequence' column; the sample"
+                " columns follow it."
+            )
+        sample_columns = [
+            str(c)
+            for c in df.columns[list(df.columns).index("sequence") + 1 :]
+        ]
+        df.columns = [str(c) for c in df.columns]
+
+        requested = (
+            sample_columns if sample_id_list is None else sample_id_list
+        )
+        self.import_sample_id_list = []
+        self.results_dir = os.path.dirname(otu_table_path)
+        for sample_id in requested:
+            sample_id = str(sample_id)
+            if sample_id in self.sample_id_list:
+                self.logger.warning(
+                    f"Sample ID '{sample_id}' already exists in the current instance. "
+                    "Skipping import."
+                )
+                continue
+            if sample_id not in sample_columns:
+                self.logger.warning(
+                    f"Sample ID '{sample_id}' is not a column of {otu_table_path}. "
+                    "Skipping import."
+                )
+                continue
+            present = df[df[sample_id] >= max(min_count, 1)]
+            self.sample_data[sample_id] = SingleBPData.from_frame(
+                present, size_column=sample_id
+            )
+            self.import_sample_id_list.append(sample_id)
+
+        self.logger.info(
+            f"Imported {len(self.import_sample_id_list)} samples from"
+            f" {otu_table_path}."
+        )
+        self.sample_id_list.extend(self.import_sample_id_list)
+
     @base_logger.prog_log(prog_name="Import sample sequence data")
     def read_sample_data(self, sample_id_list: list[str] | None):
         if sample_id_list is None:
@@ -134,7 +219,7 @@ class BPData:
             taxa_file = os.path.join(
                 self.results_dir, f"{sample_id}{self.file_suffix}"
             )
-            self.sample_data[sample_id] = SingleBPData(taxa_file)
+            self.sample_data[sample_id] = SingleBPData(taxa_file, sample_id)
 
     def add_unspecified_sample_id_list(self):
         self.logger.info(
@@ -358,7 +443,7 @@ class BPData:
     def validate_input_object(self, data_object: object) -> None:
         if not isinstance(data_object, BPData):
             self.logger.error(
-                "FAIL: Input object must be an instance of BPData or MitoData."
+                "FAIL: Input object must be an instance of BPData."
             )
             sys.exit(1)
 

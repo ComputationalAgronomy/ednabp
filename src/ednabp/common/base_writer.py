@@ -1,11 +1,11 @@
 from abc import ABC
 
 from ..common import base_logger, config
-from ..data import BPData, MitoData
+from ..data import BPData
 
 
 class BaseWriter(ABC):
-    def __init__(self, data: BPData | MitoData | None, verbose: bool):
+    def __init__(self, data: BPData | None, verbose: bool):
         self.sample_id_used = None
         self.config = config.Config()
         self.config.verbose = verbose
@@ -13,7 +13,7 @@ class BaseWriter(ABC):
             self.import_data(data)
 
     def import_data(self, data):
-        if not isinstance(data, BPData | MitoData):
+        if not isinstance(data, BPData):
             raise ValueError("data must be an instance of BPData or MitoData")
         if not hasattr(data, "sample_data"):
             raise ValueError(

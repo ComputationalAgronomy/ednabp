@@ -55,7 +55,7 @@ class DecompressStage(stage_builder.StageBuilder):
 
 
 def decompress_demo(config, prefix, fastq_dir="", save_dir=""):
-    stage = DecompressStage(config, fastq_dir, save_dir)
+    stage = DecompressStage(config, in_dir=fastq_dir, out_dir=save_dir)
     stage.setup(prefix)
     is_complete = stage.run()
     return is_complete

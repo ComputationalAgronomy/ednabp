@@ -70,7 +70,7 @@ class DenoiseStage(stage_builder.StageBuilder):
         return all(self.output)
 
 
-def fq_to_fa_demo(config, prefix, derep_dir="", save_dir=""):
+def denoise_demo(config, prefix, derep_dir="", save_dir=""):
     stage = DenoiseStage(config, in_dir=derep_dir, out_dir=save_dir)
     stage.setup(prefix)
     is_complete = stage.run()
